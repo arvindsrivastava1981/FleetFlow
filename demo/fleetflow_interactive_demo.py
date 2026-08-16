@@ -56,14 +56,25 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
-    # Pre-seed initial demo trip if database is fresh
+    # Migration helper: ensure new columns exist in older database files
+    try:
+        c.execute("ALTER TABLE expenses ADD COLUMN manager_status TEXT DEFAULT 'PENDING'")
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        c.execute("ALTER TABLE expenses ADD COLUMN station_name TEXT")
+    except sqlite3.OperationalError:
+        pass
+
+    # Pre-seed initial demo trip if database is empty
     c.execute("SELECT count(*) as count FROM trips")
     if c.fetchone()["count"] == 0:
         c.execute('''INSERT INTO trips 
                      (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status) 
                      VALUES ('TRIP-101', 'UP-93-AT-1234', 'Ramesh Kumar', '+91 98765 43210', 25000, 102400, 102400, 'ACTIVE')''')
         
-        # Pre-seed standard test transactions
+        # Pre-seed sample transactions
         c.execute('''INSERT INTO expenses (trip_code, exp_type, amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status) 
                      VALUES ('TRIP-101', 'FUEL', 4500, 50, 90.0, 102600, 'Indian Oil Highway Pump', 0, '', 'APPROVED')''')
         c.execute('''INSERT INTO expenses (trip_code, exp_type, amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status) 
@@ -305,7 +316,7 @@ def index(trip_code: str = None):
                     
                     <div class="space-y-4">
                         
-                        <!-- Trip Selector & Live Summary Bar -->
+                        <!-- Trip Summary Bar -->
                         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                             <div class="flex flex-wrap justify-between items-center gap-2 border-b pb-3">
                                 <div>
@@ -320,7 +331,7 @@ def index(trip_code: str = None):
 
                                 <div class="text-right">
                                     <span class="text-[10px] uppercase font-bold text-slate-400 block">Initial Advance</span>
-                                    <span class="text-lg font-black text-slate-900">₹{active_trip['advance_amount']:,.2f if active_trip else 0.0}</span>
+                                    <span class="text-lg font-black text-slate-900">₹{(active_trip['advance_amount'] if active_trip else 0.0):,.2f}</span>
                                 </div>
                             </div>
 
@@ -391,7 +402,7 @@ def index(trip_code: str = None):
 
                     </div>
 
-                    <!-- Bottom Action Bar: Complete Trip & Generate Settlement PDF -->
+                    <!-- Bottom Action Bar: 1-Click Settlement PDF -->
                     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-3">
                         <div>
                             <span class="text-[10px] font-bold uppercase text-slate-400 block">Final Settlement Due</span>
