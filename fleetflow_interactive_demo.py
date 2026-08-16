@@ -14,6 +14,7 @@ from reportlab.lib import colors
 from utils import (
     get_db, fmt_dt, is_admin, render_header, render_footer, render_sidebar,
     evaluate_rules, ADMIN_PASSWORD, ADMIN_COOKIE, _admin_sessions,
+    BENCHMARK_PRICE, TANK_CAPACITY, EXPECTED_KML, DEF_RATE_MAX, DEF_MIN_RATIO_PCT, DEF_MAX_RATIO_PCT,
 )
 import secrets
 
@@ -205,6 +206,214 @@ def settled_pdf_listing(request: Request):
                         <p class="text-xs text-slate-500">Open settlement reconciliation PDFs for completed trips.</p>
                     </div>
                     <div class="space-y-3">{pdf_rows if pdf_rows else '<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">No settled trips yet.</div>'}</div>
+                </main>
+            </div>
+            {render_footer()}
+        </div>
+    </body></html>'''
+
+@app.get("/fuel-benchmarks", response_class=HTMLResponse)
+def fuel_benchmarks_page(request: Request, edit_id: int = None):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM fuel_benchmarks ORDER BY state_name ASC")
+    benchmarks = c.fetchall()
+    editing = None
+    if edit_id:
+        c.execute("SELECT * FROM fuel_benchmarks WHERE id = %s", (edit_id,))
+        editing = c.fetchone()
+    conn.close()
+
+    rows_html = ''.join([f'''
+        <tr class="border-b border-slate-100 hover:bg-slate-50">
+            <td class="p-3 text-xs font-bold text-slate-800">{b['state_code']}</td>
+            <td class="p-3 text-xs text-slate-600">{b['state_name']}</td>
+            <td class="p-3 text-xs text-slate-600">₹{b['benchmark_price_per_liter']:,.2f}</td>
+            <td class="p-3 text-xs text-slate-600">{b['tolerance_pct']}%</td>
+            <td class="p-3 text-xs text-slate-400">{b['effective_date']}</td>
+            <td class="p-3 text-xs flex gap-3">
+                <a href="/fuel-benchmarks?edit_id={b['id']}" class="text-sky-600 hover:text-sky-800 font-semibold">Edit</a>
+                <a href="/fuel-benchmarks/delete?id={b['id']}" onclick="return confirm('Delete this benchmark?')" class="text-rose-600 hover:text-rose-800 font-semibold">Delete</a>
+            </td>
+        </tr>''' for b in benchmarks])
+
+    form_action = "/fuel-benchmarks/edit" if editing else "/fuel-benchmarks/add"
+    form_title = f"Edit Benchmark: {editing['state_name']}" if editing else "Add New Benchmark"
+    id_field = f'<input type="hidden" name="id" value="{editing["id"]}">' if editing else ''
+    cancel_link = '<a href="/fuel-benchmarks" class="text-xs text-slate-400 hover:text-slate-600 ml-2">Cancel edit</a>' if editing else ''
+
+    return f'''<!DOCTYPE html>
+    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Fuel Benchmarks</title><script src="https://cdn.tailwindcss.com"></script></head>
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
+        <div class="max-w-7xl mx-auto space-y-6">
+            {render_header(authenticated=True)}
+            <div class="flex flex-col lg:flex-row gap-4">
+                {render_sidebar("fuel-benchmarks")}
+                <main class="flex-1 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900">Fuel Benchmarks</h2>
+                        <p class="text-xs text-slate-500">State-wise diesel price references used by the rules engine's price-band check.</p>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                        <h3 class="text-sm font-extrabold text-slate-800 mb-3">{form_title}{cancel_link}</h3>
+                        <form action="{form_action}" method="post" class="grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                            {id_field}
+                            <div>
+                                <label class="text-[11px] font-semibold text-slate-500 block mb-1">State Code</label>
+                                <input name="state_code" required maxlength="10" value="{editing['state_code'] if editing else ''}" placeholder="UP" class="w-full text-sm border rounded-lg p-2 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-semibold text-slate-500 block mb-1">State Name</label>
+                                <input name="state_name" required maxlength="50" value="{editing['state_name'] if editing else ''}" placeholder="Uttar Pradesh" class="w-full text-sm border rounded-lg p-2 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-semibold text-slate-500 block mb-1">Price ₹/L</label>
+                                <input name="benchmark_price_per_liter" type="number" step="0.01" required value="{editing['benchmark_price_per_liter'] if editing else ''}" placeholder="90.50" class="w-full text-sm border rounded-lg p-2 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-semibold text-slate-500 block mb-1">Tolerance %</label>
+                                <input name="tolerance_pct" type="number" step="0.01" value="{editing['tolerance_pct'] if editing else '8.0'}" placeholder="8.0" class="w-full text-sm border rounded-lg p-2 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-semibold text-slate-500 block mb-1">Effective Date</label>
+                                <input name="effective_date" type="date" value="{editing['effective_date'] if editing else ''}" class="w-full text-sm border rounded-lg p-2 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
+                            </div>
+                            <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 py-2 rounded-xl text-sm transition shadow col-span-2 md:col-span-1">
+                                {'Save Changes' if editing else '➕ Add Benchmark'}
+                            </button>
+                        </form>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Code</th>
+                                    <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">State</th>
+                                    <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Benchmark Price</th>
+                                    <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Tolerance</th>
+                                    <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Effective Date</th>
+                                    <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {rows_html if benchmarks else '<tr><td colspan="6" class="p-6 text-center text-xs text-slate-400">No fuel benchmarks yet.</td></tr>'}
+                            </tbody>
+                        </table>
+                    </div>
+                </main>
+            </div>
+            {render_footer()}
+        </div>
+    </body></html>'''
+
+@app.post("/fuel-benchmarks/add")
+def fuel_benchmarks_add(request: Request, state_code: str = Form(...), state_name: str = Form(...),
+                         benchmark_price_per_liter: float = Form(...), tolerance_pct: float = Form(8.0),
+                         effective_date: str = Form(None)):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    if effective_date:
+        c.execute("""INSERT INTO fuel_benchmarks (state_code, state_name, benchmark_price_per_liter, tolerance_pct, effective_date)
+                     VALUES (%s, %s, %s, %s, %s)""",
+                  (state_code.strip().upper(), state_name.strip(), benchmark_price_per_liter, tolerance_pct, effective_date))
+    else:
+        c.execute("""INSERT INTO fuel_benchmarks (state_code, state_name, benchmark_price_per_liter, tolerance_pct)
+                     VALUES (%s, %s, %s, %s)""",
+                  (state_code.strip().upper(), state_name.strip(), benchmark_price_per_liter, tolerance_pct))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(url="/fuel-benchmarks", status_code=303)
+
+@app.post("/fuel-benchmarks/edit")
+def fuel_benchmarks_edit(request: Request, id: int = Form(...), state_code: str = Form(...), state_name: str = Form(...),
+                          benchmark_price_per_liter: float = Form(...), tolerance_pct: float = Form(8.0),
+                          effective_date: str = Form(None)):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""UPDATE fuel_benchmarks
+                 SET state_code = %s, state_name = %s, benchmark_price_per_liter = %s,
+                     tolerance_pct = %s, effective_date = COALESCE(%s, effective_date)
+                 WHERE id = %s""",
+              (state_code.strip().upper(), state_name.strip(), benchmark_price_per_liter, tolerance_pct, effective_date, id))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(url="/fuel-benchmarks", status_code=303)
+
+@app.get("/fuel-benchmarks/delete")
+def fuel_benchmarks_delete(request: Request, id: int):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("DELETE FROM fuel_benchmarks WHERE id = %s", (id,))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(url="/fuel-benchmarks", status_code=303)
+
+@app.get("/rule-engine", response_class=HTMLResponse)
+def rule_engine_page(request: Request):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+
+    def rule_card(exp_type: str, badge_color: str, rules: list[str]) -> str:
+        rule_items = ''.join(f'<li class="text-xs text-slate-600 leading-relaxed">{r}</li>' for r in rules)
+        return f'''
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {badge_color}">{exp_type}</span>
+            <ul class="list-disc list-inside mt-3 space-y-1.5">{rule_items}</ul>
+        </div>'''
+
+    cards = ''.join([
+        rule_card("FUEL", "bg-amber-100 text-amber-800", [
+            f"<b>Math integrity:</b> flags if Amount differs from Liters × Rate by more than ₹10.",
+            f"<b>Price benchmark:</b> flags if rate is outside ₹82–₹98/L band (base ₹{BENCHMARK_PRICE}/L).",
+            f"<b>Tank capacity:</b> flags if claimed liters exceed {TANK_CAPACITY:.0f}L max tank size.",
+            f"<b>Odometer rollback:</b> flags if new odometer reading is less than the previous fuel reading.",
+            f"<b>Mileage check:</b> flags if calculated km/L falls below 70% of expected {EXPECTED_KML:.1f} km/L (i.e. under 2.8 km/L).",
+        ]),
+        rule_card("TOLL", "bg-rose-100 text-rose-800", [
+            "Always flagged — cash toll claims are disallowed on FASTag-mandated corridors.",
+        ]),
+        rule_card("REPAIR", "bg-orange-100 text-orange-800", [
+            "Flags any repair claim above ₹3,000 as requiring owner pre-approval.",
+        ]),
+        rule_card("CHALLAN", "bg-rose-100 text-rose-800", [
+            "Always flagged — traffic challans must be verified against the e-challan portal.",
+        ]),
+        rule_card("DEF", "bg-indigo-100 text-indigo-800", [
+            f"<b>Price benchmark:</b> flags if DEF/AdBlue rate exceeds ₹{DEF_RATE_MAX:.0f}/L ceiling.",
+            f"<b>Consumption ratio:</b> flags if cumulative DEF volume falls outside {DEF_MIN_RATIO_PCT:.0f}–{DEF_MAX_RATIO_PCT:.0f}% of cumulative diesel volume.",
+        ]),
+        rule_card("RTO-FINE", "bg-rose-100 text-rose-800", [
+            "Always flagged — RTO fines always require owner review.",
+        ]),
+    ])
+
+    return f'''<!DOCTYPE html>
+    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Rule Engine</title><script src="https://cdn.tailwindcss.com"></script></head>
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
+        <div class="max-w-7xl mx-auto space-y-6">
+            {render_header(authenticated=True)}
+            <div class="flex flex-col lg:flex-row gap-4">
+                {render_sidebar("rule-engine")}
+                <main class="flex-1 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900">Rule Engine</h2>
+                        <p class="text-xs text-slate-500">Automated checks applied to every expense claim via WhatsApp simulation, grouped by expense type.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {cards}
+                    </div>
                 </main>
             </div>
             {render_footer()}
@@ -537,14 +746,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                         <div>
                             <span class="text-[10px] font-bold uppercase text-slate-400 block">Final Settlement Due</span>
                             <span class="text-base font-black text-emerald-700">₹{remaining_advance:,.2f} to recover</span>
-                        </div>
-                        
-                        <div class="flex items-center gap-2">
-                            <a href="/generate-settlement-pdf?trip_code={active_trip['trip_code'] if active_trip else ''}" target="_blank" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow flex items-center gap-1.5">
-                                📄 Generate 1-Click Settlement PDF
-                            </a>
-                            {f'''<a href="/settle-trip?trip_code={active_trip['trip_code']}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow">✅ Settle Trip</a>''' if active_trip and pending_expenses == 0 else f'''<span class="text-[10px] text-amber-700 font-semibold">{pending_expenses} review(s) pending</span>''' if active_trip else ''}
-                        </div>
+                        </div>                        
                     </div>
 
                 </div>
@@ -736,8 +938,7 @@ def admin_login_form(error: str = None):
                 <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
                     Login
                 </button>
-            </form>
-            <a href="/" class="block text-center text-xs text-slate-400 hover:text-slate-600">← Back to Dashboard</a>
+            </form>            
             </div>
             </main>
             {render_footer()}

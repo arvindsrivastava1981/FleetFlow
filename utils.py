@@ -72,6 +72,8 @@ def render_sidebar(active: str) -> str:
             {nav_link("/dashboard", "Dashboard", "📊", "dashboard")}
             {nav_link("/trips", "Trips", "🧾", "trips")}
             {nav_link("/settled-pdfs", "Settled PDFs", "📄", "settled-pdfs")}
+            {nav_link("/fuel-benchmarks", "Fuel Benchmarks", "⛽", "fuel-benchmarks")}
+            {nav_link("/rule-engine", "Rule Engine", "⚙️", "rule-engine")}
             {nav_link("/logout", "Logout", "🚪", "logout")}
         </aside>'''
 
