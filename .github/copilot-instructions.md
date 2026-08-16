@@ -11,9 +11,9 @@
 
 ## Repository
 - Python 3.12, FastAPI, uvicorn, psycopg2, reportlab, and python-dotenv.
-- Active app: `demo/fleetflow_interactive_demo.py`; frontend HTML is server-rendered with Tailwind CDN.
+- Active app: `fleet  flow_interactive_demo.py`; frontend HTML is server-rendered with Tailwind CDN.
 - PostgreSQL/Neon only. Use `psycopg2`, `%s` placeholders, and `fmt_dt(dt)` for timestamps.
-- No ORM, Alembic, SQLite, or application DDL. Schema changes require `demo/database/schema.sql`, `demo/database/incremental.sql`, and `APP_MINDMAP.md` for route/schema/core-flow changes.
+- No ORM, Alembic, SQLite, or application DDL. Schema changes require `database/schema.sql`, `/database/incremental.sql`, and `APP_MINDMAP.md` for route/schema/core-flow changes.
 - Do not add dependencies without approval or leave placeholders/TODOs.
 - Preserve user changes. Do not run, stage, push, commit, reset, or suggest Git commands.
 

@@ -6,11 +6,11 @@
 Ensure you have Python 3.9+ installed along with `pip`.
 
 ```bash
-pip install -r demo/requirements.txt
+pip install -r requirements.txt
 
 
-# Apply demo/database/schema.sql to your Neon PostgreSQL instance, then set DATABASE_URL in .env
+# Apply database/schema.sql to your Neon PostgreSQL instance, then set DATABASE_URL in .env
 
-python demo/fleetflow_interactive_demo.py
+python fleetflow_interactive_demo.py
 
 http://localhost:8000

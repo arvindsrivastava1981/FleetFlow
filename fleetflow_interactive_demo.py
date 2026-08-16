@@ -43,6 +43,30 @@ _admin_sessions: set[str] = set()
 def is_admin(request: Request) -> bool:
     token = request.cookies.get(ADMIN_COOKIE)
     return bool(token) and token in _admin_sessions
+def render_header(title: str, subtitle: str, authenticated: bool = False, actions: str = "") -> str:
+    auth_controls = (
+        f'''<span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>
+            <a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">🚪 Logout</a>'''
+        if authenticated else
+        '''<a href="/admin/login" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition">Login</a>'''
+    )
+    return f'''
+        <header class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">FF</div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight">{title}</h1>
+                    <p class="text-xs text-sky-400 font-medium">{subtitle}</p>
+                </div>
+            </div>
+            <nav class="flex items-center gap-3">{actions}{auth_controls}</nav>
+        </header>'''
+
+def render_footer() -> str:
+    return '''
+        <footer class="text-center text-xs text-slate-400 py-2">
+            FleetFlow · Expense verification and settlement
+        </footer>'''
 
 # --- MULTI-LAYER RULES ENGINE ---
 BENCHMARK_PRICE = 90.50 # State diesel price baseline (₹/L)
@@ -152,12 +176,10 @@ def trip_listing(request: Request):
     <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Trips</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-5xl mx-auto space-y-6">
-            <div class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
-                <div><p class="text-xs text-sky-400 font-bold uppercase tracking-wider">FleetFlow</p><h1 class="text-2xl font-extrabold">Trip Listing</h1><p class="text-xs text-slate-400 mt-1">Current and completed trips</p></div>
-                <div class="flex items-center gap-3"><span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>{start_trip_control}<a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2.5 rounded-xl transition">🚪 Logout</a></div>
-            </div>
-            <div class="flex items-center justify-between"><div><h2 class="text-lg font-extrabold text-slate-900">All trips</h2><p class="text-xs text-slate-500">Select a trip to open its complete ledger, audit thread, and settlement details.</p></div><span class="text-xs text-slate-400">{len(all_trips)} total</span></div>
+            {render_header("Trip Listing", "Current and completed trips", authenticated=True, actions=start_trip_control)}
+            <div class="flex items-center justify-between"><div><h2 class="text-lg font-extrabold text-slate-900">All Trips</h2><p class="text-xs text-slate-500">Select a trip to open its complete ledger, audit thread, and settlement details.</p></div><span class="text-xs text-slate-400">{len(all_trips)} total</span></div>
             <div class="space-y-3">{trip_rows if trip_rows else '<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">No trips yet. Start your first trip above.</div>'}</div>
+            {render_footer()}
         </div>
     </body></html>'''
 
@@ -214,21 +236,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
             
-            <!-- Top Navbar -->
-            <div class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
-                <div class="flex items-center space-x-3">
-                    <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">FF</div>
-                    <div>
-                        <h1 class="text-xl font-extrabold tracking-tight">FleetFlow</h1>
-                        <p class="text-xs text-sky-400 font-medium">Real-Time Expense Verification & Settlement Engine</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>
-                    <a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">🚪 Logout</a>
-                </div>
-                
-            </div>
+            {render_header("FleetFlow", "Real-Time Expense Verification & Settlement Engine", authenticated=True)}
 
             <!-- Main Workspace Grid: 3-Column Dual-WhatsApp Architecture -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -519,14 +527,19 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                         </div>
                     </div>
                     <div class="pt-2">
-                        <button type="submit" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl transition shadow">
-                            🚀 Start Trip & Send WhatsApp Alert
-                        </button>
+                        <div class="flex gap-2">
+                            <a href="/trips" class="flex-1 text-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl transition">Cancel</a>
+                            <button type="submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl transition shadow">
+                                🚀 Start Trip & Send WhatsApp Alert
+                            </button>
+                        </div>
                     </div>
                 </form>
             </div>
         </div>
 
+            {render_footer()}
+        </div>
     </body>
     </html>'''
     return html
@@ -643,8 +656,11 @@ def admin_login_form(error: str = None):
         <title>FleetFlow Admin Login</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
-    <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
+        <div class="max-w-5xl mx-auto space-y-6">
+            {render_header("FleetFlow", "Admin access", authenticated=False)}
+            <main class="min-h-[60vh] flex items-center justify-center">
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
             <div class="text-center space-y-1">
                 <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">FF</div>
                 <h1 class="text-lg font-extrabold text-slate-800">Admin Login</h1>
@@ -659,6 +675,9 @@ def admin_login_form(error: str = None):
                 </button>
             </form>
             <a href="/" class="block text-center text-xs text-slate-400 hover:text-slate-600">← Back to Dashboard</a>
+            </div>
+            </main>
+            {render_footer()}
         </div>
     </body>
     </html>'''
@@ -728,24 +747,7 @@ def admin_dashboard(request: Request):
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
-            <div class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
-                <div class="flex items-center space-x-3">
-                    <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">FF</div>
-                    <div>
-                        <h1 class="text-xl font-extrabold tracking-tight">FleetFlow Admin</h1>
-                        <p class="text-xs text-sky-400 font-medium">All Trips Overview</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>
-                    <a href="/" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">
-                        ← Dashboard
-                    </a>
-                    <a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">
-                        🚪 Logout
-                    </a>
-                </div>
-            </div>
+            {render_header("FleetFlow Admin", "All Trips Overview", authenticated=True, actions='''<a href="/" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">← Dashboard</a>''')}
 
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <table class="w-full text-left">
@@ -768,6 +770,7 @@ def admin_dashboard(request: Request):
                     </tbody>
                 </table>
             </div>
+            {render_footer()}
         </div>
     </body>
     </html>'''

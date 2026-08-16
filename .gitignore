@@ -37,13 +37,9 @@ venv.bak/
 # Environment Variables & Secrets
 .env
 .env.*
-!.env.example
 
-# Local SQLite Databases
-*.db
-*.sqlite3
-fleetflow.db
-fleetflow_demo.db
+
+
 
 # Generated PDFs & Export Artefacts (keep sample templates if tracked explicitly)
 *.pdf

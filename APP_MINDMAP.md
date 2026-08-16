@@ -4,13 +4,13 @@
 
 ## Stack
 - Backend: Python 3.12, FastAPI, uvicorn, reportlab (PDF), psycopg2-binary, python-dotenv.
-- Database: Managed PostgreSQL (Neon DB). No ORM, no Alembic. Schema lives only in `demo/database/schema.sql` (+ `demo/database/incremental.sql`). The app never runs DDL.
+- Database: Managed PostgreSQL (Neon DB). No ORM, no Alembic. Schema lives only in `/database/schema.sql` (+ `/database/incremental.sql`). The app never runs DDL.
 - Frontend: Server-rendered HTML strings (f-strings) styled with Tailwind CDN (`grid grid-cols-1 lg:grid-cols-12 gap-4`). No separate JS build.
 
 ## Entry Point
-- [demo/fleetflow_interactive_demo.py](demo/fleetflow_interactive_demo.py) — single-file FastAPI demo app, the active/primary prototype.
+- [/fleetflow_interactive_demo.py](/fleetflow_interactive_demo.py) — single-file FastAPI demo app, the active/primary prototype.
   - Run: `uvicorn fleetflow_interactive_demo:app` or `python fleetflow_interactive_demo.py` (binds `0.0.0.0:$PORT`, default 8080).
-  - Deps: [demo/requirements.txt](demo/requirements.txt).
+  - Deps: [/requirements.txt](/requirements.txt).
 - Legacy SQLite prototypes (`init_db.py`, `fleetflow_backend_core.py`) have been removed; do not reintroduce SQLite.
 
 ## Database Access Pattern (Postgres/Neon)
@@ -18,9 +18,9 @@
 - Global `DEC2FLOAT` type caster registered at startup so `NUMERIC` columns arrive as Python `float`, not `Decimal`.
 - Placeholders: `%s` only (never `?`).
 - `created_at`/timestamps are native `datetime` objects — always format via `fmt_dt(dt)` helper, never slice (`dt[:16]` crashes).
-- No `init_db()` / DDL in the app — schema + seed data are applied manually to Neon from `demo/database/schema.sql`.
+- No `init_db()` / DDL in the app — schema + seed data are applied manually to Neon from `/database/schema.sql`.
 
-### Core Tables (see [demo/database/schema.sql](demo/database/schema.sql))
+### Core Tables (see [/database/schema.sql](/database/schema.sql))
 - `trips` (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status, created_at, settled_at).
 - `expenses` (trip_code FK, exp_type: FUEL/TOLL/REPAIR/..., amount, liters, rate, odometer, is_flagged, flag_reason, manager_status: PENDING/APPROVED/REJECTED, created_at).
 

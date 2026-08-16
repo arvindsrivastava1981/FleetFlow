@@ -1,6 +1,6 @@
 
 -- ----------------------------------------------------------------------------
--- 7. SEED DATA FOR TESTING & DEMO
+-- 7. SEED DATA FOR TESTING PURPOSES
 -- ----------------------------------------------------------------------------
 INSERT INTO fleets (owner_name, phone, plan_rate)
 VALUES ('Arvind Srivastava', '+91 98765 00000', 799.00)
