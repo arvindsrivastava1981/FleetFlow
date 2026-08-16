@@ -18,7 +18,7 @@ Commercial fleet operators lose **up to 15% of margin** to fragmented, opaque tr
 * **Contextual Anomaly Engine:**
   * **Fuel Rate Cross-Check:** Flags rates outside benchmark bands (₹90.5/L baseline ±8%).
   * **Tank Capacity Overflow:** Blocks volume claims greater than physical vehicle capacity (e.g., >350L).
-  * **Mileage Skimming Detection:** Calculates real-time km/L deltas across consecutive odometer submissions and flags drops below threshold (e.g., <2.8 km/L).
+  * **Mileage Skimming Detection:** Calculates real-time $\text{km/L}$ deltas across consecutive odometer submissions and flags drops below threshold (e.g., <2.8 km/L).
   * **Toll Verification:** Automatically flags cash toll claims on 100% FASTag-mandated corridors.
 * **1-Click Settlement PDF:** Reconciles original cash advances against approved claims to produce an instant, signable balance sheet.
 
