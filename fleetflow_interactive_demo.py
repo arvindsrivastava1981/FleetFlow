@@ -169,6 +169,48 @@ def trip_listing(request: Request):
         </div>
     </body></html>'''
 
+@app.get("/settled-pdfs", response_class=HTMLResponse)
+def settled_pdf_listing(request: Request):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM trips WHERE status = 'SETTLED' ORDER BY settled_at DESC NULLS LAST, id DESC")
+    settled_trips = c.fetchall()
+    conn.close()
+
+    pdf_rows = ''.join(f'''
+        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h2 class="font-extrabold text-slate-900">{trip['trip_code']}</h2>
+                <p class="text-xs text-slate-500 mt-1">{trip['vehicle_no']} · {trip['driver_name']}</p>
+                <p class="text-[11px] text-slate-400 mt-2">Settled {fmt_dt(trip['settled_at']) if trip['settled_at'] else 'date unavailable'}</p>
+            </div>
+            <a href="/generate-settlement-pdf?trip_code={trip['trip_code']}" target="_blank" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow flex items-center gap-1.5">
+                📄 View Settlement PDF
+            </a>
+        </div>''' for trip in settled_trips)
+
+    return f'''<!DOCTYPE html>
+    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Settled PDFs</title><script src="https://cdn.tailwindcss.com"></script></head>
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
+        <div class="max-w-7xl mx-auto space-y-6">
+            {render_header(authenticated=True)}
+            <div class="flex flex-col lg:flex-row gap-4">
+                {render_sidebar("settled-pdfs")}
+                <main class="flex-1 space-y-4">
+                    <div>
+                        <h2 class="text-lg font-extrabold text-slate-900">Settled Trip PDFs</h2>
+                        <p class="text-xs text-slate-500">Open settlement reconciliation PDFs for completed trips.</p>
+                    </div>
+                    <div class="space-y-3">{pdf_rows if pdf_rows else '<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">No settled trips yet.</div>'}</div>
+                </main>
+            </div>
+            {render_footer()}
+        </div>
+    </body></html>'''
+
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, trip_code: str = None, new_trip: bool = False):
     if not is_admin(request):
@@ -259,7 +301,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                             <div class="flex flex-col items-end space-y-1">
                                 <div class="bg-[#d9fdd3] p-2.5 rounded-lg rounded-tr-none shadow-sm max-w-[85%] text-slate-800">
                                     <p class="font-bold text-[11px]">📸 Logged {e['exp_type']}: ₹{e['amount']:,.2f}</p>
-                                    <p class="text-[10px] text-slate-600">{f"{e['liters']}L @ ₹{e['rate']}/L | Odo: {e['odometer']} KM" if e['exp_type'] == 'FUEL' else f"Odo: {e['odometer']} KM"}</p>
+                                    <p class="text-[10px] text-slate-600">{f"{e['liters']}L @ ₹{e['rate']}/L | Odo: {e['odometer']} KM" if e['exp_type'] in ('FUEL', 'DEF') else f"Odo: {e['odometer']} KM"}</p>
                                 </div>
                             </div>
                             
@@ -275,29 +317,34 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
 
                         <!-- Interactive WhatsApp Input Box -->
                         <div class="p-3 bg-white border-t border-slate-200">
-                            <form action="/simulate-whatsapp" method="post" class="space-y-2.5">
+                            <form action="/simulate-whatsapp" method="post" class="space-y-2.5" id="expense-form">
                                 <input type="hidden" name="trip_code" value="{active_trip['trip_code'] if active_trip else ''}">
                                 
-                                <div class="grid grid-cols-3 gap-2">
+                                <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-[10px] font-bold text-slate-500 block">Type</label>
-                                        <select name="exp_type" class="w-full text-xs border rounded-lg p-1.5 bg-slate-50 outline-none">
+                                        <select name="exp_type" id="exp_type_select" onchange="ffToggleExpenseFields()" class="w-full text-xs border rounded-lg p-1.5 bg-slate-50 outline-none">
                                             <option value="FUEL">Diesel (डीजल)</option>
+                                            <option value="DEF">DEF / AdBlue / यूरिया</option>
                                             <option value="TOLL">Toll (टोल)</option>
                                             <option value="REPAIR">Repair (मरम्मत)</option>
+                                            <option value="CHALLAN">Challan (चालान)</option>
+                                            <option value="RTO-FINE">RTO Fine (आरटीओ जुर्माना)</option>
+                                            <option value="OTHER">Other (अन्य)</option>
                                         </select>
                                     </div>
                                     <div>
                                         <label class="text-[10px] font-bold text-slate-500 block">Amount (₹)</label>
                                         <input type="number" step="0.1" name="amount" required placeholder="4500" class="w-full text-xs border rounded-lg p-1.5 bg-slate-50 outline-none">
                                     </div>
-                                    <div>
-                                        <label class="text-[10px] font-bold text-slate-500 block">Odo (KM)</label>
-                                        <input type="number" step="0.1" name="odometer" placeholder="102750" class="w-full text-xs border rounded-lg p-1.5 bg-slate-50 outline-none">
-                                    </div>
                                 </div>
 
-                                <div class="grid grid-cols-2 gap-2">
+                                <div id="odometer-field">
+                                    <label class="text-[10px] font-bold text-slate-500 block">Odo (KM)</label>
+                                    <input type="number" step="0.1" name="odometer" placeholder="102750" class="w-full text-xs border rounded-lg p-1.5 bg-slate-50 outline-none">
+                                </div>
+
+                                <div id="fuel-fields" class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-[10px] font-bold text-slate-500 block">Liters (Fuel)</label>
                                         <input type="number" step="0.1" name="liters" placeholder="50" class="w-full text-xs border rounded-lg p-1.5 bg-slate-50 outline-none">
@@ -308,11 +355,41 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                     </div>
                                 </div>
 
+                                <div id="upload-hint" class="bg-sky-50 border border-sky-200 rounded-lg p-2 text-[10px] text-sky-900"></div>
+
                                 <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition shadow flex items-center justify-center gap-1.5">
                                     <span>📸</span> Send Expense via WhatsApp
                                 </button>
                             </form>
                         </div>
+
+                        <script>
+                            // Photo/proof requirement per expense type, shown to the driver before they "send" the claim
+                            const FF_UPLOAD_HINTS = {{
+                                FUEL: '📸 Upload: pump receipt/fuel bill + dashboard odometer photo. Used for OCR of volume/rate/amount and mileage (km/L) checks.',
+                                DEF: '📸 Upload: DEF/AdBlue pump slip or brand bucket receipt. Verifies vendor authenticity and consumption ratio vs diesel.',
+                                REPAIR: '📸 Dual-photo required: mechanic/garage invoice + photo of the replaced/damaged part. Prevents padded labor bills, especially above ₹3,000.',
+                                TOLL: '📸 Upload: printed cash toll plaza slip. Proves legitimate cash payment when FASTag failed or on an off-corridor toll road.',
+                                CHALLAN: '📸 Upload: official traffic challan/e-challan copy showing offense code and vehicle number.',
+                                'RTO-FINE': '📸 Upload: official RTO fine slip with offense code, vehicle registration and penalty amount. Validates statutory deductions.',
+                                OTHER: '📸 Upload: physical receipt (weighbridge/Dharam Kanta, parking token, entry fee, loading/unloading voucher) for reconciliation.'
+                            }};
+                            function ffToggleExpenseFields() {{
+                                const type = document.getElementById('exp_type_select').value;
+                                const fuelFields = document.getElementById('fuel-fields');
+                                const odoField = document.getElementById('odometer-field');
+                                // Liters/Rate apply to FUEL and DEF claims
+                                const showFuelFields = (type === 'FUEL' || type === 'DEF');
+                                fuelFields.style.display = showFuelFields ? 'grid' : 'none';
+                                fuelFields.querySelectorAll('input').forEach(i => {{ if (!showFuelFields) i.value = ''; }});
+                                // Odometer only relevant when tracking vehicle distance (FUEL/REPAIR/DEF)
+                                const showOdo = (type === 'FUEL' || type === 'REPAIR' || type === 'DEF');
+                                odoField.style.display = showOdo ? 'block' : 'none';
+                                if (!showOdo) odoField.querySelector('input').value = '';
+                                document.getElementById('upload-hint').textContent = FF_UPLOAD_HINTS[type] || '';
+                            }}
+                            document.addEventListener('DOMContentLoaded', ffToggleExpenseFields);
+                        </script>
 
                     </div>
                 </div>
@@ -441,7 +518,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                             </td>
                                             <td class="p-3">
                                                 <span class="font-mono font-bold text-slate-900 block">₹{e['amount']:,.2f}</span>
-                                                <span class="text-[10px] text-slate-500">{f"{e['liters']}L @ ₹{e['rate']}/L | Odo: {e['odometer']} KM" if e['exp_type'] == 'FUEL' else f"Odo: {e['odometer']} KM"}</span>
+                                                <span class="text-[10px] text-slate-500">{f"{e['liters']}L @ ₹{e['rate']}/L | Odo: {e['odometer']} KM" if e['exp_type'] in ('FUEL', 'DEF') else f"Odo: {e['odometer']} KM"}</span>
                                             </td>
                                             <td class="p-3 text-right">
                                                 {f"<span class='text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded'>PENDING</span>" if e['is_flagged'] and e['manager_status'] == 'PENDING' else f"<span class='text-[10px] font-bold {'bg-emerald-100 text-emerald-800' if e['manager_status'] == 'APPROVED' else 'bg-rose-100 text-rose-800'} px-2 py-0.5 rounded'>{e['manager_status']}</span>"}
@@ -834,7 +911,7 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
 
     table_data = [["Expense", "Claim Amount", "Operational Metrics", "Audit Verification", "Status"]]
     for e in expenses:
-        details = f"{e['liters']}L @ Rs. {e['rate']}/L (Odo: {e['odometer']} KM)" if e['exp_type'] == 'FUEL' else f"Odo: {e['odometer']} KM"
+        details = f"{e['liters']}L @ Rs. {e['rate']}/L (Odo: {e['odometer']} KM)" if e['exp_type'] in ('FUEL', 'DEF') else f"Odo: {e['odometer']} KM"
         audit_para = Paragraph(f"<font color='#dc2626'><b>[FLAG]</b> {e['flag_reason']}</font>", flag_style) if e['is_flagged'] else Paragraph("<font color='#16a34a'><b>[VERIFIED]</b></font>", cell_style)
         
         table_data.append([

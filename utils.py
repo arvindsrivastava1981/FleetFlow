@@ -71,6 +71,7 @@ def render_sidebar(active: str) -> str:
         <aside class="bg-slate-900 rounded-2xl p-3 w-full lg:w-52 flex-shrink-0 space-y-1 h-fit">
             {nav_link("/dashboard", "Dashboard", "📊", "dashboard")}
             {nav_link("/trips", "Trips", "🧾", "trips")}
+            {nav_link("/settled-pdfs", "Settled PDFs", "📄", "settled-pdfs")}
             {nav_link("/logout", "Logout", "🚪", "logout")}
         </aside>'''
 
@@ -78,6 +79,9 @@ def render_sidebar(active: str) -> str:
 BENCHMARK_PRICE = 90.50 # State diesel price baseline (₹/L)
 TANK_CAPACITY = 350.0   # Max tank capacity in Liters
 EXPECTED_KML = 4.0      # Expected mileage (km/L)
+DEF_RATE_MAX = 75.0     # DEF/AdBlue price ceiling (₹/L)
+DEF_MIN_RATIO_PCT = 3.0 # DEF should be 3-6% of cumulative diesel volume
+DEF_MAX_RATIO_PCT = 6.0
 
 def evaluate_rules(trip_code: str, exp_type: str, amount: float, liters: float, rate: float, odo: float) -> tuple[int, str]:
     conn = get_db()
@@ -133,6 +137,33 @@ def evaluate_rules(trip_code: str, exp_type: str, amount: float, liters: float, 
         if amount > 3000.0:
             is_flagged = 1
             flag_reason = "Major repair > ₹3,000 requires owner pre-approval"
+
+    elif exp_type == "CHALLAN":
+        is_flagged = 1
+        flag_reason = "Traffic challan claimed - verify against e-challan portal"
+
+    elif exp_type == "DEF":
+        # Rule 1: Price benchmark check (pump DEF typically ₹45-₹60/L)
+        if rate > DEF_RATE_MAX:
+            is_flagged = 1
+            flag_reason = f"DEF rate ₹{rate}/L exceeds benchmark ceiling (₹{DEF_RATE_MAX:.0f}/L) - price inflation"
+
+        # Rule 2: Consumption ratio check (DEF should be ~3-6% of cumulative diesel volume)
+        elif liters > 0:
+            c.execute("SELECT COALESCE(SUM(liters), 0) AS total FROM expenses WHERE trip_code = %s AND exp_type = 'FUEL'", (trip_code,))
+            total_diesel = c.fetchone()["total"]
+            c.execute("SELECT COALESCE(SUM(liters), 0) AS total FROM expenses WHERE trip_code = %s AND exp_type = 'DEF'", (trip_code,))
+            total_def = c.fetchone()["total"] + liters
+
+            if total_diesel > 0:
+                ratio_pct = (total_def / total_diesel) * 100
+                if ratio_pct < DEF_MIN_RATIO_PCT or ratio_pct > DEF_MAX_RATIO_PCT:
+                    is_flagged = 1
+                    flag_reason = f"Abnormal DEF consumption ratio: {ratio_pct:.1f}% of diesel volume (Expected {DEF_MIN_RATIO_PCT:.0f}-{DEF_MAX_RATIO_PCT:.0f}%)"
+
+    elif exp_type == "RTO-FINE":
+        is_flagged = 1
+        flag_reason = "RTO fine claimed - always requires owner review"
 
     conn.close()
     return is_flagged, flag_reason
