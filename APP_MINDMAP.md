@@ -11,7 +11,7 @@
 - [/fleetflow_interactive_demo.py](/fleetflow_interactive_demo.py) — single-file FastAPI demo app (routes only), the active/primary prototype.
   - Run: `uvicorn fleetflow_interactive_demo:app` or `python fleetflow_interactive_demo.py` (binds `0.0.0.0:$PORT`, default 8080).
   - Deps: [/requirements.txt](/requirements.txt).
-- [/utils.py](/utils.py) — shared code imported by the entry point: `get_db()`, `fmt_dt()`, admin auth (`is_admin()`, `ADMIN_PASSWORD`, `ADMIN_COOKIE`, `_admin_sessions`), HTML chrome (`render_header()`, `render_footer()`, `render_sidebar()`), and the rules engine (`evaluate_rules()`, `BENCHMARK_PRICE`, `TANK_CAPACITY`, `EXPECTED_KML`). Import shared helpers from here instead of redefining them in the entry point.
+- [/utils.py](/utils.py) — shared code imported by the entry point: `get_db()`, `fmt_dt()`, admin auth (`is_admin()`, `ADMIN_PASSWORD`, `ADMIN_COOKIE`, `_admin_sessions`), HTML chrome (`render_header()`, `render_footer()`, `render_sidebar()`), and the rules engine (`evaluate_rules()`, `BENCHMARK_PRICE`, `TANK_CAPACITY`, `EXPECTED_KML`, `DEF_RATE_MAX`, `DEF_MIN_RATIO_PCT`, `DEF_MAX_RATIO_PCT`). Import shared helpers from here instead of redefining them in the entry point.
 - Legacy SQLite prototypes (`init_db.py`, `fleetflow_backend_core.py`) have been removed; do not reintroduce SQLite.
 
 ## Database Access Pattern (Postgres/Neon)
@@ -22,14 +22,23 @@
 - No `init_db()` / DDL in the app — schema + seed data are applied manually to Neon from `/database/schema.sql`.
 
 ### Core Tables (see [/database/schema.sql](/database/schema.sql))
-- `trips` (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status, created_at, settled_at).
-- `expenses` (trip_code FK, exp_type: FUEL/TOLL/REPAIR/CHALLAN/RTO-FINE/DEF/OTHER/MISC/GOODS_BUY/GOODS_SALE, amount, liters, rate, odometer, is_flagged, flag_reason, manager_status: PENDING/APPROVED/REJECTED, created_at). Goods buys and sales always start pending; only approved entries affect settlement, with buys reducing and sales increasing cash and trip profit.
+- `fleets` (id, owner_name, phone UNIQUE, email, subscription_plan default `STARTER_PACK`, plan_rate default 799.00, is_active, created_at/updated_at).
+- `vehicles` (id, fleet_id FK, vehicle_number UNIQUE, make_model, tank_capacity_liters default 350.00, expected_km_per_liter default 4.00, owner_phone, is_active).
+- `trips` (trip_code UNIQUE, vehicle_id FK, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, end_odo, status CHECK ACTIVE/COMPLETED/SETTLED/CANCELLED, origin, destination, created_at, completed_at, settled_at).
+- `expenses` (id, trip_id FK, trip_code FK, exp_type: FUEL/TOLL/REPAIR/CHALLAN/RTO-FINE/DEF/OTHER/MISC/GOODS_BUY/GOODS_SALE, amount, approved_amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status: PENDING/APPROVED/REJECTED, receipt_image_url, raw_receipt_text, created_at/updated_at). Goods buys and sales always start pending; only approved entries affect settlement, with buys reducing and sales increasing cash and trip profit.
+- `fuel_benchmarks` (id, state_code, state_name, benchmark_price_per_liter, tolerance_pct default 0.08, effective_date, updated_at) — per-state fuel price index for the anomaly rules engine (managed via the `/fuel-benchmarks` admin CRUD).
 
 ## Routes (fleetflow_interactive_demo.py)
 - `GET /` — renders the 3-column dashboard (see UI Layout below).
+- `GET /login`, `POST /login`, `GET /logout` — admin session auth (in-memory tokens via `_admin_sessions`; default password from `ADMIN_PASSWORD`).
+- `GET /dashboard` — admin-only savings dashboard with money-saved/claimed/approved cards + per-trip savings Chart.js bar chart.
+- `GET /trips` — admin-only trip listing (active first) with per-trip expense totals and pending counts.
 - `POST /create-trip` — inserts a new `trips` row (requires driver_phone), redirects to `/?trip_code=...`.
 - `POST /simulate-whatsapp` — inserts an `expenses` row after running it through `evaluate_rules()` (fuel math/price-band/tank-capacity/odometer-mileage checks, mandatory TOLL flag, REPAIR > ₹3,000 flag); goods buys and sales remain pending for manager review.
 - `GET /action-expense?id=&action=APPROVE|REJECT` — manager decision on a flagged expense or pending goods transaction.
+- `GET /settle-trip?trip_code=` — admin-only; marks trip `SETTLED` (only when no PENDING expenses remain).
+- `GET /fuel-benchmarks` + `POST /fuel-benchmarks/add`, `POST /fuel-benchmarks/edit`, `GET /fuel-benchmarks/delete?id=` — admin CRUD for per-state fuel price benchmarks.
+- `GET /rule-engine` — admin-only read-only explainer of the anomaly rules per expense type.
 - `GET /reset-demo` — clears `expenses`/`trips` rows only (no reseed, no DDL).
 - `GET /settled-pdfs` — lists settled trips with links to their settlement PDFs.
 - `GET /generate-settlement-pdf?trip_code=` — builds a reportlab PDF settlement/reconciliation sheet.
@@ -49,5 +58,33 @@
 - OTP Constraints: 6-digit code, 10-minute expiry, 3 verification attempts, 60-second request cooldown
 - JWT Session: 72 hours
 - Contact Form Cooldown: 60 seconds per source IP
-- Rules engine constants: `BENCHMARK_PRICE=90.50`, `TANK_CAPACITY=350.0L`, `EXPECTED_KML=4.0`.
+- Rules engine constants: `BENCHMARK_PRICE=90.50`, `TANK_CAPACITY=350.0L`, `EXPECTED_KML=4.0`, `DEF_RATE_MAX=75.0`, `DEF_MIN_RATIO_PCT=3.0`, `DEF_MAX_RATIO_PCT=6.0`. (Note: `fuel_benchmarks` table exists with per-state prices, but `evaluate_rules()` currently uses the global `BENCHMARK_PRICE` constant — per-state lookup is not yet wired in.)
+
+---
+
+## Future Enhancements (product spec gaps — see docs/implementation_plan.md)
+
+> Source of truth for the roadmap: `docs/implementation_plan.md`. These are **not yet implemented**; do not assume they exist. Plan the work as: **Phase A → B → C → D → E → F**.
+
+- **G1 — Real WhatsApp Cloud API** (`POST /whatsapp/webhook`): inbound media + outbound message templates + session binding by WhatsApp number. Today only the browser simulator (`/simulate-whatsapp`) exists. Needs `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_ID`, `WEBHOOK_VERIFY_TOKEN` env vars.
+- **G2 — AI OCR / Vision receipt parsing**: extract Amount, Liters, Rate, Pump Name, Odometer from fuel receipts + odometer photos. No OCR library/model wired; `raw_receipt_text`/`receipt_image_url` columns exist but are never populated.
+- **G3 — Dual-photo evidence protocol + EXIF check** for REPAIR (damaged-part photo + mechanic invoice, EXIF metadata validation). Currently UI-hint text only.
+- **G4 — State-dynamic fuel benchmark**: drive the ±8% band from `fuel_benchmarks` per trip/state instead of the global `BENCHMARK_PRICE`.
+- **G5 — FASTag corridor whitelisting**: differentiate legit cash toll on off-corridor roads vs. flagged cash toll on 100% FASTag corridors. Requires a new `toll_corridors` table + `corridor` field on expenses.
+- **G6 — Photo/WhatsApp-based trip initiation & driver onboarding** (bind driver WhatsApp number, bot greeting).
+- **G7 — Sub-3s log parsing with no manual driver text input**.
+- **G8 — Bilingual (Hindi/English) + audio confirmations** to driver.
+- **G9 — Live WhatsApp bot verification replies** to driver.
+- **G10 — Mandatory dashboard-odometer photo at fuel entry** (server-enforced, not just hint).
+- **G11 — Anti-fraud EXIF/metadata tamper check + verified parts** for repairs.
+- **G12 — Explicit manager confirmation for any deduction** (labor-protection) — mostly satisfied by existing `/action-expense`; extend confirmation message language.
+- **G13 — Product-doc artifacts** (ROI/unit-economics tables, competitive matrix, DPDPA privacy statement) — optional additions to `README.md`; no code needed.
+
+### Implementation phases (from docs/implementation_plan.md)
+- **Phase A — Rules/data-model upgrades:** benchmark-aware `evaluate_rules()`, corridor toll rule, dual-photo/odometer enforcement, EXIF check (no external creds).
+- **Phase B — DB schema:** add `toll_corridors`, new `expenses` columns (`corridor`, `evidence_photos`, `exif_ok`); update `schema.sql` + `incremental.sql`, seed `toll_corridors`.
+- **Phase C — WhatsApp Cloud API:** webhook route, media receive, outbound templates, inbound trip init.
+- **Phase D — OCR pipeline:** OCR dep + post-processing, persist `raw_receipt_text`, odometer cross-check.
+- **Phase E — UX:** bilingual/audio confirmations, driver verification slip.
+- **Phase F — Tests & docs:** unit tests for new rules/OCR; update `README.md`, `docs/product_details.md`, and this file.
 
