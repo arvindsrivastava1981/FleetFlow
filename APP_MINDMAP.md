@@ -24,13 +24,11 @@
 ### Core Tables (see [/database/schema.sql](/database/schema.sql))
 - `trips` (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status, created_at, settled_at).
 - `expenses` (trip_code FK, exp_type: FUEL/TOLL/REPAIR/CHALLAN/RTO-FINE/DEF/OTHER/MISC, amount, liters, rate, odometer, is_flagged, flag_reason, manager_status: PENDING/APPROVED/REJECTED, created_at).
-- `trip_goods` (trip_code FK, item_name, quantity, purchase_cost, sale_revenue, created_at) records goods bought from advance and sold during a trip.
 
 ## Routes (fleetflow_interactive_demo.py)
 - `GET /` — renders the 3-column dashboard (see UI Layout below).
 - `POST /create-trip` — inserts a new `trips` row (requires driver_phone), redirects to `/?trip_code=...`.
 - `POST /simulate-whatsapp` — inserts an `expenses` row after running it through `evaluate_rules()` (fuel math/price-band/tank-capacity/odometer-mileage checks, mandatory TOLL flag, REPAIR > ₹3,000 flag).
-- `POST /add-goods` — records a trip goods purchase and sale pair for final trading profit/loss.
 - `GET /action-expense?id=&action=APPROVE|REJECT` — manager decision on a flagged expense.
 - `GET /reset-demo` — clears `expenses`/`trips` rows only (no reseed, no DDL).
 - `GET /settled-pdfs` — lists settled trips with links to their settlement PDFs.
