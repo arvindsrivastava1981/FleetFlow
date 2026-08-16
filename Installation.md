@@ -11,6 +11,6 @@ pip install -r demo/requirements.txt
 
 # Apply demo/database/schema.sql to your Neon PostgreSQL instance, then set DATABASE_URL in .env
 
-python fleetflow_interactive_demo.py
+python demo/fleetflow_interactive_demo.py
 
 http://localhost:8000

@@ -1,5 +1,6 @@
 import os
 import io
+import secrets
 import datetime
 import psycopg2
 import psycopg2.extras
@@ -33,6 +34,15 @@ def get_db():
 def fmt_dt(dt) -> str:
     # PostgreSQL returns native datetime objects; never slice a datetime directly
     return dt.strftime('%d %b %H:%M') if hasattr(dt, 'strftime') else str(dt)[:16]
+
+# --- ADMIN AUTH (in-memory session tokens; single-process demo, no new deps) ---
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_COOKIE = "ff_admin_session"
+_admin_sessions: set[str] = set()
+
+def is_admin(request: Request) -> bool:
+    token = request.cookies.get(ADMIN_COOKIE)
+    return bool(token) and token in _admin_sessions
 
 # --- MULTI-LAYER RULES ENGINE ---
 BENCHMARK_PRICE = 90.50 # State diesel price baseline (₹/L)
@@ -98,8 +108,66 @@ def evaluate_rules(trip_code: str, exp_type: str, amount: float, liters: float, 
     return is_flagged, flag_reason
 
 # --- DASHBOARD & ROUTING ---
+@app.get("/trips", response_class=HTMLResponse)
+def trip_listing(request: Request):
+    if not is_admin(request):
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM trips ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC")
+    all_trips = c.fetchall()
+    c.execute("""SELECT trip_code, COUNT(*) AS expense_count,
+                        COALESCE(SUM(amount), 0) AS total_claimed,
+                        COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR (NOT is_flagged AND manager_status != 'REJECTED') THEN amount ELSE 0 END), 0) AS total_approved,
+                        COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
+                 FROM expenses GROUP BY trip_code""")
+    stats_by_trip = {row["trip_code"]: row for row in c.fetchall()}
+    conn.close()
+
+    active_trip = next((trip for trip in all_trips if trip["status"] == "ACTIVE"), None)
+    all_trips_settled = not all_trips or all(trip["status"] in ("SETTLED", "CANCELLED") for trip in all_trips)
+    trip_rows = ''.join([f'''
+        <a href="/?trip_code={trip['trip_code']}" class="block bg-white border {'border-sky-300 ring-2 ring-sky-100' if trip['status'] == 'ACTIVE' else 'border-slate-200'} rounded-2xl p-5 shadow-sm hover:shadow-md transition">
+            <div class="flex flex-wrap justify-between gap-3 items-start">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="font-extrabold text-slate-900">{trip['trip_code']}</h2>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {'bg-emerald-100 text-emerald-800' if trip['status'] == 'ACTIVE' else 'bg-slate-200 text-slate-700'}">{trip['status']}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">{trip['vehicle_no']} · {trip['driver_name']}</p>
+                </div>
+                <span class="text-xs text-sky-700 font-bold">View trip details →</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 text-xs">
+                <div><span class="text-slate-400 block">Advance</span><strong>₹{trip['advance_amount']:,.2f}</strong></div>
+                <div><span class="text-slate-400 block">Claims</span><strong>₹{stats_by_trip.get(trip['trip_code'], {}).get('total_claimed', 0):,.2f}</strong></div>
+                <div><span class="text-slate-400 block">Approved</span><strong class="text-emerald-700">₹{stats_by_trip.get(trip['trip_code'], {}).get('total_approved', 0):,.2f}</strong></div>
+                <div><span class="text-slate-400 block">Pending reviews</span><strong class="text-amber-700">{stats_by_trip.get(trip['trip_code'], {}).get('pending_count', 0)}</strong></div>
+            </div>
+        </a>''' for trip in all_trips])
+
+    start_trip_control = f'''<a href="/?new_trip=1" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow">➕ Start New Trip</a>''' if all_trips_settled else '''<span class="bg-slate-200 text-slate-400 text-xs font-bold px-4 py-2.5 rounded-xl cursor-not-allowed" title="Settle the current trip before starting another">➕ Start New Trip</span>'''
+    return f'''<!DOCTYPE html>
+    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Trips</title><script src="https://cdn.tailwindcss.com"></script></head>
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
+        <div class="max-w-5xl mx-auto space-y-6">
+            <div class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
+                <div><p class="text-xs text-sky-400 font-bold uppercase tracking-wider">FleetFlow</p><h1 class="text-2xl font-extrabold">Trip Listing</h1><p class="text-xs text-slate-400 mt-1">Current and completed trips</p></div>
+                <div class="flex items-center gap-3"><span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>{start_trip_control}<a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2.5 rounded-xl transition">🚪 Logout</a></div>
+            </div>
+            <div class="flex items-center justify-between"><div><h2 class="text-lg font-extrabold text-slate-900">All trips</h2><p class="text-xs text-slate-500">Select a trip to open its complete ledger, audit thread, and settlement details.</p></div><span class="text-xs text-slate-400">{len(all_trips)} total</span></div>
+            <div class="space-y-3">{trip_rows if trip_rows else '<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">No trips yet. Start your first trip above.</div>'}</div>
+        </div>
+    </body></html>'''
+
 @app.get("/", response_class=HTMLResponse)
-def index(trip_code: str = None):
+def index(request: Request, trip_code: str = None, new_trip: bool = False):
+    if not is_admin(request):
+        return RedirectResponse(url="/admin/login", status_code=303)
+    if not trip_code and not new_trip:
+        return RedirectResponse(url="/trips", status_code=303)
+
     conn = get_db()
     c = conn.cursor()
     
@@ -132,6 +200,7 @@ def index(trip_code: str = None):
                 total_flagged += e["amount"]
                 
     remaining_advance = (active_trip["advance_amount"] - total_approved) if active_trip else 0.0
+    pending_expenses = sum(1 for expense in expenses if expense["manager_status"] == "PENDING")
     conn.close()
 
     html = f'''<!DOCTYPE html>
@@ -154,15 +223,11 @@ def index(trip_code: str = None):
                         <p class="text-xs text-sky-400 font-medium">Real-Time Expense Verification & Settlement Engine</p>
                     </div>
                 </div>
-                
                 <div class="flex items-center gap-3">
-                    <button onclick="document.getElementById('newTripModal').classList.remove('hidden')" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow flex items-center gap-1.5">
-                        ➕ Start New Trip
-                    </button>
-                    <a href="/reset-demo" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">
-                        🔄 Reset Demo
-                    </a>
+                    <span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>
+                    <a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">🚪 Logout</a>
                 </div>
+                
             </div>
 
             <!-- Main Workspace Grid: 3-Column Dual-WhatsApp Architecture -->
@@ -407,6 +472,7 @@ def index(trip_code: str = None):
                             <a href="/generate-settlement-pdf?trip_code={active_trip['trip_code'] if active_trip else ''}" target="_blank" class="bg-sky-600 hover:bg-sky-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow flex items-center gap-1.5">
                                 📄 Generate 1-Click Settlement PDF
                             </a>
+                            {f'''<a href="/settle-trip?trip_code={active_trip['trip_code']}" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow">✅ Settle Trip</a>''' if active_trip and pending_expenses == 0 else f'''<span class="text-[10px] text-amber-700 font-semibold">{pending_expenses} review(s) pending</span>''' if active_trip else ''}
                         </div>
                     </div>
 
@@ -416,7 +482,7 @@ def index(trip_code: str = None):
         </div>
 
         <!-- Modal: Start New Trip -->
-        <div id="newTripModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 z-50">
+        <div id="newTripModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm {'hidden' if not new_trip else ''} flex items-center justify-center p-4 z-50">
             <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
                 <div class="border-b pb-3 flex justify-between items-center">
                     <h3 class="font-bold text-slate-900 text-base">Start New Trip & Issue Advance</h3>
@@ -478,6 +544,10 @@ def create_trip(
 ):
     conn = get_db()
     c = conn.cursor()
+    c.execute("SELECT 1 FROM trips WHERE status = 'ACTIVE' LIMIT 1")
+    if c.fetchone():
+        conn.close()
+        return RedirectResponse(url="/trips", status_code=303)
     c.execute('''INSERT INTO trips (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status)
                  VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE')''',
                  (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, start_odo))
@@ -529,6 +599,28 @@ def action_expense(id: int, action: str):
     conn.close()
     return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
 
+@app.get("/settle-trip")
+def settle_trip(request: Request, trip_code: str):
+    if not is_admin(request):
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) AS pending_count FROM expenses WHERE trip_code = %s AND manager_status = 'PENDING'", (trip_code,))
+    pending_count = c.fetchone()["pending_count"]
+    if pending_count:
+        conn.close()
+        return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
+
+    c.execute("""UPDATE trips
+                 SET status = 'SETTLED', end_odo = current_odo,
+                     completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
+                     settled_at = CURRENT_TIMESTAMP
+                 WHERE trip_code = %s AND status = 'ACTIVE'""", (trip_code,))
+    conn.commit()
+    conn.close()
+    return RedirectResponse(url="/trips", status_code=303)
+
 @app.get("/reset-demo")
 def reset_demo():
     # Clears transactional data only; schema/tables and seed data are managed manually in Neon
@@ -539,6 +631,146 @@ def reset_demo():
     conn.commit()
     conn.close()
     return RedirectResponse(url="/", status_code=303)
+
+# --- ADMIN LOGIN & DASHBOARD ---
+@app.get("/admin/login", response_class=HTMLResponse)
+def admin_login_form(error: str = None):
+    return f'''<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FleetFlow Admin Login</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
+            <div class="text-center space-y-1">
+                <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">FF</div>
+                <h1 class="text-lg font-extrabold text-slate-800">Admin Login</h1>
+                <p class="text-xs text-slate-500">Enter the admin password to continue</p>
+            </div>
+            {'<p class="text-xs text-rose-600 font-semibold text-center">Incorrect password. Try again.</p>' if error else ''}
+            <form action="/admin/login" method="post" class="space-y-3">
+                <input type="password" name="password" required autofocus placeholder="Password"
+                       class="w-full text-sm border rounded-lg p-2.5 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
+                <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
+                    Login
+                </button>
+            </form>
+            <a href="/" class="block text-center text-xs text-slate-400 hover:text-slate-600">← Back to Dashboard</a>
+        </div>
+    </body>
+    </html>'''
+
+@app.post("/admin/login")
+def admin_login_submit(password: str = Form(...)):
+    if password != ADMIN_PASSWORD:
+        return RedirectResponse(url="/admin/login?error=1", status_code=303)
+    token = secrets.token_urlsafe(32)
+    _admin_sessions.add(token)
+    response = RedirectResponse(url="/", status_code=303)
+    response.set_cookie(key=ADMIN_COOKIE, value=token, httponly=True, samesite="lax", max_age=60 * 60 * 12)
+    return response
+
+@app.get("/admin/logout")
+def admin_logout(request: Request):
+    token = request.cookies.get(ADMIN_COOKIE)
+    _admin_sessions.discard(token)
+    response = RedirectResponse(url="/admin/login", status_code=303)
+    response.delete_cookie(ADMIN_COOKIE)
+    return response
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard(request: Request):
+    if not is_admin(request):
+        return RedirectResponse(url="/admin/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM trips ORDER BY id DESC")
+    all_trips = c.fetchall()
+
+    c.execute('''SELECT trip_code,
+                        COUNT(*) AS expense_count,
+                        COALESCE(SUM(amount), 0) AS total_amount,
+                        COALESCE(SUM(CASE WHEN is_flagged THEN amount ELSE 0 END), 0) AS flagged_amount,
+                        COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
+                 FROM expenses GROUP BY trip_code''')
+    stats_by_trip = {row["trip_code"]: row for row in c.fetchall()}
+    conn.close()
+
+    rows_html = ''.join([f'''
+    <tr class="border-b border-slate-100 hover:bg-slate-50">
+        <td class="p-3 text-xs font-bold text-slate-800">{t['trip_code']}</td>
+        <td class="p-3 text-xs text-slate-600">{t['vehicle_no']}</td>
+        <td class="p-3 text-xs text-slate-600">{t['driver_name']}</td>
+        <td class="p-3 text-xs">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {'bg-emerald-100 text-emerald-700' if t['status'] == 'ACTIVE' else 'bg-slate-200 text-slate-600'}">{t['status']}</span>
+        </td>
+        <td class="p-3 text-xs text-slate-600">₹{t['advance_amount']:,.2f}</td>
+        <td class="p-3 text-xs text-slate-600">{stats_by_trip.get(t['trip_code'], {}).get('expense_count', 0)}</td>
+        <td class="p-3 text-xs text-rose-600 font-semibold">₹{stats_by_trip.get(t['trip_code'], {}).get('flagged_amount', 0):,.2f}</td>
+        <td class="p-3 text-xs text-amber-600 font-semibold">{stats_by_trip.get(t['trip_code'], {}).get('pending_count', 0)}</td>
+        <td class="p-3 text-xs text-slate-400">{fmt_dt(t['created_at'])}</td>
+        <td class="p-3 text-xs">
+            <a href="/?trip_code={t['trip_code']}" class="text-sky-600 hover:text-sky-800 font-semibold">View Ledger →</a>
+        </td>
+    </tr>''' for t in all_trips])
+
+    return f'''<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FleetFlow Admin</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+    </head>
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <div class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">FF</div>
+                    <div>
+                        <h1 class="text-xl font-extrabold tracking-tight">FleetFlow Admin</h1>
+                        <p class="text-xs text-sky-400 font-medium">All Trips Overview</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>
+                    <a href="/" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">
+                        ← Dashboard
+                    </a>
+                    <a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">
+                        🚪 Logout
+                    </a>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Trip Code</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Vehicle</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Driver</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Advance</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Expenses</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Flagged ₹</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Pending</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Created</th>
+                            <th class="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows_html if all_trips else '<tr><td colspan="10" class="p-6 text-center text-xs text-slate-400">No trips yet.</td></tr>'}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </body>
+    </html>'''
 
 # --- 1-CLICK SETTLEMENT PDF GENERATOR ---
 @app.get("/generate-settlement-pdf")
