@@ -1,0 +1,49 @@
+# Dependencies & Virtual Environments
+node_modules/
+.venv/
+venv/
+env/
+
+# Build & Static Output
+.next/
+frontend/out/
+backend/static/
+.turbo/
+dist/
+build/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Test Reports & Traces
+test-results/
+playwright-report/
+blob-report/
+coverage/
+.coverage
+htmlcov/
+
+# Logs, Version Control & Secrets
+.git/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env*
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Media & Binary Assets (excluding mangal fonts)
+*.svg
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.pdf

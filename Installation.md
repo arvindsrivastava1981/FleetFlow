@@ -6,10 +6,10 @@
 Ensure you have Python 3.9+ installed along with `pip`.
 
 ```bash
-pip install fastapi uvicorn weasyprint
+pip install -r demo/requirements.txt
 
 
-python init_db.py
+# Apply demo/database/schema.sql to your Neon PostgreSQL instance, then set DATABASE_URL in .env
 
 python fleetflow_interactive_demo.py
 

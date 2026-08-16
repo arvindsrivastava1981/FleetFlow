@@ -1,0 +1,48 @@
+# Execution, Loop Prevention & Token Rules
+- **No Filler:** Start directly with tool calls or code diffs[cite: 1]. Skip greetings, recaps, and meta-commentary[cite: 1].
+- **Diffs Only:** Output only modified lines/blocks; never dump entire unmodified files[cite: 1].
+- **Strict Diff Budget:** Target under 200 lines per file edit[cite: 1]. Limit edits to no more than 1 file or 100 lines per tool turn[cite: 1]. Chunk diffs minimally[cite: 1].
+- **Single Lookup & No Codebase Searches:** Consult `APP_MINDMAP.md` first for exact paths[cite: 1]. Never run `search_codebase` or broad scans across the repository[cite: 1].
+- **Batch Reads:** Pass all needed file paths into a single `read_files` tool invocation rather than making separate read turns.
+- **File Verification:** Never attempt to edit or insert into non-existent paths; verify the path or create the file before applying diffs[cite: 1].
+- **Token Optimization:** Keep Prompt Caching enabled during file reads. Avoid re-reading unmodified files.
+- **No Placeholders:** Never write `// TODO: add logic here` or leave placeholders. If a block cannot be finished, explain why and request input.
+- **No Git:** Do not run, push, stage, or suggest `git` commands[cite: 1].
+- **Minimal CLI Verbosity:** Always append silent/compact flags (`--tb=line -q` for pytest, `--silent --bail` for Jest)[cite: 1].
+
+# Opportunistic Bug Reporting
+- **Scope Discipline:** If an unrelated bug, defect, or vulnerability is identified while working on a task, do NOT fix it immediately or expand current task scope.
+- **Post-Task Proposal:** Complete the original objective and verify its test gates first. Then, present a concise 1-2 sentence summary of the observed issue and ask if the user wants it resolved next.
+
+# Environment & Shell (Windows PowerShell backgroundExec)
+- Executing shell is Windows PowerShell. Do NOT use Bash operators (`grep`, `cat`, `tail`, `&&`, background `&`, `|`)[cite: 1].
+- Run commands from the project root (`C:\Personal\projects\callmeup`).
+- Use file tools directly; do not dump file contents via stdout (`Get-Content` / `type`)[cite: 1].
+- Non-blocking checks only: do not start persistent dev servers or entrypoint scripts in terminal[cite: 1].
+
+# Tech Stack & Invariants
+- **Stack:** Python 3.12 (FastAPI, Pydantic v2 async, asyncpg), Next.js 16 (App Router, Tailwind CSS, TypeScript, static export)[cite: 1].
+- **Navigation:** Standard `<a href>` and `window.location.href` only (no `next/link` / `useRouter` due to static export constraints)[cite: 1].
+- **API Calls:** Use relative paths (`/api/v1/...`)[cite: 1].
+- **Database:** PostgreSQL (Neon DB). No Alembic migrations — schema changes must update `backend/database/schema.sql`, `seed.sql`, and `incremental/`[cite: 1].
+- **System Invariants:** Plate regex `^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$`, Country code `+91`, QR ID length 6 chars, `issue_type="Emergency"`, anti-spam limit 3/hr per tag[cite: 1].
+
+# Failure Detection & Recovery Protocol
+- **Failure Conditions:** Consider the task failed if:
+  1. A terminal command repeats the exact same `SyntaxError`/`TypeError` post-fix attempt.
+  2. The code compiles but breaks existing functionality (Regression).
+  3. The user explicitly states the logic is wrong.
+- **Loop Prevention:** If you execute the same command or edit the same file more than 2 times without achieving a new, successful result, STOP immediately. Do NOT repeat identical rewrites.
+- **Recovery Actions:**
+  1. Immediately stop autonomous execution loops.
+  2. Provide a concise 2-sentence summary detailing what failed and the root cause.
+  3. Prompt the user to clarify requirements or switch to a higher-reasoning model (e.g., Qwen 3.7 Plus or GLM-5.2).
+
+# Testing & Completion Gates
+Run affected suites silently from project root before completing tasks[cite: 1]:
+- **Unified Suite:** `python run_tests.py`[cite: 1]
+- **Backend Unit:** `pytest -q --tb=line backend/tests/test_<module>.py`[cite: 1]
+- **Sticker Check:** `pytest -q --tb=line backend/tests/test_qr_print.py -k "local_sample_sticker_png or local_sample_sticker_pdf"`[cite: 1]
+- **Frontend Unit:** `npx jest --bail --silent frontend/src/__tests__/<test_file>.test.tsx`[cite: 1]
+- **E2E Tests:** `npx playwright test frontend/e2e/<spec_path>.spec.ts --config=frontend/e2e/playwright.config.ts --reporter=line`[cite: 1]
+- **Sync Architecture:** Update `APP_MINDMAP.md` whenever routes, schemas, models, or core flows change[cite: 1].

@@ -1,7 +1,9 @@
 import os
 import io
-import sqlite3
 import datetime
+import psycopg2
+import psycopg2.extras
+from dotenv import load_dotenv
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, Response, RedirectResponse
 import uvicorn
@@ -12,80 +14,25 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
-app = FastAPI(title="FleetFlow Full End-to-End Prototype")
-DB_FILE = "fleetflow_demo.db"
+load_dotenv()
 
-# --- DATABASE SETUP ---
+app = FastAPI(title="FleetFlow Full End-to-End Prototype")
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# PostgreSQL NUMERIC columns arrive as Decimal; cast to float globally to avoid arithmetic TypeErrors
+DEC2FLOAT = psycopg2.extensions.new_type(
+    psycopg2.extensions.DECIMAL.values, 'DEC2FLOAT', lambda v, c: float(v) if v is not None else None
+)
+psycopg2.extensions.register_type(DEC2FLOAT)
+
+# --- DATABASE CONNECTION (schema/tables managed manually via database/schema.sql in Neon) ---
 def get_db():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
     return conn
 
-def init_db():
-    conn = get_db()
-    c = conn.cursor()
-    
-    # 1. Trips table
-    c.execute('''CREATE TABLE IF NOT EXISTS trips (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trip_code TEXT UNIQUE,
-        vehicle_no TEXT,
-        driver_name TEXT,
-        driver_phone TEXT,
-        advance_amount REAL,
-        start_odo REAL,
-        current_odo REAL,
-        status TEXT DEFAULT 'ACTIVE', -- ACTIVE / SETTLED
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        settled_at TIMESTAMP
-    )''')
-    
-    # 2. Expenses table
-    c.execute('''CREATE TABLE IF NOT EXISTS expenses (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        trip_code TEXT,
-        exp_type TEXT,
-        amount REAL,
-        liters REAL,
-        rate REAL,
-        odometer REAL,
-        station_name TEXT,
-        is_flagged INTEGER DEFAULT 0,
-        flag_reason TEXT,
-        manager_status TEXT DEFAULT 'PENDING', -- PENDING / APPROVED / REJECTED
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-
-    # Migration helper: ensure new columns exist in older database files
-    try:
-        c.execute("ALTER TABLE expenses ADD COLUMN manager_status TEXT DEFAULT 'PENDING'")
-    except sqlite3.OperationalError:
-        pass
-
-    try:
-        c.execute("ALTER TABLE expenses ADD COLUMN station_name TEXT")
-    except sqlite3.OperationalError:
-        pass
-
-    # Pre-seed initial demo trip if database is empty
-    c.execute("SELECT count(*) as count FROM trips")
-    if c.fetchone()["count"] == 0:
-        c.execute('''INSERT INTO trips 
-                     (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status) 
-                     VALUES ('TRIP-101', 'UP-93-AT-1234', 'Ramesh Kumar', '+91 98765 43210', 25000, 102400, 102400, 'ACTIVE')''')
-        
-        # Pre-seed sample transactions
-        c.execute('''INSERT INTO expenses (trip_code, exp_type, amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status) 
-                     VALUES ('TRIP-101', 'FUEL', 4500, 50, 90.0, 102600, 'Indian Oil Highway Pump', 0, '', 'APPROVED')''')
-        c.execute('''INSERT INTO expenses (trip_code, exp_type, amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status) 
-                     VALUES ('TRIP-101', 'TOLL', 850, 0, 0, 102750, 'NH-19 Toll Plaza', 1, 'Cash claimed on 100% FASTag corridor', 'PENDING')''')
-        c.execute('''INSERT INTO expenses (trip_code, exp_type, amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status) 
-                     VALUES ('TRIP-101', 'FUEL', 5400, 60, 90.0, 102850, 'HPCL Fuel Stop', 1, 'Low mileage 1.7 km/L (Expected ~4.0 km/L)', 'PENDING')''')
-    
-    conn.commit()
-    conn.close()
-
-init_db()
+def fmt_dt(dt) -> str:
+    # PostgreSQL returns native datetime objects; never slice a datetime directly
+    return dt.strftime('%d %b %H:%M') if hasattr(dt, 'strftime') else str(dt)[:16]
 
 # --- MULTI-LAYER RULES ENGINE ---
 BENCHMARK_PRICE = 90.50 # State diesel price baseline (₹/L)
@@ -119,13 +66,13 @@ def evaluate_rules(trip_code: str, exp_type: str, amount: float, liters: float, 
 
         # Rule 4: Odometer rollback and mileage delta check
         elif not is_flagged and odo > 0:
-            c.execute("SELECT odometer FROM expenses WHERE trip_code = ? AND exp_type = 'FUEL' AND odometer > 0 ORDER BY id DESC LIMIT 1", (trip_code,))
+            c.execute("SELECT odometer FROM expenses WHERE trip_code = %s AND exp_type = 'FUEL' AND odometer > 0 ORDER BY id DESC LIMIT 1", (trip_code,))
             last_fuel = c.fetchone()
             
             if last_fuel:
                 prev_odo = last_fuel["odometer"]
             else:
-                c.execute("SELECT start_odo FROM trips WHERE trip_code = ?", (trip_code,))
+                c.execute("SELECT start_odo FROM trips WHERE trip_code = %s", (trip_code,))
                 t_row = c.fetchone()
                 prev_odo = t_row["start_odo"] if t_row else 0.0
 
@@ -161,7 +108,7 @@ def index(trip_code: str = None):
     all_trips = c.fetchall()
     
     if trip_code:
-        c.execute("SELECT * FROM trips WHERE trip_code = ?", (trip_code,))
+        c.execute("SELECT * FROM trips WHERE trip_code = %s", (trip_code,))
     else:
         c.execute("SELECT * FROM trips WHERE status = 'ACTIVE' ORDER BY id DESC LIMIT 1")
     
@@ -175,7 +122,7 @@ def index(trip_code: str = None):
     total_flagged = 0.0
     
     if active_trip:
-        c.execute("SELECT * FROM expenses WHERE trip_code = ? ORDER BY id DESC", (active_trip["trip_code"],))
+        c.execute("SELECT * FROM expenses WHERE trip_code = %s ORDER BY id DESC", (active_trip["trip_code"],))
         expenses = c.fetchall()
         for e in expenses:
             total_claimed += e["amount"]
@@ -218,11 +165,11 @@ def index(trip_code: str = None):
                 </div>
             </div>
 
-            <!-- Main Workspace Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- Main Workspace Grid: 3-Column Dual-WhatsApp Architecture -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 
-                <!-- Left 5 Columns: WhatsApp Driver Simulator Phone -->
-                <div class="lg:col-span-5 space-y-4">
+                <!-- Column 1 (4/12): Driver WhatsApp Simulator -->
+                <div class="lg:col-span-4 space-y-4">
                     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[750px]">
                         
                         <!-- WhatsApp Header -->
@@ -311,8 +258,62 @@ def index(trip_code: str = None):
                     </div>
                 </div>
 
-                <!-- Right 7 Columns: Live Fleet Manager Ledger -->
-                <div class="lg:col-span-7 space-y-4 flex flex-col justify-between">
+                <!-- Column 2 (4/12): Manager WhatsApp Escalation Thread -->
+                <div class="lg:col-span-4 space-y-4">
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[750px]">
+
+                        <!-- WhatsApp Header -->
+                        <div class="bg-amber-800 text-white p-3.5 flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5">
+                                <div class="w-9 h-9 rounded-full bg-amber-600 flex items-center justify-center font-bold text-sm">👔</div>
+                                <div>
+                                    <h3 class="text-sm font-bold leading-tight">Fleet Manager (WhatsApp)</h3>
+                                    <p class="text-[10px] text-amber-200">Online • Anomaly Escalations</p>
+                                </div>
+                            </div>
+                            <span class="text-[10px] bg-amber-900 text-amber-200 px-2 py-0.5 rounded font-mono">{len([e for e in expenses if e['is_flagged'] and e['manager_status'] == 'PENDING'])} Pending</span>
+                        </div>
+
+                        <!-- Manager Escalation Chat Feed -->
+                        <div class="flex-1 p-4 bg-[#efeae2] overflow-y-auto space-y-3 font-sans text-xs">
+
+                            <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm max-w-[85%] space-y-1">
+                                <p class="font-bold text-slate-800 text-[11px]">🔔 Escalation Bot</p>
+                                <p class="text-slate-600">Flagged claims on <strong>{active_trip['trip_code'] if active_trip else 'N/A'}</strong> are routed here for owner sign-off.</p>
+                            </div>
+
+                            {''.join([f'''
+                            <div class="flex flex-col items-start space-y-1">
+                                <div class="bg-white border border-amber-200 p-2.5 rounded-lg rounded-tl-none shadow-sm max-w-[90%] text-slate-800">
+                                    <p class="font-bold text-[11px] text-rose-700">⚠️ {e['exp_type']} Anomaly — ₹{e['amount']:,.2f}</p>
+                                    <p class="text-[10px] text-slate-600">{e['flag_reason']}</p>
+                                    <p class="text-[9px] text-slate-400 mt-1">{fmt_dt(e['created_at'])}</p>
+                                </div>
+                                {f"""
+                                <div class="flex gap-1.5 max-w-[90%]">
+                                    <a href='/action-expense?id={e['id']}&action=APPROVE' class='text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-full transition'>✅ Approve</a>
+                                    <a href='/action-expense?id={e['id']}&action=REJECT' class='text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-full transition'>❌ Deduct</a>
+                                </div>
+                                """ if e['manager_status'] == 'PENDING' else f"""
+                                <div class="max-w-[90%]">
+                                    <span class="text-[10px] font-bold uppercase {'text-emerald-700' if e['manager_status'] == 'APPROVED' else 'text-rose-700'}">Resolved: {e['manager_status']}</span>
+                                </div>
+                                """}
+                            </div>
+                            ''' for e in expenses if e['is_flagged']]) if any(e['is_flagged'] for e in expenses) else '<div class="text-center text-slate-400 text-[11px] pt-6">No anomalies escalated yet.</div>'}
+
+                        </div>
+
+                        <!-- Manager Panel Footer -->
+                        <div class="p-3 bg-white border-t border-slate-200 text-center">
+                            <span class="text-[10px] text-slate-400">Approvals here update the Master Ledger in real time.</span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Column 3 (4/12): Master Ledger -->
+                <div class="lg:col-span-4 space-y-4 flex flex-col justify-between">
                     
                     <div class="space-y-4">
                         
@@ -336,7 +337,7 @@ def index(trip_code: str = None):
                             </div>
 
                             <!-- Financial Metrics Grid -->
-                            <div class="grid grid-cols-4 gap-2.5 text-center">
+                            <div class="grid grid-cols-2 gap-2.5 text-center">
                                 <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
                                     <span class="text-[9px] uppercase font-bold text-slate-500 block">Claimed</span>
                                     <span class="text-xs font-bold text-slate-800">₹{total_claimed:,.0f}</span>
@@ -356,10 +357,10 @@ def index(trip_code: str = None):
                             </div>
                         </div>
 
-                        <!-- Live Verification Ledger Table -->
+                        <!-- Master Ledger Table (read-only view; approvals happen in the Manager column) -->
                         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                             <div class="p-4 border-b flex justify-between items-center">
-                                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Live Expense Verification & Manager Controls</h3>
+                                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Master Ledger</h3>
                                 <span class="text-xs text-slate-400">{len(expenses)} Logs</span>
                             </div>
 
@@ -369,8 +370,7 @@ def index(trip_code: str = None):
                                         <tr>
                                             <th class="p-3">Expense</th>
                                             <th class="p-3">Claim</th>
-                                            <th class="p-3">Audit Rule Flag</th>
-                                            <th class="p-3 text-right">Manager Action</th>
+                                            <th class="p-3 text-right">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-slate-100">
@@ -378,23 +378,17 @@ def index(trip_code: str = None):
                                         <tr class="{'bg-rose-50/60' if e['is_flagged'] and e['manager_status'] == 'PENDING' else 'hover:bg-slate-50'}">
                                             <td class="p-3">
                                                 <span class="font-bold text-slate-900 block">{e['exp_type']}</span>
-                                                <span class="text-[10px] text-slate-400">{e['created_at'][:16]}</span>
+                                                <span class="text-[10px] text-slate-400">{fmt_dt(e['created_at'])}</span>
                                             </td>
                                             <td class="p-3">
                                                 <span class="font-mono font-bold text-slate-900 block">₹{e['amount']:,.2f}</span>
                                                 <span class="text-[10px] text-slate-500">{f"{e['liters']}L @ ₹{e['rate']}/L | Odo: {e['odometer']} KM" if e['exp_type'] == 'FUEL' else f"Odo: {e['odometer']} KM"}</span>
                                             </td>
-                                            <td class="p-3">
-                                                {f"<span class='text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded'>{e['flag_reason']}</span>" if e['is_flagged'] else "<span class='text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded'>✅ VERIFIED</span>"}
-                                            </td>
-                                            <td class="p-3 text-right space-x-1">
-                                                {f"""
-                                                <a href='/action-expense?id={e['id']}&action=APPROVE' class='text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-1 rounded transition'>Approve</a>
-                                                <a href='/action-expense?id={e['id']}&action=REJECT' class='text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2 py-1 rounded transition'>Deduct</a>
-                                                """ if e['is_flagged'] and e['manager_status'] == 'PENDING' else f"<span class='text-[10px] font-bold text-slate-500 uppercase'>{e['manager_status']}</span>"}
+                                            <td class="p-3 text-right">
+                                                {f"<span class='text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded'>PENDING</span>" if e['is_flagged'] and e['manager_status'] == 'PENDING' else f"<span class='text-[10px] font-bold {'bg-emerald-100 text-emerald-800' if e['manager_status'] == 'APPROVED' else 'bg-rose-100 text-rose-800'} px-2 py-0.5 rounded'>{e['manager_status']}</span>"}
                                             </td>
                                         </tr>
-                                        ''' for e in expenses]) if expenses else '<tr><td colspan="4" class="p-6 text-center text-slate-400">No expenses recorded yet. Use the WhatsApp simulator to log receipts.</td></tr>'}
+                                        ''' for e in expenses]) if expenses else '<tr><td colspan="3" class="p-6 text-center text-slate-400">No expenses recorded yet. Use the WhatsApp simulator to log receipts.</td></tr>'}
                                     </tbody>
                                 </table>
                             </div>
@@ -444,6 +438,10 @@ def index(trip_code: str = None):
                             <input type="text" name="driver_name" required placeholder="e.g. Ramesh Kumar" class="w-full border rounded-lg p-2 bg-slate-50">
                         </div>
                     </div>
+                    <div>
+                        <label class="font-bold text-slate-700 block">Driver Phone</label>
+                        <input type="text" name="driver_phone" required value="+91 90000 00000" class="w-full border rounded-lg p-2 bg-slate-50">
+                    </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="font-bold text-slate-700 block">Trip Advance (₹)</label>
@@ -474,14 +472,15 @@ def create_trip(
     trip_code: str = Form(...),
     vehicle_no: str = Form(...),
     driver_name: str = Form(...),
+    driver_phone: str = Form("+91 90000 00000"),
     advance_amount: float = Form(...),
     start_odo: float = Form(...)
 ):
     conn = get_db()
     c = conn.cursor()
-    c.execute('''INSERT INTO trips (trip_code, vehicle_no, driver_name, advance_amount, start_odo, current_odo, status)
-                 VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE')''',
-                 (trip_code, vehicle_no, driver_name, advance_amount, start_odo, start_odo))
+    c.execute('''INSERT INTO trips (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status)
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE')''',
+                 (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, start_odo))
     conn.commit()
     conn.close()
     return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
@@ -503,12 +502,12 @@ def simulate_whatsapp(
     manager_status = "PENDING" if is_flagged else "APPROVED"
 
     c.execute('''INSERT INTO expenses (trip_code, exp_type, amount, liters, rate, odometer, is_flagged, flag_reason, manager_status) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''', 
+                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)''', 
                  (trip_code, exp_type, amount, liters, rate, odometer, is_flagged, flag_reason, manager_status))
     
     # Update current vehicle odometer
     if odometer > 0:
-        c.execute("UPDATE trips SET current_odo = MAX(current_odo, ?) WHERE trip_code = ?", (odometer, trip_code))
+        c.execute("UPDATE trips SET current_odo = GREATEST(current_odo, %s) WHERE trip_code = %s", (odometer, trip_code))
         
     conn.commit()
     conn.close()
@@ -519,10 +518,10 @@ def action_expense(id: int, action: str):
     conn = get_db()
     c = conn.cursor()
     status = "APPROVED" if action == "APPROVE" else "REJECTED"
-    c.execute("UPDATE expenses SET manager_status = ? WHERE id = ?", (status, id))
+    c.execute("UPDATE expenses SET manager_status = %s WHERE id = %s", (status, id))
     
     # Fetch trip code for redirect
-    c.execute("SELECT trip_code FROM expenses WHERE id = ?", (id,))
+    c.execute("SELECT trip_code FROM expenses WHERE id = %s", (id,))
     row = c.fetchone()
     trip_code = row["trip_code"] if row else ""
     
@@ -532,11 +531,11 @@ def action_expense(id: int, action: str):
 
 @app.get("/reset-demo")
 def reset_demo():
+    # Clears transactional data only; schema/tables and seed data are managed manually in Neon
     conn = get_db()
     c = conn.cursor()
     c.execute("DELETE FROM expenses")
     c.execute("DELETE FROM trips")
-    init_db()
     conn.commit()
     conn.close()
     return RedirectResponse(url="/", status_code=303)
@@ -546,9 +545,9 @@ def reset_demo():
 def generate_settlement_pdf(trip_code: str = "TRIP-101"):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT * FROM trips WHERE trip_code = ?", (trip_code,))
+    c.execute("SELECT * FROM trips WHERE trip_code = %s", (trip_code,))
     trip = c.fetchone()
-    c.execute("SELECT * FROM expenses WHERE trip_code = ? ORDER BY id ASC", (trip_code,))
+    c.execute("SELECT * FROM expenses WHERE trip_code = %s ORDER BY id ASC", (trip_code,))
     expenses = c.fetchall()
     conn.close()
 
@@ -647,5 +646,4 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
     return Response(content=pdf_out, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename={trip_code}_Settlement.pdf"})
 
 if __name__ == "__main__":
-    init_db()
-    uvicorn.run(app, host="127.0.0.1", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8080)))

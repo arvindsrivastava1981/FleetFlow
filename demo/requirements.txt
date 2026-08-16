@@ -6,6 +6,10 @@ uvicorn[standard]>=0.28.0
 python-multipart>=0.0.9
 pydantic>=2.6.0
 
+# PostgreSQL (Neon DB) driver & environment config
+psycopg2-binary>=2.9.9
+python-dotenv>=1.0.1
+
 # PDF Generation (Pure Python, native across Windows/macOS/Linux)
 reportlab>=4.1.0
 
