@@ -447,6 +447,9 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
     total_claimed = 0.0
     total_approved = 0.0
     total_flagged = 0.0
+    goods = []
+    goods_cost = 0.0
+    goods_sales = 0.0
     
     if active_trip:
         c.execute("SELECT * FROM expenses WHERE trip_code = %s ORDER BY id DESC", (active_trip["trip_code"],))
@@ -457,8 +460,15 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                 total_approved += e["amount"]
             if e["is_flagged"]:
                 total_flagged += e["amount"]
+
+        c.execute("SELECT * FROM trip_goods WHERE trip_code = %s ORDER BY id DESC", (active_trip["trip_code"],))
+        goods = c.fetchall()
+        goods_cost = sum(g["purchase_cost"] for g in goods)
+        goods_sales = sum(g["sale_revenue"] for g in goods)
                 
-    remaining_advance = (active_trip["advance_amount"] - total_approved) if active_trip else 0.0
+    goods_profit = goods_sales - goods_cost
+    trip_profit = goods_profit - total_approved
+    remaining_advance = (active_trip["advance_amount"] + trip_profit) if active_trip else 0.0
     pending_expenses = sum(1 for expense in expenses if expense["manager_status"] == "PENDING")
     settlement_action = f'''<a href="/settle-trip?trip_code={active_trip['trip_code']}" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow">Settle Trip</a>''' if active_trip and active_trip["status"] == "ACTIVE" else ''
     conn.close()
@@ -697,9 +707,32 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                     <span class="text-xs font-bold">₹{total_flagged:,.0f}</span>
                                 </div>
                                 <div class="bg-sky-50 border border-sky-200 p-2.5 rounded-xl text-sky-800">
-                                    <span class="text-[9px] uppercase font-bold block">Cash in Hand</span>
+                                    <span class="text-[9px] uppercase font-bold block">Cash Settlement</span>
                                     <span class="text-xs font-bold">₹{remaining_advance:,.0f}</span>
                                 </div>
+                                <div class="{'bg-emerald-50 border-emerald-200 text-emerald-800' if trip_profit >= 0 else 'bg-rose-50 border-rose-200 text-rose-800'} border p-2.5 rounded-xl col-span-2">
+                                    <span class="text-[9px] uppercase font-bold block">Net Trip Profit / Loss</span>
+                                    <span class="text-xs font-bold">₹{trip_profit:,.2f}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Goods Trading Ledger -->
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Goods Trading</h3>
+                                <span class="text-[10px] text-slate-500">P/L: <strong class="{'text-emerald-700' if goods_profit >= 0 else 'text-rose-700'}">₹{goods_profit:,.2f}</strong></span>
+                            </div>
+                            <form action="/add-goods" method="post" class="grid grid-cols-2 gap-2 text-[10px]">
+                                <input type="hidden" name="trip_code" value="{active_trip['trip_code'] if active_trip else ''}">
+                                <input name="item_name" required placeholder="Goods / item name" class="border rounded-lg p-1.5 bg-slate-50 col-span-2">
+                                <input name="quantity" type="number" step="0.01" min="0.01" required placeholder="Quantity" class="border rounded-lg p-1.5 bg-slate-50">
+                                <input name="purchase_cost" type="number" step="0.01" min="0" required placeholder="Purchase cost ₹" class="border rounded-lg p-1.5 bg-slate-50">
+                                <input name="sale_revenue" type="number" step="0.01" min="0" required placeholder="Sale revenue ₹" class="border rounded-lg p-1.5 bg-slate-50">
+                                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg p-1.5">Add Goods Sale</button>
+                            </form>
+                            <div class="space-y-1 text-[10px]">
+                                {''.join([f'<div class="flex justify-between border-t pt-1"><span>{g["item_name"]} ({g["quantity"]})</span><span>Buy ₹{g["purchase_cost"]:,.0f} | Sell ₹{g["sale_revenue"]:,.0f}</span></div>' for g in goods]) if goods else '<p class="text-slate-400">No goods transactions recorded.</p>'}
                             </div>
                         </div>
 
@@ -746,7 +779,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-3">
                         <div>
                             <span class="text-[10px] font-bold uppercase text-slate-400 block">Final Settlement Due</span>
-                            <span class="text-base font-black text-emerald-700">₹{remaining_advance:,.2f} to recover</span>
+                            <span class="text-base font-black {'text-emerald-700' if remaining_advance >= 0 else 'text-rose-700'}">₹{abs(remaining_advance):,.2f} {'to recover' if remaining_advance >= 0 else 'owner pays'}</span>
                         </div>                        
                         {settlement_action}
                     </div>
@@ -860,6 +893,23 @@ def simulate_whatsapp(
         c.execute("UPDATE trips SET current_odo = GREATEST(current_odo, %s) WHERE trip_code = %s", (odometer, trip_code))
         
     conn.commit()
+    conn.close()
+    return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
+
+@app.post("/add-goods")
+def add_goods(request: Request, trip_code: str = Form(...), item_name: str = Form(...),
+              quantity: float = Form(...), purchase_cost: float = Form(...), sale_revenue: float = Form(...)):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id FROM trips WHERE trip_code = %s AND status = 'ACTIVE'", (trip_code,))
+    trip = c.fetchone()
+    if trip and quantity > 0 and purchase_cost >= 0 and sale_revenue >= 0:
+        c.execute("""INSERT INTO trip_goods (trip_id, trip_code, item_name, quantity, purchase_cost, sale_revenue)
+                     VALUES (%s, %s, %s, %s, %s, %s)""",
+                  (trip["id"], trip_code, item_name.strip(), quantity, purchase_cost, sale_revenue))
+        conn.commit()
     conn.close()
     return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
 
@@ -1050,6 +1100,8 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
     trip = c.fetchone()
     c.execute("SELECT * FROM expenses WHERE trip_code = %s ORDER BY id ASC", (trip_code,))
     expenses = c.fetchall()
+    c.execute("SELECT * FROM trip_goods WHERE trip_code = %s ORDER BY id ASC", (trip_code,))
+    goods = c.fetchall()
     conn.close()
 
     if not trip:
@@ -1057,7 +1109,11 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
 
     total_approved = sum([e["amount"] for e in expenses if e["manager_status"] == "APPROVED" or (not e["is_flagged"] and e["manager_status"] != "REJECTED")])
     total_flagged = sum([e["amount"] for e in expenses if e["is_flagged"]])
-    net_returnable = trip["advance_amount"] - total_approved
+    goods_cost = sum(g["purchase_cost"] for g in goods)
+    goods_sales = sum(g["sale_revenue"] for g in goods)
+    goods_profit = goods_sales - goods_cost
+    trip_profit = goods_profit - total_approved
+    net_returnable = trip["advance_amount"] + trip_profit
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
@@ -1087,16 +1143,18 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
             Paragraph("<b>Advance Issued</b>", cell_style),
             Paragraph("<b>Approved Claims</b>", cell_style),
             Paragraph("<b>Flagged Deductions</b>", cell_style),
-            Paragraph("<b>Net Driver Due</b>", cell_style)
+            Paragraph("<b>Goods P/L</b>", cell_style),
+            Paragraph("<b>Cash Settlement</b>", cell_style)
         ],
         [
             Paragraph(f"<b>Rs. {trip['advance_amount']:,.2f}</b>", cell_style),
             Paragraph(f"<b>Rs. {total_approved:,.2f}</b>", cell_style),
             Paragraph(f"<font color='#dc2626'><b>Rs. {total_flagged:,.2f}</b></font>", cell_style),
+            Paragraph(f"<font color={'#16a34a' if goods_profit >= 0 else '#dc2626'}><b>Rs. {goods_profit:,.2f}</b></font>", cell_style),
             Paragraph(f"<font color='#16a34a'><b>Rs. {net_returnable:,.2f}</b></font>", cell_style)
         ]
     ]
-    t_summary = Table(summary_data, colWidths=[130, 130, 130, 130])
+    t_summary = Table(summary_data, colWidths=[104, 104, 104, 104, 104])
     t_summary.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
         ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
@@ -1133,6 +1191,25 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
     ]))
     story.append(t_expenses)
+
+    story.append(Spacer(1, 15))
+    story.append(Paragraph("<b>Goods Trading Profit / Loss</b>", styles['Heading3']))
+    goods_table = [["Item", "Quantity", "Purchase Cost", "Sale Revenue", "Profit / Loss"]]
+    for g in goods:
+        goods_table.append([g["item_name"], f"{g['quantity']:,.2f}", f"Rs. {g['purchase_cost']:,.2f}", f"Rs. {g['sale_revenue']:,.2f}", f"Rs. {g['sale_revenue'] - g['purchase_cost']:,.2f}"])
+    goods_table.append(["TOTAL", "", f"Rs. {goods_cost:,.2f}", f"Rs. {goods_sales:,.2f}", f"Rs. {goods_profit:,.2f}"])
+    t_goods = Table(goods_table, colWidths=[170, 70, 100, 100, 80])
+    t_goods.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#eef2ff")),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(t_goods)
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(f"<b>Net trip profit / loss after approved expenses:</b> Rs. {trip_profit:,.2f}", meta_style))
 
     # Signatures
     story.append(Spacer(1, 35))

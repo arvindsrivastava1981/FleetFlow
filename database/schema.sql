@@ -102,7 +102,23 @@ CREATE INDEX IF NOT EXISTS idx_expenses_is_flagged ON expenses(is_flagged);
 CREATE INDEX IF NOT EXISTS idx_expenses_manager_status ON expenses(manager_status);
 
 -- ----------------------------------------------------------------------------
--- 5. FUEL BENCHMARKS TABLE (Reference for anomaly rules engine)
+-- 5. TRIP GOODS TRADING TABLE
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS trip_goods (
+    id BIGSERIAL PRIMARY KEY,
+    trip_id BIGINT REFERENCES trips(id) ON DELETE CASCADE,
+    trip_code VARCHAR(50) NOT NULL REFERENCES trips(trip_code) ON DELETE CASCADE,
+    item_name VARCHAR(150) NOT NULL,
+    quantity NUMERIC(10, 2) NOT NULL DEFAULT 1.00 CHECK (quantity > 0),
+    purchase_cost NUMERIC(12, 2) NOT NULL CHECK (purchase_cost >= 0),
+    sale_revenue NUMERIC(12, 2) NOT NULL CHECK (sale_revenue >= 0),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_trip_goods_trip_code ON trip_goods(trip_code);
+
+-- ----------------------------------------------------------------------------
+-- 6. FUEL BENCHMARKS TABLE (Reference for anomaly rules engine)
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS fuel_benchmarks (
     id SERIAL PRIMARY KEY,
