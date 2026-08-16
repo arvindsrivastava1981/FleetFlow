@@ -25,3 +25,9 @@ Commercial fleet operators lose **up to 15% of margin** to fragmented, opaque tr
 ---
 
 ## 🛠️ Project Structure
+
+├── fleetflow_interactive_demo.py   # FastAPI web app (Driver WhatsApp simulator + Owner ledger)
+├── fleetflow_backend_core.py       # Core rules engine, database models, and validation logic
+├── fleetflow_demo.db               # SQLite database for storing trips and logged expenses
+├── FleetFlow_Sample_Settlement_Sheet.pdf # Generated sample settlement balance sheet
+└── README.md                       # Documentation & setup instructions
