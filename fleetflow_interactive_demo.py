@@ -1,10 +1,6 @@
 import os
 import io
-import secrets
 import datetime
-import psycopg2
-import psycopg2.extras
-from dotenv import load_dotenv
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, Response, RedirectResponse
 import uvicorn
@@ -15,127 +11,117 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
-load_dotenv()
+from utils import (
+    get_db, fmt_dt, is_admin, render_header, render_footer, render_sidebar,
+    evaluate_rules, ADMIN_PASSWORD, ADMIN_COOKIE, _admin_sessions,
+)
+import secrets
 
 app = FastAPI(title="FleetFlow Full End-to-End Prototype")
-DATABASE_URL = os.getenv("DATABASE_URL")
-
-# PostgreSQL NUMERIC columns arrive as Decimal; cast to float globally to avoid arithmetic TypeErrors
-DEC2FLOAT = psycopg2.extensions.new_type(
-    psycopg2.extensions.DECIMAL.values, 'DEC2FLOAT', lambda v, c: float(v) if v is not None else None
-)
-psycopg2.extensions.register_type(DEC2FLOAT)
-
-# --- DATABASE CONNECTION (schema/tables managed manually via database/schema.sql in Neon) ---
-def get_db():
-    conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
-    return conn
-
-def fmt_dt(dt) -> str:
-    # PostgreSQL returns native datetime objects; never slice a datetime directly
-    return dt.strftime('%d %b %H:%M') if hasattr(dt, 'strftime') else str(dt)[:16]
-
-# --- ADMIN AUTH (in-memory session tokens; single-process demo, no new deps) ---
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
-ADMIN_COOKIE = "ff_admin_session"
-_admin_sessions: set[str] = set()
-
-def is_admin(request: Request) -> bool:
-    token = request.cookies.get(ADMIN_COOKIE)
-    return bool(token) and token in _admin_sessions
-def render_header(title: str, subtitle: str, authenticated: bool = False, actions: str = "") -> str:
-    auth_controls = (
-        f'''<span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>
-            <a href="/admin/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">🚪 Logout</a>'''
-        if authenticated else
-        '''<a href="/admin/login" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition">Login</a>'''
-    )
-    return f'''
-        <header class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
-            <div class="flex items-center space-x-3">
-                <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">FF</div>
-                <div>
-                    <h1 class="text-xl font-extrabold tracking-tight">{title}</h1>
-                    <p class="text-xs text-sky-400 font-medium">{subtitle}</p>
-                </div>
-            </div>
-            <nav class="flex items-center gap-3">{actions}{auth_controls}</nav>
-        </header>'''
-
-def render_footer() -> str:
-    return '''
-        <footer class="text-center text-xs text-slate-400 py-2">
-            FleetFlow · Expense verification and settlement
-        </footer>'''
-
-# --- MULTI-LAYER RULES ENGINE ---
-BENCHMARK_PRICE = 90.50 # State diesel price baseline (₹/L)
-TANK_CAPACITY = 350.0   # Max tank capacity in Liters
-EXPECTED_KML = 4.0      # Expected mileage (km/L)
-
-def evaluate_rules(trip_code: str, exp_type: str, amount: float, liters: float, rate: float, odo: float) -> tuple[int, str]:
-    conn = get_db()
-    c = conn.cursor()
-    
-    is_flagged = 0
-    flag_reason = ""
-    
-    if exp_type == "FUEL":
-        # Rule 1: Math integrity check (Amount == Liters * Rate)
-        if liters > 0 and rate > 0:
-            calc_amt = liters * rate
-            if abs(amount - calc_amt) > 10.0:
-                is_flagged = 1
-                flag_reason = f"Math Mismatch: Claimed ₹{amount:,.0f} vs {liters}L @ ₹{rate}/L = ₹{calc_amt:,.0f}"
-
-        # Rule 2: Price benchmark check (₹82 - ₹98/L)
-        if not is_flagged and (rate > 98.0 or (rate > 0 and rate < 82.0)):
-            is_flagged = 1
-            flag_reason = f"Rate ₹{rate}/L outside benchmark band (₹83 - ₹98)"
-
-        # Rule 3: Tank overflow check (> 350L)
-        elif not is_flagged and liters > TANK_CAPACITY:
-            is_flagged = 1
-            flag_reason = f"Quantity {liters}L exceeds max tank capacity ({TANK_CAPACITY}L)"
-
-        # Rule 4: Odometer rollback and mileage delta check
-        elif not is_flagged and odo > 0:
-            c.execute("SELECT odometer FROM expenses WHERE trip_code = %s AND exp_type = 'FUEL' AND odometer > 0 ORDER BY id DESC LIMIT 1", (trip_code,))
-            last_fuel = c.fetchone()
-            
-            if last_fuel:
-                prev_odo = last_fuel["odometer"]
-            else:
-                c.execute("SELECT start_odo FROM trips WHERE trip_code = %s", (trip_code,))
-                t_row = c.fetchone()
-                prev_odo = t_row["start_odo"] if t_row else 0.0
-
-            if prev_odo > 0 and odo < prev_odo:
-                is_flagged = 1
-                flag_reason = f"Odometer rollback ({odo:,.0f} KM < previous {prev_odo:,.0f} KM)"
-            elif prev_odo > 0 and odo > prev_odo and liters > 0:
-                calc_kml = (odo - prev_odo) / liters
-                if calc_kml < (EXPECTED_KML * 0.70): # Below 2.8 km/L
-                    is_flagged = 1
-                    flag_reason = f"Abnormal mileage {calc_kml:.1f} km/L (Expected ~{EXPECTED_KML:.1f} km/L)"
-
-    elif exp_type == "TOLL":
-        is_flagged = 1
-        flag_reason = "Cash claimed on FASTag-mandated corridor"
-
-    elif exp_type == "REPAIR":
-        if amount > 3000.0:
-            is_flagged = 1
-            flag_reason = "Major repair > ₹3,000 requires owner pre-approval"
-
-    conn.close()
-    return is_flagged, flag_reason
 
 # --- DASHBOARD & ROUTING ---
+@app.get("/dashboard", response_class=HTMLResponse)
+def savings_dashboard(request: Request):
+    if not is_admin(request):
+        return RedirectResponse(url="/login", status_code=303)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""SELECT COALESCE(SUM(amount), 0) AS total_claimed,
+                        COALESCE(SUM(CASE WHEN manager_status = 'REJECTED' THEN amount ELSE 0 END), 0) AS money_saved,
+                        COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR (NOT is_flagged AND manager_status != 'REJECTED') THEN amount ELSE 0 END), 0) AS total_approved,
+                        COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
+                 FROM expenses""")
+    totals = c.fetchone()
+
+    c.execute("SELECT COUNT(*) AS trip_count FROM trips")
+    trip_count = c.fetchone()["trip_count"]
+
+    # Money saved per trip = flagged claims a manager rejected instead of paying out
+    c.execute("""SELECT trip_code,
+                        COALESCE(SUM(CASE WHEN manager_status = 'REJECTED' THEN amount ELSE 0 END), 0) AS saved
+                 FROM expenses GROUP BY trip_code
+                 HAVING COALESCE(SUM(CASE WHEN manager_status = 'REJECTED' THEN amount ELSE 0 END), 0) > 0
+                 ORDER BY saved DESC LIMIT 6""")
+    savings_by_trip = c.fetchall()
+    conn.close()
+
+    money_saved = totals["money_saved"]
+    total_claimed = totals["total_claimed"]
+    total_approved = totals["total_approved"]
+    pending_count = totals["pending_count"]
+
+    chart_labels = [row["trip_code"] for row in savings_by_trip] or ["No rejections yet"]
+    chart_values = [row["saved"] for row in savings_by_trip] or [0]
+
+    return f'''<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FleetFlow Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    </head>
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
+        <div class="max-w-7xl mx-auto space-y-6">
+            {render_header(authenticated=True)}
+            <div class="flex flex-col lg:flex-row gap-4">
+                {render_sidebar("dashboard")}
+                <main class="flex-1 space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <div class="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-semibold text-emerald-100 uppercase">Money Saved So Far</p>
+                            <p class="text-2xl font-extrabold mt-1">₹{money_saved:,.2f}</p>
+                            <p class="text-[11px] text-emerald-100 mt-1">Flagged claims rejected instead of paid out</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Total Claimed</p>
+                            <p class="text-2xl font-extrabold mt-1 text-slate-900">₹{total_claimed:,.2f}</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Total Approved</p>
+                            <p class="text-2xl font-extrabold mt-1 text-slate-900">₹{total_approved:,.2f}</p>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                            <p class="text-xs font-semibold text-slate-400 uppercase">Pending Reviews</p>
+                            <p class="text-2xl font-extrabold mt-1 text-amber-600">{pending_count}</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Across {trip_count} trips</p>
+                        </div>
+                    </div>
+                    <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                        <h2 class="text-sm font-extrabold text-slate-800 mb-3">Money Saved by Trip</h2>
+                        <canvas id="savingsChart" height="110"></canvas>
+                    </div>
+                </main>
+            </div>
+            {render_footer()}
+        </div>
+        <script>
+            new Chart(document.getElementById('savingsChart'), {{
+                type: 'bar',
+                data: {{
+                    labels: {chart_labels!r},
+                    datasets: [{{
+                        label: 'Money saved (₹)',
+                        data: {chart_values!r},
+                        backgroundColor: '#059669',
+                        borderRadius: 6
+                    }}]
+                }},
+                options: {{
+                    plugins: {{ legend: {{ display: false }} }},
+                    scales: {{ y: {{ beginAtZero: true }} }}
+                }}
+            }});
+        </script>
+    </body>
+    </html>'''
+
 @app.get("/trips", response_class=HTMLResponse)
 def trip_listing(request: Request):
     if not is_admin(request):
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url="/login", status_code=303)
 
     conn = get_db()
     c = conn.cursor()
@@ -176,8 +162,8 @@ def trip_listing(request: Request):
     <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Trips</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-5xl mx-auto space-y-6">
-            {render_header("Trip Listing", "Current and completed trips", authenticated=True, actions=start_trip_control)}
-            <div class="flex items-center justify-between"><div><h2 class="text-lg font-extrabold text-slate-900">All Trips</h2><p class="text-xs text-slate-500">Select a trip to open its complete ledger, audit thread, and settlement details.</p></div><span class="text-xs text-slate-400">{len(all_trips)} total</span></div>
+            {render_header(authenticated=True)}
+            <div class="flex items-center justify-between"><div><h2 class="text-lg font-extrabold text-slate-900">All Trips</h2><p class="text-xs text-slate-500">Select a trip to open its complete ledger, audit thread, and settlement details.</p></div>{start_trip_control}<span class="text-xs text-slate-400">{len(all_trips)} total</span></div>
             <div class="space-y-3">{trip_rows if trip_rows else '<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">No trips yet. Start your first trip above.</div>'}</div>
             {render_footer()}
         </div>
@@ -186,7 +172,7 @@ def trip_listing(request: Request):
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request, trip_code: str = None, new_trip: bool = False):
     if not is_admin(request):
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url="/login", status_code=303)
     if not trip_code and not new_trip:
         return RedirectResponse(url="/trips", status_code=303)
 
@@ -236,7 +222,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
             
-            {render_header("FleetFlow", "Real-Time Expense Verification & Settlement Engine", authenticated=True)}
+            {render_header(authenticated=True)}
 
             <!-- Main Workspace Grid: 3-Column Dual-WhatsApp Architecture -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -615,7 +601,7 @@ def action_expense(id: int, action: str):
 @app.get("/settle-trip")
 def settle_trip(request: Request, trip_code: str):
     if not is_admin(request):
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url="/login", status_code=303)
 
     conn = get_db()
     c = conn.cursor()
@@ -646,7 +632,7 @@ def reset_demo():
     return RedirectResponse(url="/", status_code=303)
 
 # --- ADMIN LOGIN & DASHBOARD ---
-@app.get("/admin/login", response_class=HTMLResponse)
+@app.get("/login", response_class=HTMLResponse)
 def admin_login_form(error: str = None):
     return f'''<!DOCTYPE html>
     <html lang="en">
@@ -658,7 +644,7 @@ def admin_login_form(error: str = None):
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-5xl mx-auto space-y-6">
-            {render_header("FleetFlow", "Admin access", authenticated=False)}
+            {render_header(authenticated=False)}
             <main class="min-h-[60vh] flex items-center justify-center">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
             <div class="text-center space-y-1">
@@ -667,7 +653,7 @@ def admin_login_form(error: str = None):
                 <p class="text-xs text-slate-500">Enter the admin password to continue</p>
             </div>
             {'<p class="text-xs text-rose-600 font-semibold text-center">Incorrect password. Try again.</p>' if error else ''}
-            <form action="/admin/login" method="post" class="space-y-3">
+            <form action="/login" method="post" class="space-y-3">
                 <input type="password" name="password" required autofocus placeholder="Password"
                        class="w-full text-sm border rounded-lg p-2.5 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
                 <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
@@ -682,28 +668,28 @@ def admin_login_form(error: str = None):
     </body>
     </html>'''
 
-@app.post("/admin/login")
+@app.post("/login")
 def admin_login_submit(password: str = Form(...)):
     if password != ADMIN_PASSWORD:
-        return RedirectResponse(url="/admin/login?error=1", status_code=303)
+        return RedirectResponse(url="/login?error=1", status_code=303)
     token = secrets.token_urlsafe(32)
     _admin_sessions.add(token)
-    response = RedirectResponse(url="/", status_code=303)
+    response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(key=ADMIN_COOKIE, value=token, httponly=True, samesite="lax", max_age=60 * 60 * 12)
     return response
 
-@app.get("/admin/logout")
+@app.get("/logout")
 def admin_logout(request: Request):
     token = request.cookies.get(ADMIN_COOKIE)
     _admin_sessions.discard(token)
-    response = RedirectResponse(url="/admin/login", status_code=303)
+    response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(ADMIN_COOKIE)
     return response
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request):
     if not is_admin(request):
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url="/login", status_code=303)
 
     conn = get_db()
     c = conn.cursor()
@@ -747,7 +733,7 @@ def admin_dashboard(request: Request):
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
-            {render_header("FleetFlow Admin", "All Trips Overview", authenticated=True, actions='''<a href="/" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">← Dashboard</a>''')}
+            {render_header(authenticated=True)}
 
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <table class="w-full text-left">

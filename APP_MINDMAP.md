@@ -8,9 +8,10 @@
 - Frontend: Server-rendered HTML strings (f-strings) styled with Tailwind CDN (`grid grid-cols-1 lg:grid-cols-12 gap-4`). No separate JS build.
 
 ## Entry Point
-- [/fleetflow_interactive_demo.py](/fleetflow_interactive_demo.py) — single-file FastAPI demo app, the active/primary prototype.
+- [/fleetflow_interactive_demo.py](/fleetflow_interactive_demo.py) — single-file FastAPI demo app (routes only), the active/primary prototype.
   - Run: `uvicorn fleetflow_interactive_demo:app` or `python fleetflow_interactive_demo.py` (binds `0.0.0.0:$PORT`, default 8080).
   - Deps: [/requirements.txt](/requirements.txt).
+- [/utils.py](/utils.py) — shared code imported by the entry point: `get_db()`, `fmt_dt()`, admin auth (`is_admin()`, `ADMIN_PASSWORD`, `ADMIN_COOKIE`, `_admin_sessions`), HTML chrome (`render_header()`, `render_footer()`, `render_sidebar()`), and the rules engine (`evaluate_rules()`, `BENCHMARK_PRICE`, `TANK_CAPACITY`, `EXPECTED_KML`). Import shared helpers from here instead of redefining them in the entry point.
 - Legacy SQLite prototypes (`init_db.py`, `fleetflow_backend_core.py`) have been removed; do not reintroduce SQLite.
 
 ## Database Access Pattern (Postgres/Neon)
