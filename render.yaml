@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: fleetflow
+    runtime: docker
+    dockerfilePath: ./demo/Dockerfile
+    dockerContext: ./demo
+    envVars:
+      - key: PORT
+        value: 10000

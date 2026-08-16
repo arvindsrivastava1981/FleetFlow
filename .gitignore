@@ -70,3 +70,4 @@ htmlcov/
 *.log
 logs/
 uvicorn.log
+*.pyc
