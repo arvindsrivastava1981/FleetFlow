@@ -460,6 +460,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                 
     remaining_advance = (active_trip["advance_amount"] - total_approved) if active_trip else 0.0
     pending_expenses = sum(1 for expense in expenses if expense["manager_status"] == "PENDING")
+    settlement_action = f'''<a href="/settle-trip?trip_code={active_trip['trip_code']}" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow">Settle Trip</a>''' if active_trip and active_trip["status"] == "ACTIVE" else ''
     conn.close()
 
     html = f'''<!DOCTYPE html>
@@ -741,12 +742,13 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
 
                     </div>
 
-                    <!-- Bottom Action Bar: 1-Click Settlement PDF -->
+                    <!-- Bottom Action Bar -->
                     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center gap-3">
                         <div>
                             <span class="text-[10px] font-bold uppercase text-slate-400 block">Final Settlement Due</span>
                             <span class="text-base font-black text-emerald-700">₹{remaining_advance:,.2f} to recover</span>
                         </div>                        
+                        {settlement_action}
                     </div>
 
                 </div>
