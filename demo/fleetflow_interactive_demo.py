@@ -1,12 +1,19 @@
 import os
+import io
 import sqlite3
+import uvicorn
 from fastapi import FastAPI, Form
-from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
-from weasyprint import HTML
+from fastapi.responses import HTMLResponse, Response, RedirectResponse
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
 
+# 1. Initialize FastAPI App
 app = FastAPI(title="FleetFlow Interactive Demo")
 DB_FILE = "fleetflow_demo.db"
 
+# 2. Database Helpers
 def get_db():
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
@@ -37,7 +44,8 @@ def init_db():
         flag_reason TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
-    # Pre-seed a default demo trip if empty
+    
+    # Pre-seed default trip if database is empty
     c.execute("SELECT count(*) as count FROM trips")
     if c.fetchone()["count"] == 0:
         c.execute("INSERT INTO trips (trip_code, vehicle_no, driver_name, advance_amount, start_odo, current_odo) VALUES ('TRIP-901', 'UP-93-AT-1234', 'Ramesh Kumar', 25000, 102400, 102400)")
@@ -46,6 +54,7 @@ def init_db():
 
 init_db()
 
+# 3. Web Dashboard Route
 @app.get("/", response_class=HTMLResponse)
 def index():
     conn = get_db()
@@ -75,7 +84,7 @@ def index():
     <body class="bg-slate-100 min-h-screen p-4 md:p-8 font-sans">
         <div class="max-w-6xl mx-auto space-y-6">
             
-            <!-- Top Header -->
+            <!-- Header -->
             <div class="bg-slate-900 text-white p-6 rounded-xl flex justify-between items-center shadow-md">
                 <div>
                     <h1 class="text-2xl font-bold tracking-tight">FleetFlow Working Prototype</h1>
@@ -84,10 +93,10 @@ def index():
                 <span class="bg-sky-600 text-xs px-3 py-1.5 rounded-full font-bold uppercase tracking-wider">Demo Live</span>
             </div>
 
-            <!-- Two Column Layout: Driver Simulation (WhatsApp) & Manager Dashboard -->
+            <!-- Two Column Layout -->
             <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
                 
-                <!-- Left Column: WhatsApp Driver Simulator -->
+                <!-- Left: WhatsApp Driver Simulator -->
                 <div class="md:col-span-5 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
                     <div class="border-b pb-3 flex items-center justify-between">
                         <div class="flex items-center space-x-2">
@@ -147,7 +156,7 @@ def index():
                     </form>
                 </div>
 
-                <!-- Right Column: Live Fleet Owner Ledger -->
+                <!-- Right: Fleet Owner Ledger -->
                 <div class="md:col-span-7 bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
                     <div class="space-y-4">
                         <div class="border-b pb-3 flex justify-between items-center">
@@ -161,7 +170,7 @@ def index():
                             </div>
                         </div>
 
-                        <!-- Summary Cards -->
+                        <!-- Metric Cards -->
                         <div class="grid grid-cols-3 gap-3">
                             <div class="p-3 bg-slate-50 border rounded-lg text-center">
                                 <span class="text-[10px] uppercase font-bold text-slate-500 block">Total Claimed</span>
@@ -177,7 +186,7 @@ def index():
                             </div>
                         </div>
 
-                        <!-- Log Table -->
+                        <!-- Expenses Table -->
                         <div class="overflow-x-auto border rounded-lg">
                             <table class="w-full text-left text-xs">
                                 <thead class="bg-slate-100 text-slate-700 uppercase font-semibold border-b">
@@ -221,6 +230,7 @@ def index():
     </html>'''
     return html
 
+# 4. WhatsApp Simulation Endpoint
 @app.post("/simulate-whatsapp")
 def simulate_whatsapp(
     trip_code: str = Form(...),
@@ -268,6 +278,7 @@ def simulate_whatsapp(
     conn.close()
     return RedirectResponse(url="/", status_code=303)
 
+# 5. Reset Demo Endpoint
 @app.get("/reset-demo")
 def reset_demo():
     conn = get_db()
@@ -278,6 +289,7 @@ def reset_demo():
     conn.close()
     return RedirectResponse(url="/", status_code=303)
 
+# 6. ReportLab Pure-Python PDF Generation (Windows-Compatible)
 @app.get("/generate-settlement-pdf")
 def generate_settlement_pdf():
     conn = get_db()
@@ -292,103 +304,95 @@ def generate_settlement_pdf():
     total_flagged = sum([e["amount"] for e in expenses if e["is_flagged"]])
     net_returnable = trip["advance_amount"] - total_approved
 
-    pdf_html = f'''<!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="UTF-8">
-    <style>
-        @page {{ size: A4; margin: 15mm; }}
-        body {{ font-family: -apple-system, sans-serif; color: #1e293b; font-size: 10pt; line-height: 1.4; }}
-        .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 15px; display: table; width: 100%; }}
-        .left {{ display: table-cell; }}
-        .right {{ display: table-cell; text-align: right; }}
-        .title {{ font-size: 18pt; font-weight: 800; color: #0f172a; margin: 0; }}
-        .badge {{ background: #0284c7; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 8pt; font-weight: 700; }}
-        .summary-box {{ background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 15px; display: table; width: 100%; }}
-        .box-cell {{ display: table-cell; width: 25%; text-align: center; }}
-        .box-val {{ font-size: 13pt; font-weight: 800; color: #0f172a; }}
-        .box-lbl {{ font-size: 7.5pt; color: #64748b; font-weight: 700; text-transform: uppercase; }}
-        table {{ width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 9pt; }}
-        th {{ background: #f1f5f9; padding: 6px; text-align: left; border-bottom: 1.5px solid #cbd5e1; }}
-        td {{ padding: 6px; border-bottom: 1px solid #f1f5f9; }}
-        .flag {{ color: #dc2626; font-weight: 700; }}
-    </style>
-    </head>
-    <body>
-        <div class="header">
-            <div class="left">
-                <h1 class="title">FleetFlow</h1>
-                <p style="margin: 2px 0 0 0; color: #0284c7; font-weight: 700;">Trip Expense Settlement Balance Sheet</p>
-            </div>
-            <div class="right">
-                <span class="badge">AUDIT-PROOF SETTLEMENT</span>
-                <p style="margin: 4px 0 0 0; font-size: 8pt; color: #64748b;">Trip Code: {trip['trip_code']}</p>
-            </div>
-        </div>
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
+    story = []
+    styles = getSampleStyleSheet()
 
-        <div style="margin-bottom: 15px; font-size: 9pt;">
-            <strong>Vehicle No:</strong> {trip['vehicle_no']} &nbsp;|&nbsp; 
-            <strong>Driver:</strong> {trip['driver_name']} &nbsp;|&nbsp; 
-            <strong>Start Odo:</strong> {trip['start_odo']:,.0f} KM &nbsp;|&nbsp; 
-            <strong>End Odo:</strong> {trip['current_odo']:,.0f} KM (Distance: {trip['current_odo'] - trip['start_odo']:,.0f} KM)
-        </div>
+    # Typography Styles
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, leading=22, textColor=colors.HexColor("#0f172a"))
+    sub_style = ParagraphStyle('SubStyle', parent=styles['Normal'], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
+    meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
+    cell_style = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
+    flag_style = ParagraphStyle('FlagStyle', parent=styles['Normal'], fontSize=8, leading=10, textColor=colors.HexColor("#dc2626"))
 
-        <div class="summary-box">
-            <div class="box-cell">
-                <div class="box-val">₹{trip['advance_amount']:,.2f}</div>
-                <div class="box-lbl">Advance Issued</div>
-            </div>
-            <div class="box-cell">
-                <div class="box-val">₹{total_approved:,.2f}</div>
-                <div class="box-lbl">Approved Claims</div>
-            </div>
-            <div class="box-cell">
-                <div class="box-val" style="color: #dc2626;">₹{total_flagged:,.2f}</div>
-                <div class="box-lbl">Flagged Discrepancies</div>
-            </div>
-            <div class="box-cell">
-                <div class="box-val" style="color: #16a34a;">₹{net_returnable:,.2f}</div>
-                <div class="box-lbl">Driver Balance Due</div>
-            </div>
-        </div>
+    # Header
+    story.append(Paragraph("<b>FleetFlow</b>", title_style))
+    story.append(Paragraph("Trip Expense Settlement Balance Sheet (Audit-Proof)", sub_style))
+    story.append(Spacer(1, 10))
 
-        <h3 style="font-size: 10pt; text-transform: uppercase; border-left: 3px solid #0284c7; padding-left: 6px; margin-bottom: 6px;">Expense Verification Breakdown</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Expense Type</th>
-                    <th>Claimed Amount</th>
-                    <th>Liters / Rate / Odometer</th>
-                    <th>Verification Audit</th>
-                </tr>
-            </thead>
-            <tbody>
-                {''.join([f'''
-                <tr>
-                    <td><strong>{e['exp_type']}</strong></td>
-                    <td>₹{e['amount']:,.2f}</td>
-                    <td>{f"{e['liters']}L @ ₹{e['rate']}/L (Odo: {e['odometer']} KM)" if e['exp_type'] == 'FUEL' else f"Odo: {e['odometer']} KM"}</td>
-                    <td><span class="{'flag' if e['is_flagged'] else ''}">{'⚠️ Flagged: ' + e['flag_reason'] if e['is_flagged'] else '✅ Verified'}</span></td>
-                </tr>
-                ''' for e in expenses]) if expenses else '<tr><td colspan="4" style="text-align:center; padding:15px; color:#94a3b8;">No expenses recorded on this trip.</td></tr>'}
-            </tbody>
-        </table>
+    # Metadata
+    odo_dist = trip['current_odo'] - trip['start_odo']
+    meta_text = f"<b>Trip:</b> {trip['trip_code']} &nbsp;|&nbsp; <b>Vehicle:</b> {trip['vehicle_no']} &nbsp;|&nbsp; <b>Driver:</b> {trip['driver_name']} &nbsp;|&nbsp; <b>Distance:</b> {odo_dist:,.0f} KM"
+    story.append(Paragraph(meta_text, meta_style))
+    story.append(Spacer(1, 12))
 
-        <div style="margin-top: 35px; border-top: 1px dashed #cbd5e1; padding-top: 15px; display: table; width: 100%; font-size: 8.5pt;">
-            <div style="display: table-cell; width: 50%;">
-                Driver Signature: _______________________
-            </div>
-            <div style="display: table-cell; width: 50%; text-align: right;">
-                Fleet Manager Sign-off: _______________________
-            </div>
-        </div>
-    </body>
-    </html>'''
+    # Summary Metrics Table
+    summary_data = [
+        [
+            Paragraph("<b>Advance Issued</b>", cell_style),
+            Paragraph("<b>Approved Claims</b>", cell_style),
+            Paragraph("<b>Flagged Anomalies</b>", cell_style),
+            Paragraph("<b>Driver Due</b>", cell_style)
+        ],
+        [
+            Paragraph(f"<b>Rs. {trip['advance_amount']:,.2f}</b>", cell_style),
+            Paragraph(f"<b>Rs. {total_approved:,.2f}</b>", cell_style),
+            Paragraph(f"<font color='#dc2626'><b>Rs. {total_flagged:,.2f}</b></font>", cell_style),
+            Paragraph(f"<font color='#16a34a'><b>Rs. {net_returnable:,.2f}</b></font>", cell_style)
+        ]
+    ]
+    t_summary = Table(summary_data, colWidths=[130, 130, 130, 130])
+    t_summary.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t_summary)
+    story.append(Spacer(1, 15))
 
-    output_pdf = "FleetFlow_Sample_Settlement_Sheet.pdf"
-    HTML(string=pdf_html).write_pdf(output_pdf)
-    return FileResponse(output_pdf, media_type="application/pdf", filename="FleetFlow_Trip_Settlement_Sheet.pdf")
+    # Expense Breakdown Table
+    story.append(Paragraph("<b>Expense Verification Breakdown</b>", styles['Heading3']))
+    story.append(Spacer(1, 6))
+
+    table_data = [["Type", "Claimed", "Details", "Audit Status"]]
+    for e in expenses:
+        details = f"{e['liters']}L @ Rs. {e['rate']}/L (Odo: {e['odometer']} KM)" if e['exp_type'] == 'FUEL' else f"Odo: {e['odometer']} KM"
+        status_para = Paragraph(f"<font color='#dc2626'><b>[FLAG]</b> {e['flag_reason']}</font>", flag_style) if e['is_flagged'] else Paragraph("<font color='#16a34a'><b>[VERIFIED]</b></font>", cell_style)
+        
+        table_data.append([
+            Paragraph(f"<b>{e['exp_type']}</b>", cell_style),
+            Paragraph(f"Rs. {e['amount']:,.2f}", cell_style),
+            Paragraph(details, cell_style),
+            status_para
+        ])
+
+    if len(table_data) == 1:
+        table_data.append([Paragraph("None", cell_style), Paragraph("-", cell_style), Paragraph("No expenses recorded", cell_style), Paragraph("-", cell_style)])
+
+    t_expenses = Table(table_data, colWidths=[65, 80, 200, 175])
+    t_expenses.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+    ]))
+    story.append(t_expenses)
+
+    story.append(Spacer(1, 30))
+    sign_data = [["Driver Signature: ___________________", "Fleet Manager Sign-off: ___________________"]]
+    t_sign = Table(sign_data, colWidths=[260, 260])
+    story.append(t_sign)
+
+    doc.build(story)
+    pdf_out = buffer.getvalue()
+    buffer.close()
+
+    return Response(content=pdf_out, media_type="application/pdf", headers={"Content-Disposition": "inline; filename=FleetFlow_Settlement.pdf"})
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8080)
