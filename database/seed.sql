@@ -18,36 +18,37 @@ VALUES
     ('DL', 'Delhi', 89.60),
     ('HR', 'Haryana', 90.10);
 
--- TRIP-101: settled trip, mix of approved and rejected expenses
+-- TRIP-104: settled trip with goods buy and sale flow (approved end-to-end)
 INSERT INTO trips (trip_code, vehicle_id, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, end_odo, status, origin, destination, completed_at, settled_at)
 VALUES (
-    'TRIP-101',
+    'TRIP-104',
     (SELECT id FROM vehicles WHERE vehicle_number = 'UP-93-AT-1234'),
-    'UP-93-AT-1234', 'Ramesh Kumar', '+91 98765 43210', 25000.00, 102400.00, 102850.00, 102850.00,
-    'SETTLED', 'Lucknow', 'Kanpur', CURRENT_TIMESTAMP - INTERVAL '2 days', CURRENT_TIMESTAMP - INTERVAL '2 days'
+    'UP-93-AT-1234', 'Rajesh Patel', '+91 98765 33344', 30000.00, 103550.00, 104120.00, 104120.00,
+    'SETTLED', 'Jaipur', 'Agra', CURRENT_TIMESTAMP - INTERVAL '12 hours', CURRENT_TIMESTAMP - INTERVAL '12 hours'
 )
 ON CONFLICT (trip_code) DO NOTHING;
 
 INSERT INTO expenses (trip_id, trip_code, exp_type, amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status)
 VALUES 
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-101'), 'TRIP-101', 'FUEL', 4500.00, 50.00, 90.00, 102600.00, 'Indian Oil Highway Pump', FALSE, NULL, 'APPROVED'),
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-101'), 'TRIP-101', 'TOLL', 850.00, 0.00, 0.00, 102750.00, 'NH-19 Toll Plaza', TRUE, 'Cash claimed on 100% FASTag corridor', 'REJECTED'),
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-101'), 'TRIP-101', 'FUEL', 5400.00, 60.00, 90.00, 102850.00, 'HPCL Fuel Stop', TRUE, 'Low mileage 1.7 km/L (Expected ~4.0 km/L)', 'REJECTED');
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-104'), 'TRIP-104', 'FUEL', 5400.00, 60.00, 90.00, 103700.00, 'Shell Fuel Station Jaipur', FALSE, NULL, 'APPROVED'),
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-104'), 'TRIP-104', 'GOODS_BUY', 15000.00, 0.00, 0.00, 103650.00, 'Jaipur Marble & Tiles Wholesale', FALSE, NULL, 'APPROVED'),
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-104'), 'TRIP-104', 'TOLL', 450.00, 0.00, 0.00, 103900.00, 'Agra Expressway Toll', FALSE, NULL, 'APPROVED'),
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-104'), 'TRIP-104', 'GOODS_SALE', 22500.00, 0.00, 0.00, 104120.00, 'Agra Retail Store Delivery', FALSE, NULL, 'APPROVED');
 
--- TRIP-102: second settled trip on the same vehicle, starting where TRIP-101 ended
+-- TRIP-105: settled trip with goods buy and sale flow (approved end-to-end) - textile materials
 INSERT INTO trips (trip_code, vehicle_id, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, end_odo, status, origin, destination, completed_at, settled_at)
 VALUES (
-    'TRIP-102',
+    'TRIP-105',
     (SELECT id FROM vehicles WHERE vehicle_number = 'UP-93-AT-1234'),
-    'UP-93-AT-1234', 'Suresh Yadav', '+91 98765 11122', 20000.00, 102850.00, 103400.00, 103400.00,
-    'SETTLED', 'Kanpur', 'Delhi', CURRENT_TIMESTAMP - INTERVAL '1 day', CURRENT_TIMESTAMP - INTERVAL '1 day'
+    'UP-93-AT-1234', 'Vikram Singh', '+91 98765 44455', 28000.00, 104120.00, 104680.00, 104680.00,
+    'SETTLED', 'Agra', 'Lucknow', CURRENT_TIMESTAMP - INTERVAL '6 hours', CURRENT_TIMESTAMP - INTERVAL '6 hours'
 )
 ON CONFLICT (trip_code) DO NOTHING;
 
 INSERT INTO expenses (trip_id, trip_code, exp_type, amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status)
 VALUES 
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-102'), 'TRIP-102', 'FUEL', 4950.00, 55.00, 90.00, 103100.00, 'Bharat Petroleum Pump', FALSE, NULL, 'APPROVED'),
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-102'), 'TRIP-102', 'TOLL', 620.00, 0.00, 0.00, 103200.00, 'Yamuna Expressway Toll', FALSE, NULL, 'APPROVED'),
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-102'), 'TRIP-102', 'REPAIR', 1800.00, 0.00, 0.00, 103300.00, 'Roadside Tyre Repair', TRUE, 'Repair cost above typical range for tyre puncture', 'REJECTED'),
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-102'), 'TRIP-102', 'CHALLAN', 500.00, 0.00, 0.00, 103400.00, 'Traffic Police Checkpoint', TRUE, 'No supporting challan receipt uploaded', 'REJECTED');
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'GOODS_BUY', 18500.00, 0.00, 0.00, 104200.00, 'Agra Textile Mills Warehouse', FALSE, NULL, 'APPROVED'),
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'FUEL', 5850.00, 65.00, 90.00, 104350.00, 'Indian Oil Pump Agra-Lucknow Highway', FALSE, NULL, 'APPROVED'),
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'TOLL', 520.00, 0.00, 0.00, 104550.00, 'NH-19 Toll Booth', FALSE, NULL, 'APPROVED'),
+    ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'GOODS_SALE', 28750.00, 0.00, 0.00, 104680.00, 'Lucknow Fashion District Retail Center', FALSE, NULL, 'APPROVED');
 

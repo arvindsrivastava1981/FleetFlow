@@ -23,13 +23,13 @@
 
 ### Core Tables (see [/database/schema.sql](/database/schema.sql))
 - `trips` (trip_code, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, status, created_at, settled_at).
-- `expenses` (trip_code FK, exp_type: FUEL/TOLL/REPAIR/CHALLAN/RTO-FINE/DEF/OTHER/MISC, amount, liters, rate, odometer, is_flagged, flag_reason, manager_status: PENDING/APPROVED/REJECTED, created_at).
+- `expenses` (trip_code FK, exp_type: FUEL/TOLL/REPAIR/CHALLAN/RTO-FINE/DEF/OTHER/MISC/GOODS_BUY/GOODS_SALE, amount, liters, rate, odometer, is_flagged, flag_reason, manager_status: PENDING/APPROVED/REJECTED, created_at). Goods buys and sales always start pending; only approved entries affect settlement, with buys reducing and sales increasing cash and trip profit.
 
 ## Routes (fleetflow_interactive_demo.py)
 - `GET /` — renders the 3-column dashboard (see UI Layout below).
 - `POST /create-trip` — inserts a new `trips` row (requires driver_phone), redirects to `/?trip_code=...`.
-- `POST /simulate-whatsapp` — inserts an `expenses` row after running it through `evaluate_rules()` (fuel math/price-band/tank-capacity/odometer-mileage checks, mandatory TOLL flag, REPAIR > ₹3,000 flag).
-- `GET /action-expense?id=&action=APPROVE|REJECT` — manager decision on a flagged expense.
+- `POST /simulate-whatsapp` — inserts an `expenses` row after running it through `evaluate_rules()` (fuel math/price-band/tank-capacity/odometer-mileage checks, mandatory TOLL flag, REPAIR > ₹3,000 flag); goods buys and sales remain pending for manager review.
+- `GET /action-expense?id=&action=APPROVE|REJECT` — manager decision on a flagged expense or pending goods transaction.
 - `GET /reset-demo` — clears `expenses`/`trips` rows only (no reseed, no DDL).
 - `GET /settled-pdfs` — lists settled trips with links to their settlement PDFs.
 - `GET /generate-settlement-pdf?trip_code=` — builds a reportlab PDF settlement/reconciliation sheet.

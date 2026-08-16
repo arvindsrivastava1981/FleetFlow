@@ -20,6 +20,18 @@ import secrets
 
 app = FastAPI(title="FleetFlow Full End-to-End Prototype")
 
+GOODS_EXPENSE_TYPES = ("GOODS_BUY", "GOODS_SALE")
+
+
+def is_approved(expense):
+    return expense["manager_status"] == "APPROVED"
+
+
+def approved_cash_impact(expense):
+    if not is_approved(expense):
+        return 0.0
+    return expense["amount"] if expense["exp_type"] == "GOODS_SALE" else -expense["amount"]
+
 # --- DASHBOARD & ROUTING ---
 @app.get("/dashboard", response_class=HTMLResponse)
 def savings_dashboard(request: Request):
@@ -446,21 +458,27 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
     expenses = []
     total_claimed = 0.0
     total_approved = 0.0
+    total_income = 0.0
     total_flagged = 0.0
+
     
     if active_trip:
         c.execute("SELECT * FROM expenses WHERE trip_code = %s ORDER BY id DESC", (active_trip["trip_code"],))
         expenses = c.fetchall()
         for e in expenses:
             total_claimed += e["amount"]
-            if e["manager_status"] == "APPROVED" or (not e["is_flagged"] and e["manager_status"] != "REJECTED"):
+            if is_approved(e) and e["exp_type"] != "GOODS_SALE":
                 total_approved += e["amount"]
+            if is_approved(e) and e["exp_type"] == "GOODS_SALE":
+                total_income += e["amount"]
             if e["is_flagged"]:
                 total_flagged += e["amount"]
 
-    trip_profit = -total_approved
+    trip_profit = sum(approved_cash_impact(e) for e in expenses)
     remaining_advance = (active_trip["advance_amount"] + trip_profit) if active_trip else 0.0
     pending_expenses = sum(1 for expense in expenses if expense["manager_status"] == "PENDING")
+    is_trip_settled = bool(active_trip and active_trip["status"] == "SETTLED")
+    settled_at_text = fmt_dt(active_trip["settled_at"]) if is_trip_settled and active_trip["settled_at"] else "the recorded settlement time"
     settlement_action = f'''<a href="/settle-trip?trip_code={active_trip['trip_code']}" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition shadow">Settle Trip</a>''' if active_trip and active_trip["status"] == "ACTIVE" else ''
     conn.close()
 
@@ -510,6 +528,11 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                 <p class="text-[10px] text-slate-400">डीजल या पर्ची की फोटो यहाँ भेजें।</p>
                             </div>
 
+                            {f'''<div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg shadow-sm max-w-[85%] text-emerald-900">
+                                <p class="font-bold text-[11px]">Trip settled</p>
+                                <p class="text-[10px]">This trip was settled on {settled_at_text}. New expenses can no longer be submitted.</p>
+                            </div>''' if is_trip_settled else ''}
+
                             <!-- Feed of Logged Transactions as Chat Bubbles -->
                             {''.join([f'''
                             <div class="flex flex-col items-end space-y-1">
@@ -530,7 +553,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                         </div>
 
                         <!-- Interactive WhatsApp Input Box -->
-                        <div class="p-3 bg-white border-t border-slate-200">
+                        <div class="p-3 bg-white border-t border-slate-200{' hidden' if is_trip_settled else ''}">
                             <form action="/simulate-whatsapp" method="post" class="space-y-2.5" id="expense-form">
                                 <input type="hidden" name="trip_code" value="{active_trip['trip_code'] if active_trip else ''}">
                                 
@@ -544,6 +567,8 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                             <option value="REPAIR">Repair (मरम्मत)</option>
                                             <option value="CHALLAN">Challan (चालान)</option>
                                             <option value="RTO-FINE">RTO Fine (आरटीओ जुर्माना)</option>
+                                            <option value="GOODS_BUY">Goods Buy (माल खरीद)</option>
+                                            <option value="GOODS_SALE">Goods Sale (माल बिक्री)</option>
                                             <option value="OTHER">Other (अन्य)</option>
                                         </select>
                                     </div>
@@ -586,6 +611,8 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                 TOLL: '📸 Upload: printed cash toll plaza slip. Proves legitimate cash payment when FASTag failed or on an off-corridor toll road.',
                                 CHALLAN: '📸 Upload: official traffic challan/e-challan copy showing offense code and vehicle number.',
                                 'RTO-FINE': '📸 Upload: official RTO fine slip with offense code, vehicle registration and penalty amount. Validates statutory deductions.',
+                                GOODS_BUY: '📸 Upload: supplier invoice or purchase receipt. This remains pending until the trip manager reviews it.',
+                                GOODS_SALE: '📸 Upload: customer invoice or sale receipt. This remains pending until the trip manager reviews it.',
                                 OTHER: '📸 Upload: physical receipt (weighbridge/Dharam Kanta, parking token, entry fee, loading/unloading voucher) for reconciliation.'
                             }};
                             function ffToggleExpenseFields() {{
@@ -621,7 +648,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                     <p class="text-[10px] text-amber-200">Online • Anomaly Escalations</p>
                                 </div>
                             </div>
-                            <span class="text-[10px] bg-amber-900 text-amber-200 px-2 py-0.5 rounded font-mono">{len([e for e in expenses if e['is_flagged'] and e['manager_status'] == 'PENDING'])} Pending</span>
+                            <span class="text-[10px] bg-amber-900 text-amber-200 px-2 py-0.5 rounded font-mono">{len([e for e in expenses if (e['is_flagged'] or e['exp_type'] in GOODS_EXPENSE_TYPES) and e['manager_status'] == 'PENDING'])} Pending</span>
                         </div>
 
                         <!-- Manager Escalation Chat Feed -->
@@ -629,14 +656,19 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
 
                             <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm max-w-[85%] space-y-1">
                                 <p class="font-bold text-slate-800 text-[11px]">🔔 Escalation Bot</p>
-                                <p class="text-slate-600">Flagged claims on <strong>{active_trip['trip_code'] if active_trip else 'N/A'}</strong> are routed here for owner sign-off.</p>
+                                <p class="text-slate-600">Flagged claims and goods transactions on <strong>{active_trip['trip_code'] if active_trip else 'N/A'}</strong> are routed here for owner sign-off.</p>
                             </div>
+
+                            {f'''<div class="bg-emerald-50 border border-emerald-200 p-3 rounded-lg shadow-sm max-w-[85%] text-emerald-900">
+                                <p class="font-bold text-[11px]">Trip settled</p>
+                                <p class="text-[10px]">This trip was settled on {settled_at_text}. Manager approvals are closed.</p>
+                            </div>''' if is_trip_settled else ''}
 
                             {''.join([f'''
                             <div class="flex flex-col items-start space-y-1">
                                 <div class="bg-white border border-amber-200 p-2.5 rounded-lg rounded-tl-none shadow-sm max-w-[90%] text-slate-800">
-                                    <p class="font-bold text-[11px] text-rose-700">⚠️ {e['exp_type']} Anomaly — ₹{e['amount']:,.2f}</p>
-                                    <p class="text-[10px] text-slate-600">{e['flag_reason']}</p>
+                                    <p class="font-bold text-[11px] text-rose-700">{'⚠️' if e['is_flagged'] else '📦'} {e['exp_type']} {'Anomaly' if e['is_flagged'] else 'Review'} — ₹{e['amount']:,.2f}</p>
+                                    <p class="text-[10px] text-slate-600">{e['flag_reason'] if e['is_flagged'] else 'Goods transactions require trip manager approval before settlement.'}</p>
                                     <p class="text-[9px] text-slate-400 mt-1">{fmt_dt(e['created_at'])}</p>
                                 </div>
                                 {f"""
@@ -650,13 +682,13 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                 </div>
                                 """}
                             </div>
-                            ''' for e in expenses if e['is_flagged']]) if any(e['is_flagged'] for e in expenses) else '<div class="text-center text-slate-400 text-[11px] pt-6">No anomalies escalated yet.</div>'}
+                            ''' for e in expenses if e['is_flagged'] or e['exp_type'] in GOODS_EXPENSE_TYPES]) if any(e['is_flagged'] or e['exp_type'] in GOODS_EXPENSE_TYPES for e in expenses) else '<div class="text-center text-slate-400 text-[11px] pt-6">No reviews pending yet.</div>'}
 
                         </div>
 
                         <!-- Manager Panel Footer -->
                         <div class="p-3 bg-white border-t border-slate-200 text-center">
-                            <span class="text-[10px] text-slate-400">Approvals here update the Master Ledger in real time.</span>
+                            <span class="text-[10px] text-slate-400">{'This settled trip is read-only.' if is_trip_settled else 'Approvals here update the Master Ledger in real time.'}</span>
                         </div>
 
                     </div>
@@ -693,7 +725,7 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                     <span class="text-xs font-bold text-slate-800">₹{total_claimed:,.0f}</span>
                                 </div>
                                 <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
-                                    <span class="text-[9px] uppercase font-bold text-slate-500 block">Approved</span>
+                                    <span class="text-[9px] uppercase font-bold text-slate-500 block">Approved Expenses</span>
                                     <span class="text-xs font-bold text-emerald-700">₹{total_approved:,.0f}</span>
                                 </div>
                                 <div class="bg-rose-50 border border-rose-200 p-2.5 rounded-xl text-rose-700">
@@ -703,6 +735,10 @@ def index(request: Request, trip_code: str = None, new_trip: bool = False):
                                 <div class="bg-sky-50 border border-sky-200 p-2.5 rounded-xl text-sky-800">
                                     <span class="text-[9px] uppercase font-bold block">Cash Settlement</span>
                                     <span class="text-xs font-bold">₹{remaining_advance:,.0f}</span>
+                                </div>
+                                <div class="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl text-emerald-800 col-span-2">
+                                    <span class="text-[9px] uppercase font-bold block">Approved Goods Income</span>
+                                    <span class="text-xs font-bold">₹{total_income:,.0f}</span>
                                 </div>
                                 <div class="{'bg-emerald-50 border-emerald-200 text-emerald-800' if trip_profit >= 0 else 'bg-rose-50 border-rose-200 text-rose-800'} border p-2.5 rounded-xl col-span-2">
                                     <span class="text-[9px] uppercase font-bold block">Net Trip Profit / Loss</span>
@@ -856,10 +892,15 @@ def simulate_whatsapp(
 ):
     conn = get_db()
     c = conn.cursor()
+    c.execute("SELECT status FROM trips WHERE trip_code = %s", (trip_code,))
+    trip = c.fetchone()
+    if not trip or trip["status"] != "ACTIVE":
+        conn.close()
+        return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
     
     # Run through the multi-layer rules engine
     is_flagged, flag_reason = evaluate_rules(trip_code, exp_type, amount, liters, rate, odometer)
-    manager_status = "PENDING" if is_flagged else "APPROVED"
+    manager_status = "PENDING" if is_flagged or exp_type in GOODS_EXPENSE_TYPES else "APPROVED"
 
     c.execute('''INSERT INTO expenses (trip_code, exp_type, amount, liters, rate, odometer, is_flagged, flag_reason, manager_status) 
                  VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)''', 
@@ -1065,9 +1106,10 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
     if not trip:
         return Response("Trip not found", status_code=404)
 
-    total_approved = sum([e["amount"] for e in expenses if e["manager_status"] == "APPROVED" or (not e["is_flagged"] and e["manager_status"] != "REJECTED")])
+    total_approved = sum(e["amount"] for e in expenses if is_approved(e) and e["exp_type"] != "GOODS_SALE")
+    total_income = sum(e["amount"] for e in expenses if is_approved(e) and e["exp_type"] == "GOODS_SALE")
     total_flagged = sum([e["amount"] for e in expenses if e["is_flagged"]])
-    trip_profit = -total_approved
+    trip_profit = sum(approved_cash_impact(e) for e in expenses)
     net_returnable = trip["advance_amount"] + trip_profit
 
     buffer = io.BytesIO()
@@ -1096,18 +1138,20 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
     summary_data = [
         [
             Paragraph("<b>Advance Issued</b>", cell_style),
-            Paragraph("<b>Approved Claims</b>", cell_style),
+            Paragraph("<b>Approved Expenses</b>", cell_style),
+            Paragraph("<b>Approved Goods Income</b>", cell_style),
             Paragraph("<b>Flagged Deductions</b>", cell_style),
             Paragraph("<b>Cash Settlement</b>", cell_style)
         ],
         [
             Paragraph(f"<b>Rs. {trip['advance_amount']:,.2f}</b>", cell_style),
             Paragraph(f"<b>Rs. {total_approved:,.2f}</b>", cell_style),
+            Paragraph(f"<b>Rs. {total_income:,.2f}</b>", cell_style),
             Paragraph(f"<font color='#dc2626'><b>Rs. {total_flagged:,.2f}</b></font>", cell_style),
             Paragraph(f"<font color='#16a34a'><b>Rs. {net_returnable:,.2f}</b></font>", cell_style)
         ]
     ]
-    t_summary = Table(summary_data, colWidths=[130, 130, 130, 130])
+    t_summary = Table(summary_data, colWidths=[104, 104, 104, 104, 104])
     t_summary.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
         ('BOX', (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),

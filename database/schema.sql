@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     trip_id BIGINT REFERENCES trips(id) ON DELETE CASCADE,
     trip_code VARCHAR(50) NOT NULL REFERENCES trips(trip_code) ON DELETE CASCADE,
     exp_type VARCHAR(20) NOT NULL 
-        CHECK (exp_type IN ('FUEL', 'TOLL', 'REPAIR', 'OTHER', 'CHALLAN', 'MISC', 'RTO-FINE', 'DEF')),
+        CHECK (exp_type IN ('FUEL', 'TOLL', 'REPAIR', 'OTHER', 'CHALLAN', 'MISC', 'RTO-FINE', 'DEF', 'GOODS_BUY', 'GOODS_SALE')),
     amount NUMERIC(10, 2) NOT NULL CHECK (amount >= 0),
     approved_amount NUMERIC(10, 2),
     liters NUMERIC(8, 2) DEFAULT 0.00,
