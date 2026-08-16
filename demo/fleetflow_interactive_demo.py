@@ -244,7 +244,7 @@ def index(trip_code: str = None):
                             <div class="bg-white p-3 rounded-lg rounded-tl-none shadow-sm max-w-[85%] space-y-1">
                                 <p class="font-bold text-slate-800 text-[11px]">नमस्ते {active_trip['driver_name'] if active_trip else 'Driver'} जी! 👋</p>
                                 <p class="text-slate-600">गाड़ी <strong>{active_trip['vehicle_no'] if active_trip else ''}</strong> की ट्रिप <strong>{active_trip['trip_code'] if active_trip else ''}</strong> शुरू हो चुकी है।</p>
-                                <p class="text-slate-600">एडवांस जारी: <strong class="text-emerald-700">₹{active_trip['advance_amount']:,.2f}</strong></p>
+                                <p class="text-slate-600">एडवांस जारी: <strong class="text-emerald-700">₹{(active_trip['advance_amount'] if active_trip else 0.0):,.2f}</strong></p>
                                 <p class="text-[10px] text-slate-400">डीजल या पर्ची की फोटो यहाँ भेजें।</p>
                             </div>
 
@@ -647,4 +647,5 @@ def generate_settlement_pdf(trip_code: str = "TRIP-101"):
     return Response(content=pdf_out, media_type="application/pdf", headers={"Content-Disposition": f"inline; filename={trip_code}_Settlement.pdf"})
 
 if __name__ == "__main__":
+    init_db()
     uvicorn.run(app, host="127.0.0.1", port=8080)
