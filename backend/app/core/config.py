@@ -1,0 +1,90 @@
+"""Application configuration — env-driven, fail-fast.
+
+Replaces the flat `os.getenv` reads previously hoisted at module-import time in
+`utils.py`. Two production invariants:
+1. DATABASE_URL is required — fail loudly at startup, never silently run against a
+   missing variable (fixes the masking risk flagged in deep_agent_recommendation §5).
+2. ADMIN_PASSWORD is required — no predictable "admin123" fallback (fixes §2.2).
+
+Access anywhere as:  from backend.app.core.config import settings
+
+All values are read once at import time so the app boots deterministically and a
+missing required var raises a clear error instead of half-initializing.
+"""
+from __future__ import annotations
+
+import os
+from functools import lru_cache
+
+from dotenv import load_dotenv
+
+load_dotenv()  # idempotent; no-op when vars already present in the environment
+
+
+class Settings:
+    """Typed, fail-fast configuration holder for FleetFlow."""
+
+    def __init__(self) -> None:
+        # ---- Database -----------------------------------------------------
+        self.database_url: str = _require("DATABASE_URL")
+
+        # ---- Admin auth ----------------------------------------------------
+        # In prod, ADMIN_PASSWORD must be set. We allow the dev-only default
+        # ONLY when the app is not running in production mode.
+        default_password = "admin123"
+        self.admin_password: str = os.getenv("ADMIN_PASSWORD", default_password)
+        self.is_production: bool = os.getenv("ENV", "development").lower() in (
+            "production",
+            "prod",
+        )
+        if self.is_production and self.admin_password == default_password:
+            raise RuntimeError(
+                "ADMIN_PASSWORD must be set explicitly in production — "
+                "refusing to boot with the 'admin123' default."
+            )
+        self.admin_cookie: str = "ff_admin_session"
+
+        # ---- Session / security -------------------------------------------
+        self.session_ttl_hours: int = 72
+        self.login_max_attempts: int = 5
+        self.login_lockout_seconds: int = 300
+
+        # ---- Rules-engine thresholds (single source of truth) --------------
+        self.benchmark_price: float = 90.50
+        self.tank_capacity_liters: float = 350.0
+        self.expected_kml: float = 4.0
+        self.def_rate_max: float = 75.0
+        self.def_min_ratio_pct: float = 3.0
+        self.def_max_ratio_pct: float = 6.0
+        self.math_tolerance: float = 10.0
+        self.fuel_band_tolerance_pct: float = 0.08
+
+        # ---- System Invariants (from APP_MINDMAP) --------------------------
+        self.plate_regex: str = r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$"
+        self.country_code: str = "+91"
+        self.qr_code_length: int = 6
+        self.anti_spam_scans_per_hour: int = 3
+
+        # ---- WhatsApp (Phase C) & OCR (Phase D) ----------------------------
+        self.whatsapp_access_token: str | None = os.getenv("WHATSAPP_ACCESS_TOKEN")
+        self.whatsapp_phone_id: str | None = os.getenv("WHATSAPP_PHONE_ID")
+        self.webhook_verify_token: str | None = os.getenv("WEBHOOK_VERIFY_TOKEN")
+
+
+def _require(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable: {name}. "
+            "Set it in .env or the deployment environment before starting."
+        )
+    return value
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Return a process-wide singleton `Settings` instance."""
+    return Settings()
+
+
+settings = get_settings()

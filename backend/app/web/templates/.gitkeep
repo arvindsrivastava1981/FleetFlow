@@ -1,0 +1,3 @@
+# Placeholder — server-rendered Tailwind HTML lives here once the route pages
+# (dashboard, ledger, chat threads) are migrated out of the prototype string
+# templates. See backend/app/web/chrome.py for the shared header/footer/sidebar.

@@ -24,5 +24,11 @@ COPY . .
 # Expose Render default port
 EXPOSE 10000
 
-# Run Uvicorn using the dynamic PORT environment variable provided by Render (fallback to 10000)
-CMD ["sh", "-c", "uvicorn fleetflow_interactive_demo:app --host 0.0.0.0 --port ${PORT:-10000}"]
+# Run the modular FastAPI factory using the dynamic PORT provided by Render.
+# The new package entrypoint lives at backend.app.main:app. The legacy single-file
+# prototype (fleetflow_interactive_demo:app) remains only as a dev tool until all
+# routes are migrated into backend/app/api/ (see PROJECT_STRUCTURE.md §4).
+# Note: WORKDIR is /app, and `COPY . .` above already placed /app/backend, so the
+# package import `backend.app.main` resolves because --app-dir /app puts the repo
+# root (which contains the `backend` package) onto sys.path.
+CMD ["sh", "-c", "uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}"]

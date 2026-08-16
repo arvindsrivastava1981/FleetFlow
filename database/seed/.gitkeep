@@ -1,0 +1,4 @@
+# Production-safe seed data (reference tables only):
+#   - fuel_benchmarks (per-state price index)
+#   - toll_corridors  (Phase B FASTag corridors)
+# Never seed demo trips/expenses here; see tests/fixtures for throwaway data.

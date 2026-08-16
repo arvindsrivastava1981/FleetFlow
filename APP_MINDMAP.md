@@ -8,10 +8,15 @@
 - Frontend: Server-rendered HTML strings (f-strings) styled with Tailwind CDN (`grid grid-cols-1 lg:grid-cols-12 gap-4`). No separate JS build.
 
 ## Entry Point
-- [/fleetflow_interactive_demo.py](/fleetflow_interactive_demo.py) — single-file FastAPI demo app (routes only), the active/primary prototype.
-  - Run: `uvicorn fleetflow_interactive_demo:app` or `python fleetflow_interactive_demo.py` (binds `0.0.0.0:$PORT`, default 8080).
-  - Deps: [/requirements.txt](/requirements.txt).
-- [/utils.py](/utils.py) — shared code imported by the entry point: `get_db()`, `fmt_dt()`, admin auth (`is_admin()`, `ADMIN_PASSWORD`, `ADMIN_COOKIE`, `_admin_sessions`), HTML chrome (`render_header()`, `render_footer()`, `render_sidebar()`), and the rules engine (`evaluate_rules()`, `BENCHMARK_PRICE`, `TANK_CAPACITY`, `EXPECTED_KML`, `DEF_RATE_MAX`, `DEF_MIN_RATIO_PCT`, `DEF_MAX_RATIO_PCT`). Import shared helpers from here instead of redefining them in the entry point.
+- **[backend/app/main.py](/backend/app/main.py)** — new modular FastAPI factory; the **deploy target**.
+  - Run: `uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}` (see `Dockerfile` / `render.yaml`, which now point here).
+  - Boots `/healthz` + `/` only until routers are migrated from the prototype (cutover note in [`PROJECT_STRUCTURE.md`](./PROJECT_STRUCTURE.md#4-migration-path-incremental-non-breaking)).
+  - Config/security live in `backend/app/core/{config,security}.py` (env-driven, fail-fast; prod refuses `admin123` fallback).
+- Legacy single-file prototype (dev tool only, still runs unchanged while routes migrate):
+  - [/fleetflow_interactive_demo.py](/fleetflow_interactive_demo.py) — single-file FastAPI demo app (routes only).
+    - Run: `uvicorn fleetflow_interactive_demo:app` or `python fleetflow_interactive_demo.py` (binds `0.0.0.0:$PORT`, default 8080).
+    - Deps: [/requirements.txt](/requirements.txt).
+- [/utils.py](/utils.py) — shared code imported by the entry point: `get_db()`, `fmt_dt()`, admin auth, HTML chrome, and the rules engine. Being migrated into the package: rules → `backend/app/services/rules/`, auth → `backend/app/core/security.py`, DB → `backend/app/db/connection.py`, chrome → `backend/app/web/chrome.py`. A compatibility shim in `evaluate.py` keeps `utils.py` imports working.
 - Legacy SQLite prototypes (`init_db.py`, `fleetflow_backend_core.py`) have been removed; do not reintroduce SQLite.
 
 ## Database Access Pattern (Postgres/Neon)

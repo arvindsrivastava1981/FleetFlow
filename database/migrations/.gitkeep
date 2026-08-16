@@ -1,0 +1,5 @@
+# Incremental schema migration statements applied OUTSIDE the app (Neon).
+# The app runs zero DDL. One file per release:
+#   - migration_<yyyy><mm>.sql : forward statements
+#   - migration_<date>_down.sql: rollback (best-effort)
+# Existing content currently lives in ./database/incremental.sql — fold it in here.

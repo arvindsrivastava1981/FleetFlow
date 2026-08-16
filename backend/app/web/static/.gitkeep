@@ -1,0 +1,3 @@
+# Placeholder — Tailwind-CDN app shells / Chart.js snippets served into pages.
+# The app is server-rendered (no JS build); this dir holds reusable <script>/<link>
+# fragments the page builders inject (dashboard chart, chat simulator JS).
