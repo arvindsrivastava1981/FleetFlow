@@ -14,7 +14,7 @@ from __future__ import annotations
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from backend.app.api import auth, demo, expenses, trips
+from backend.app.api import auth, dashboard, demo, expenses, trips
 from backend.app.core.config import settings
 from backend.app.db.connection import healthcheck
 
@@ -29,6 +29,7 @@ app.include_router(auth.router)
 app.include_router(trips.router)
 app.include_router(expenses.router)
 app.include_router(demo.router)
+app.include_router(dashboard.router)
 
 
 @app.get("/healthz")

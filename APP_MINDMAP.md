@@ -10,7 +10,7 @@
 ## Entry Point
 - **[backend/app/main.py](/backend/app/main.py)** — new modular FastAPI factory; the **deploy target**.
   - Run: `uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}` (see `Dockerfile` / `render.yaml`, which now point here).
-  - Wires `backend/app/api/{auth,trips,expenses,demo}.py` routers (see Routes below) + exposes `/healthz` (DB liveness probe) and `/`.
+  - Wires `backend/app/api/{auth,trips,expenses,demo,dashboard}.py` routers (see Routes below) + exposes `/healthz` (DB liveness probe) and `/`.
   - Config/security live in `backend/app/core/{config,security}.py` (env-driven, fail-fast; prod refuses `admin123` fallback).
   - **Auth hardening (migrated routers):** every mutation guards via `security.require_admin` → 303 to `/login` when unauthenticated; sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); state-changing requests use single-use CSRF tokens; all DB-sourced values are escaped via `security.esc()` (stored-XSS fix). Sessions/attempts are process-local in-memory (single-worker); swap `_admin_sessions`/`_login_attempts`/`_csrf_tokens` for a shared store in multi-worker deploys.
 - Legacy single-file prototype (dev tool only, still runs unchanged while routes migrate):
@@ -48,10 +48,10 @@
 - `GET /action-expense?id=&action=APPROVE|REJECT` — `api/expenses.py`: manager decision on a flagged/pending expense or goods transaction.
 - `GET /settle-trip?trip_code=` — `api/trips.py`: marks trip `SETTLED` (only when no PENDING expenses remain).
 - `GET /reset-demo` — `api/demo.py`: clears `expenses`+`trips` rows (no DDL, no reseed) — now **admin-guarded** (was previously unauthenticated).
+- `GET /dashboard` — `api/dashboard.py`: admin-only savings dashboard (money-saved/claimed/approved/**pending** cards + per-trip Chart.js bar chart); the authenticated post-login landing page (redirect target of `POST /login`) — **migrated**.
 
 ### Prototype-only read-only UI (`fleetflow_interactive_demo.py` — not yet migrated)
 - `GET /` — 3-column dashboard UI (see UI Layout below).
-- `GET /dashboard` — admin-only savings dashboard (money-saved/claimed/approved cards + per-trip Chart.js bar chart).
 - `GET /trips` — admin-only trip listing (active first) with per-trip expense totals / pending counts.
 - `GET /fuel-benchmarks` + `POST /fuel-benchmarks/add`, `POST /fuel-benchmarks/edit`, `GET /fuel-benchmarks/delete?id=` — admin CRUD for per-state fuel price benchmarks.
 - `GET /rule-engine` — admin-only read-only explainer of the anomaly rules per expense type.
