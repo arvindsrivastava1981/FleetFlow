@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from backend.app.core.security import esc, require_auth
+from backend.app.core.security import esc, get_current_user, require_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.benchmarks import (
     delete_benchmark,

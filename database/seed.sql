@@ -50,5 +50,19 @@ VALUES
     ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'GOODS_BUY', 18500.00, 0.00, 0.00, 104200.00, 'Agra Textile Mills Warehouse', FALSE, NULL, 'APPROVED'),
     ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'FUEL', 5850.00, 65.00, 90.00, 104350.00, 'Indian Oil Pump Agra-Lucknow Highway', FALSE, NULL, 'APPROVED'),
     ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'TOLL', 520.00, 0.00, 0.00, 104550.00, 'NH-19 Toll Booth', FALSE, NULL, 'APPROVED'),
-    ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'GOODS_SALE', 28750.00, 0.00, 0.00, 104680.00, 'Lucknow Fashion District Retail Center', FALSE, NULL, 'APPROVED');
+         ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'GOODS_SALE', 28750.00, 0.00, 0.00, 104680.00, 'Lucknow Fashion District Retail Center', FALSE, NULL, 'APPROVED');
+
+-- ----------------------------------------------------------------------------
+-- Seed users: super_admin / trip_manager / driver
+-- Passwords: admin123 / manager123 / driver123
+-- ----------------------------------------------------------------------------
+INSERT INTO users (username, password_hash, full_name, role, phone, email, is_active, created_by)
+VALUES
+    ('admin', 'pbkdf2_sha256$100000$e736c77949726881ac49aca9b8d141b0$5824b96852d0a9be488b4d67cb40bf66761cb005a709567861bad3139f805b1d',
+     'Super Admin', 'super_admin', '+91 98765 00000', 'admin@fleetflow.com', TRUE, NULL),
+    ('manager1', 'pbkdf2_sha256$100000$159a80d5e5f6e3cbd4a7022e0ff3c94a$4f02ca54bdb8491179c8ed98b70089a3365d4919d98ca9ad893a522fcb583c0b',
+     'Trip Manager', 'trip_manager', '+91 90000 11111', 'manager@fleetflow.com', TRUE, 1),
+    ('driver1', 'pbkdf2_sha256$100000$93996def8186b585ea6f1f340e97767c$b0ae45aad250ee8e07502f4a8ddf59bd62395e809039522d7f209fd3c40e195d',
+     'Driver One', 'driver', '+91 90000 22222', 'driver@fleetflow.com', TRUE, 2)
+ON CONFLICT (username) DO NOTHING;
 

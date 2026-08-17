@@ -25,8 +25,9 @@ from backend.app.core.config import settings
 
 AUTH_COOKIE: str = settings.auth_cookie
 
-# token -> issued-at (unix seconds). TTL enforced on read to avoid unbounded growth.
-_auth_sessions: dict[str, float] = {}
+# token -> {"user_id": int, "username": str, "role": str, "issued_at": float}.
+# TTL enforced on read to avoid unbounded growth.
+_auth_sessions: dict[str, dict] = {}
 _session_lock = threading.Lock()
 
 # Per-IP login attempt tracker for brute-force defense: ip -> (count, locked_until)
@@ -45,18 +46,23 @@ def _now() -> float:
     return time.time()
 
 
-def create_session() -> str:
-    """Issue a fresh  session token with TTL."""
+def create_session(user_id: int, username: str, role: str) -> str:
+    """Issue a fresh session token with TTL, binding user identity and role."""
     token = secrets.token_urlsafe(32)
     with _session_lock:
-        _auth_sessions[token] = _now()
+        _auth_sessions[token] = {
+            "user_id": user_id,
+            "username": username,
+            "role": role,
+            "issued_at": _now(),
+        }
     return token
 
 
 def _sweep_expired() -> None:
     """Drop tokens older than the session TTL."""
     cutoff = _now() - settings.session_ttl_hours * 3600
-    stale = [t for t, ts in _auth_sessions.items() if ts < cutoff]
+    stale = [t for t, data in _auth_sessions.items() if data["issued_at"] < cutoff]
     for t in stale:
         with _session_lock:
             _auth_sessions.pop(t, None)
@@ -69,15 +75,26 @@ def destroy_session(request: Request) -> None:
             _auth_sessions.pop(token, None)
 
 
-def is_valid_token(token: str | None) -> bool:
+def _get_session_data(token: str | None) -> dict | None:
+    """Return the session dict for *token* if valid, else None."""
     if not token:
-        return False
+        return None
     _sweep_expired()
-    return token in _auth_sessions
+    with _session_lock:
+        return _auth_sessions.get(token)
+
+
+def is_valid_token(token: str | None) -> bool:
+    return _get_session_data(token) is not None
 
 
 def is_authorized_user(request: Request) -> bool:
     return is_valid_token(request.cookies.get(AUTH_COOKIE))
+
+
+def get_current_user(request: Request) -> dict | None:
+    """Return the bound user dict {user_id, username, role} or None."""
+    return _get_session_data(request.cookies.get(AUTH_COOKIE))
 
 
 def require_auth(request: Request, login_url: str = "/login") -> RedirectResponse | None:
@@ -90,6 +107,16 @@ def require_auth(request: Request, login_url: str = "/login") -> RedirectRespons
     """
     if not is_authorized_user(request):
         return RedirectResponse(url=login_url, status_code=303)
+    return None
+
+
+def require_role(request: Request, *roles: str) -> RedirectResponse | None:
+    """Return a 303 redirect if unauthenticated or role not in *roles*."""
+    user = get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/login", status_code=303)
+    if user["role"] not in roles:
+        return RedirectResponse(url="/dashboard", status_code=303)
     return None
 
 

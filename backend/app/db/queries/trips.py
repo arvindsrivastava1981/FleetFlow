@@ -65,17 +65,76 @@ def insert_trip(
     driver_phone: str,
     advance_amount: float,
     start_odo: float,
+    created_by: int | None = None,
+    driver_user_id: int | None = None,
 ) -> None:
-    """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first."""
+    """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first.
+    *created_by* is the trip_manager who started the trip; *driver_user_id*
+    links the trip to a driver user so drivers can see their own trips.
+    """
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO trips
                (trip_code, vehicle_no, driver_name, driver_phone,
-                advance_amount, start_odo, current_odo, status)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE')""",
+                advance_amount, start_odo, current_odo, status,
+                created_by, driver_user_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
         (trip_code, vehicle_no, driver_name, driver_phone,
-         advance_amount, start_odo, start_odo),
+         advance_amount, start_odo, start_odo,
+         created_by, driver_user_id),
     )
+
+
+def get_trips_for_user(conn, user_id: int, role: str) -> list[dict]:
+    """Return trips visible to *user_id* based on their *role*.
+
+    - super_admin: all trips
+    - trip_manager: trips they created (created_by = user_id)
+    - driver: trips assigned to them (driver_user_id = user_id)
+    """
+    cur = conn.cursor()
+    if role == "super_admin":
+        cur.execute(
+            "SELECT * FROM trips ORDER BY "
+            "CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC"
+        )
+        return cur.fetchall()
+    if role == "trip_manager":
+        cur.execute(
+            "SELECT * FROM trips WHERE created_by = %s ORDER BY "
+            "CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC",
+            (user_id,),
+        )
+        return cur.fetchall()
+    # driver
+    cur.execute(
+        "SELECT * FROM trips WHERE driver_user_id = %s ORDER BY "
+        "CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC",
+        (user_id,),
+    )
+    return cur.fetchall()
+
+
+def get_active_trip_for_driver(conn, user_id: int) -> dict | None:
+    """Latest ACTIVE trip assigned to *user_id* (driver view)."""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM trips WHERE driver_user_id = %s AND status = 'ACTIVE' "
+        "ORDER BY id DESC LIMIT 1",
+        (user_id,),
+    )
+    return cur.fetchone()
+
+
+def get_active_trip_for_manager(conn, user_id: int) -> dict | None:
+    """Latest ACTIVE trip created by *user_id* (trip_manager view)."""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM trips WHERE created_by = %s AND status = 'ACTIVE' "
+        "ORDER BY id DESC LIMIT 1",
+        (user_id,),
+    )
+    return cur.fetchone()
 
 
 def settle_trip(conn, trip_code: str) -> None:

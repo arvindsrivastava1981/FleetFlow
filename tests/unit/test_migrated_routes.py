@@ -79,7 +79,7 @@ def test_unauthenticated_rule_engine_redirects_to_login():
 
 
 def test_authenticated_rule_engine_renders_without_db():
-    token = create_session()
+    token = create_session(user_id=1, username="admin", role="super_admin")
     try:
         resp = client.get("/rule-engine", cookies={AUTH_COOKIE: token})
         assert resp.status_code == 200

@@ -16,10 +16,12 @@ from backend.app.api import (
     benchmarks,
     dashboard,
     demo,
+    drivers,
     expenses,
     rule_engine,
     settlement,
     trips,
+    users,
     views,
 )
 from backend.app.db.connection import healthcheck
@@ -32,6 +34,8 @@ app = FastAPI(
 
 # ---- Routers (auth/mutations first, then read-only UI pages) ----------------
 app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(drivers.router)
 app.include_router(trips.router)
 app.include_router(expenses.router)
 app.include_router(demo.router)

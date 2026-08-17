@@ -144,3 +144,39 @@ CREATE TRIGGER trg_fuel_benchmarks_updated_at
     BEFORE UPDATE ON fuel_benchmarks
     FOR EACH ROW
     EXECUTE PROCEDURE update_timestamp_column();
+
+-- ----------------------------------------------------------------------------
+-- 7. USERS TABLE — role-based access (Super Admin / Trip Manager / Driver)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    role VARCHAR(20) NOT NULL
+        CHECK (role IN ('super_admin', 'trip_manager', 'driver')),
+    phone VARCHAR(20),
+    email VARCHAR(150),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+
+CREATE TRIGGER trg_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_timestamp_column();
+
+-- ----------------------------------------------------------------------------
+-- 8. TRIP OWNERSHIP — who created the trip & which driver user is assigned
+-- ----------------------------------------------------------------------------
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS created_by BIGINT REFERENCES users(id);
+ALTER TABLE trips ADD COLUMN IF NOT EXISTS driver_user_id BIGINT REFERENCES users(id);
+
+CREATE INDEX IF NOT EXISTS idx_trips_created_by ON trips(created_by);
+CREATE INDEX IF NOT EXISTS idx_trips_driver_user_id ON trips(driver_user_id);

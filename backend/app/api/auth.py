@@ -1,25 +1,26 @@
-"""Auth router — login/logout with the security fixes applied.
+"""Auth router — login/logout with per-user credentials.
 
-Fixes from deep_agent_recommendation:
-- §2.2 brute-force: rate-limits + lockout per source IP (`login_allowed` /
-  `register_login_failure` / `clear_login_failures`), no predictable password
-  fallback (enforced by `core/config` in production).
-- Sessions now have a TTL and are created via `core.security.create_session`.
+Replaces the single hardcoded USER_PASSWORD login with username + password
+validation against the `users` table. Brute-force defense (per-IP lockout)
+and 72h session TTL are preserved from the security layer.
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from backend.app.core.config import settings
 from backend.app.core.security import (
     AUTH_COOKIE,
     clear_login_failures,
     create_session,
     destroy_session,
+    get_current_user,
     login_allowed,
     register_login_failure,
 )
+from backend.app.db.connection import get_db
+from backend.app.db.queries.users import get_user_by_username
+from backend.app.core.password import verify_password
 from backend.app.web.chrome import render_footer, render_header
 
 router = APIRouter()
@@ -56,11 +57,15 @@ def login_form(request: Request, error: str | None = None) -> str:
             <div class="text-center space-y-1">
                 <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">FF</div>
                 <h1 class="text-lg font-extrabold text-slate-800">Login</h1>
-                <p class="text-xs text-slate-500">Enter the password to continue</p>
+                <p class="text-xs text-slate-500">Enter your username and password</p>
             </div>
-            {'<p class="text-xs text-rose-600 font-semibold text-center">Incorrect password. Try again.</p>' if error else ''}
+            {'<p class="text-xs text-rose-600 font-semibold text-center">Incorrect username or password. Try again.</p>' if error == '1' else ''}
+            {'<p class="text-xs text-rose-600 font-semibold text-center">Account is inactive. Contact your administrator.</p>' if error == 'inactive' else ''}
+            {'<p class="text-xs text-rose-600 font-semibold text-center">Too many failed attempts. Try again later.</p>' if error == 'locked' else ''}
             <form action="/login" method="post" class="space-y-3">
-                <input type="password" name="password" required autofocus placeholder="Password"
+                <input type="text" name="username" required autofocus placeholder="Username"
+                       class="w-full text-sm border rounded-lg p-2.5 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
+                <input type="password" name="password" required placeholder="Password"
                        class="w-full text-sm border rounded-lg p-2.5 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
                 <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
                     Login
@@ -75,18 +80,28 @@ def login_form(request: Request, error: str | None = None) -> str:
 
 
 @router.post("/login")
-def login_submit(request: Request, password: str = Form(...)):
+def login_submit(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
     ip = _client_ip(request)
     allowed, _lock_remaining = login_allowed(ip)
     if not allowed:
         return RedirectResponse(url="/login?error=locked", status_code=303)
 
-    if password != settings.password:
+    with get_db() as conn:
+        user = get_user_by_username(conn, username.strip())
+
+    if user is None or not verify_password(password, user["password_hash"]):
         remaining = register_login_failure(ip)
         return RedirectResponse(url="/login?error=1", status_code=303)
 
+    if not user["is_active"]:
+        return RedirectResponse(url="/login?error=inactive", status_code=303)
+
     clear_login_failures(ip)
-    token = create_session()
+    token = create_session(user["id"], user["username"], user["role"])
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(
         key=AUTH_COOKIE,

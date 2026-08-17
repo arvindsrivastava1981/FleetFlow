@@ -4,7 +4,9 @@ Replaces the flat `os.getenv` reads previously hoisted at module-import time in
 `utils.py`. Two production invariants:
 1. DATABASE_URL is required — fail loudly at startup, never silently run against a
    missing variable (fixes the masking risk flagged in deep_agent_recommendation §5).
-2. USER_PASSWORD is required — no fallback (fixes §2.2).
+2. Auth is per-user: login validates username + password against the `users` table.
+   USER_PASSWORD env is deprecated (kept for backwards-compat only).
+
 
 Access anywhere as:  from backend.app.core.config import settings
 
@@ -29,19 +31,10 @@ class Settings:
         self.database_url: str = _require("DATABASE_URL")
 
         # ----  auth ----------------------------------------------------
-        # In prod, _PASSWORD must be set. We allow the dev-only default
-        # ONLY when the app is not running in production mode.
+        # Per-user login replaces the single USER_PASSWORD. The env var is
+        # still read for backwards-compat but is no longer used for login.
         default_password = "123"
-        self.password: str = os.getenv("USER_PASSWORD", default_password)
-        self.is_production: bool = os.getenv("ENV", "development").lower() in (
-            "production",
-            "prod",
-        )
-        if self.is_production and self.password == default_password:
-            raise RuntimeError(
-                "USER_PASSWORD must be set explicitly in production — "
-                "refusing to boot with the '123' default."
-            )
+        _ = os.getenv("USER_PASSWORD", default_password)  # deprecated, kept for compat
         self.auth_cookie: str = "ff_auth_session"
 
         # ---- Session / security -------------------------------------------
