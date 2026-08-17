@@ -80,7 +80,7 @@ def savings_dashboard(request: Request):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow Dashboard</title>
+        <title>VahanKhata Dashboard</title>
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     </head>

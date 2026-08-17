@@ -1,6 +1,6 @@
-# FleetFlow — Master System Mindmap & Agent Reference
+# VahanKhata — Master System Mindmap & Agent Reference
 
-> **Purpose:** This file serves as the definitive architecture map, routing table, and protocol guide for AI coding agents (Cline / Roo Code) working within the `FleetFlow` repository. Refer to this document first to avoid exploratory file searches and save context tokens.
+> **Purpose:** This file serves as the definitive architecture map, routing table, and protocol guide for AI coding agents (Cline / Roo Code) working within the `VahanKhata` repository. Refer to this document first to avoid exploratory file searches and save context tokens.
 
 ## Stack
 - Backend: Python 3.12, FastAPI, uvicorn, reportlab (PDF), psycopg2-binary, python-dotenv.

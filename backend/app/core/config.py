@@ -24,7 +24,7 @@ load_dotenv()  # idempotent; no-op when vars already present in the environment
 
 
 class Settings:
-    """Typed, fail-fast configuration holder for FleetFlow."""
+    """Typed, fail-fast configuration holder for VahanKhata."""
 
     def __init__(self) -> None:
         # ---- Database -----------------------------------------------------

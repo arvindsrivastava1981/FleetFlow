@@ -1,5 +1,5 @@
 -- ============================================================================
--- FleetFlow: PostgreSQL Master Database Schema
+-- VahanKhata: PostgreSQL Master Database Schema
 -- Multi-Tenant Fleet Expense Verification & Real-Time Settlement Engine
 -- ============================================================================
 

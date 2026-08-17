@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: fleetflow
+    name: vahankhata
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: ./

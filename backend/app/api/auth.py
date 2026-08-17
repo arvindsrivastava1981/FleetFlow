@@ -47,7 +47,7 @@ def login_form(request: Request, error: str | None = None) -> str:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow Login</title>
+        <title>VahanKhata Login</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -56,7 +56,7 @@ def login_form(request: Request, error: str | None = None) -> str:
             <main class="min-h-[60vh] flex items-center justify-center">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
             <div class="text-center space-y-1">
-                <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">FF</div>
+                <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">VK</div>
                 <h1 class="text-lg font-extrabold text-slate-800">Login</h1>
                 <p class="text-xs text-slate-500">Enter your username and password</p>
             </div>

@@ -1,4 +1,4 @@
-"""FleetFlow application package.
+"""VahanKhata application package.
 
 Modular decomposition of the former single-file prototype
 (`fleetflow_interactive_demo.py`) into cohesive packages.

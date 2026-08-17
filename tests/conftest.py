@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for the FleetFlow backend.
+"""Shared pytest fixtures for the VahanKhata backend.
 
 Lets the repo root onto `sys.path` (so `backend/...` imports just work when
 running `pytest` from the project root) and exposes a reusable default fuel band

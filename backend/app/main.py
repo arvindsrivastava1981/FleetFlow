@@ -1,4 +1,4 @@
-"""FleetFlow application entrypoint (FastAPI factory).
+"""VahanKhata application entrypoint (FastAPI factory).
 
 Primary deploy target (see Dockerfile / render.yaml / start.ps1):
     uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}
@@ -28,7 +28,7 @@ from backend.app.api import (
 from backend.app.db.connection import healthcheck
 
 app = FastAPI(
-    title="FleetFlow",
+    title="VahanKhata",
     description="Real-Time Fleet Expense Verification & Settlement Engine",
     version="0.1.0",
 )

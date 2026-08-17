@@ -1,5 +1,5 @@
 # ============================================================================
-#  start.ps1  -  FleetFlow launcher: validate install, then start the app
+#  start.ps1  -  VahanKhata launcher: validate install, then start the app
 # ============================================================================
 #  Cross-references:  Installation.md  (sections 1-6)
 #
@@ -62,7 +62,7 @@ function Write-Check {
 }
 
 Write-Host ''
-Write-Host 'FleetFlow installation status  (reference: Installation.md)'
+Write-Host 'VahanKhata installation status  (reference: Installation.md)'
 Write-Host ('Root: ' + $Root)
 Write-Host ('-' * 60)
 
@@ -161,7 +161,7 @@ if (-not (Test-Path $modApp)) {
 }
 
 Set-Location $Root
-Write-Host ('Starting FleetFlow on http://0.0.0.0:{0}  (primary/deploy entry point, Installation.md section 5)' -f $BoundPort) -ForegroundColor Cyan
+Write-Host ('Starting VahanKhata on http://0.0.0.0:{0}  (primary/deploy entry point, Installation.md section 5)' -f $BoundPort) -ForegroundColor Cyan
 Write-Host 'Press Ctrl+C to stop.' -ForegroundColor DarkGray
 Write-Host ''
 

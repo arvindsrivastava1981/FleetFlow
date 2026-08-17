@@ -1,4 +1,4 @@
-"""Run the full FleetFlow test suite from the repo root.
+"""Run the full VahanKhata test suite from the repo root.
 
 Usage:
     python scripts/run_tests.py

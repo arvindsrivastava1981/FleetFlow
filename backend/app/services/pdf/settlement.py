@@ -49,7 +49,7 @@ def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
     cell_style = ParagraphStyle("CellStyle", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
     flag_style = ParagraphStyle("FlagStyle", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#dc2626"))
 
-    story.append(Paragraph("<b>FleetFlow</b>", title_style))
+    story.append(Paragraph("<b>VahanKhata</b>", title_style))
     story.append(Paragraph("Official Trip Settlement & Advance Reconciliation Ledger", sub_style))
     story.append(Spacer(1, 10))
 

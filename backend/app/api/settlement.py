@@ -52,7 +52,7 @@ def settled_pdf_listing(request: Request):
 
     user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
-    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Settled PDFs</title><script src="https://cdn.tailwindcss.com"></script></head>
+    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>VahanKhata Settled PDFs</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}

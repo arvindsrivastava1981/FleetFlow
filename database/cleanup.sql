@@ -1,5 +1,5 @@
 -- ----------------------------------------------------------------------------
--- FleetFlow Demo Data Cleanup
+-- VahanKhata Demo Data Cleanup
 -- Removes the TRIP-101 demo trip and its expenses while retaining reference data.
 -- ----------------------------------------------------------------------------
 

@@ -111,7 +111,7 @@ def admin_dashboard(request: Request):
     html = f"""<!DOCTYPE html>
     <html lang="en">
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow Admin Dashboard</title><script src="https://cdn.tailwindcss.com"></script>
+        <title>VahanKhata Admin Dashboard</title><script src="https://cdn.tailwindcss.com"></script>
         <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -242,7 +242,7 @@ def manager_dashboard(request: Request):
     html = f"""<!DOCTYPE html>
     <html lang="en">
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow Trip Manager</title><script src="https://cdn.tailwindcss.com"></script>
+        <title>VahanKhata Trip Manager</title><script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
@@ -339,7 +339,7 @@ def driver_dashboard(request: Request):
     html = f"""<!DOCTYPE html>
     <html lang="en">
     <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow Driver</title><script src="https://cdn.tailwindcss.com"></script>
+        <title>VahanKhata Driver</title><script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-4xl mx-auto space-y-6">

@@ -1,4 +1,4 @@
-# FleetFlow Agent Rules
+# VahanKhata Agent Rules
 
 ## Routing and Token Budget
 - Read `APP_MINDMAP.md` first. Use exact paths and architecture; do not map the repository broadly.

@@ -46,9 +46,9 @@ def render_header(authenticated: bool = False, username: str = "", role: str = "
     return f'''
         <header class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
             <div class="flex items-center space-x-3">
-                <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">FF</div>
+                <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">VK</div>
                 <div>
-                    <h1 class="text-xl font-extrabold tracking-tight">FleetFlow</h1>
+                    <h1 class="text-xl font-extrabold tracking-tight">VahanKhata</h1>
                     <p class="text-xs text-sky-400 font-medium">Real-Time Expense Verification & Settlement Engine</p>
                 </div>
             </div>
@@ -59,7 +59,7 @@ def render_header(authenticated: bool = False, username: str = "", role: str = "
 def render_footer() -> str:
     return '''
         <footer class="text-center text-xs text-slate-400 py-2">
-            FleetFlow · Expense verification and settlement
+            VahanKhata · Expense verification and settlement
         </footer>'''
 
 

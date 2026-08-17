@@ -1,14 +1,14 @@
-## FleetFlow — Complete Problem & Solution Master Dossier
+## VahanKhata — Complete Problem & Solution Master Dossier
 
 Deep Dive: Commercial Fleet (2–5 Trucks) Pain Areas, Technical Solutions, Anomaly Engine & Financial ROI
 
-Executive Summary: Small commercial fleet operators (2–5 trucks) lose up to 15% of revenue to on-road expense leaks. Traditional IoT telematics and enterprise ERPs fail due to high hardware capex and driver app adoption failure. FleetFlow solves every operational pain point via an instant WhatsApp photo interface, a multi-layer contextual audit engine, and automated 1-click cash advance reconciliation.
+Executive Summary: Small commercial fleet operators (2–5 trucks) lose up to 15% of revenue to on-road expense leaks. Traditional IoT telematics and enterprise ERPs fail due to high hardware capex and driver app adoption failure. VahanKhata solves every operational pain point via an instant WhatsApp photo interface, a multi-layer contextual audit engine, and automated 1-click cash advance reconciliation.
 
 ## 1. Master Pain Areas & Strategic Solutions Matrix
 
 Small-to-midsize freight transport operations suffer from friction across four distinct operational domains: Financial Leakage, Driver Resistance, Manual Accounting, and Legal/Dispute Risks.
 
-| Category | Fleet Owner Pain Area (The | Root Cause / Failure Mode | FleetFlow Solution & Mechanism |
+| Category | Fleet Owner Pain Area (The | Root Cause / Failure Mode | VahanKhata Solution & Mechanism |
 | --- | --- | --- | --- |
 |   | Problem) |   |   |
 | 1. Fuel Leakage | • Fake pump slips purchased at | Paper receipts are submitted days | AI OCR + Price Index Cross-Check: |
@@ -88,7 +88,7 @@ Small-to-midsize freight transport operations suffer from friction across four d
 
 ## 4. Customer Unit Economics & ROI Proof (2–5 Trucks)
 
-| Fleet Size | Monthly Diesel Spend | Conservative 3% Leakage | FleetFlow Subscription (@ | Net Monthly Gain | ROI |
+| Fleet Size | Monthly Diesel Spend | Conservative 3% Leakage | VahanKhata Subscription (@ | Net Monthly Gain | ROI |
 | --- | --- | --- | --- | --- | --- |
 |   |   | Savings | Rs. 799/truck) | (Profit) | Multiple |
 | 1 Truck | Rs. 1,20,000 | Rs. 3,600 / mo | Rs. 799 / mo | Rs. 2,801 / mo | 4.5x |
@@ -98,7 +98,7 @@ Small-to-midsize freight transport operations suffer from friction across four d
 
 ## 5. Competitive Matrix vs. Alternatives
 
-| Feature / Dimension | Telematics | Accounting ERPs (Tally/TMS) | FleetFlow (This System) |
+| Feature / Dimension | Telematics | Accounting ERPs (Tally/TMS) | VahanKhata (This System) |
 | --- | --- | --- | --- |
 |   | (WheelsEye/LocoNav) |   |   |
 | Driver UX & Adoption | Heavy mobile app (High driver | Manual PC data entry post-trip | WhatsApp Photo-Only (<5s, Zero |

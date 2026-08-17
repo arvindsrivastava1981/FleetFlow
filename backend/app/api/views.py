@@ -83,7 +83,7 @@ def trip_listing(request: Request):
     )
     user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
-    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Trips</title><script src="https://cdn.tailwindcss.com"></script></head>
+    <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>VahanKhata Trips</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-5xl mx-auto space-y-6">
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
@@ -128,7 +128,7 @@ def dashboard(request: Request):
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow Dashboard</title>
+        <title>VahanKhata Dashboard</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -212,7 +212,7 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow End-to-End Working System</title>
+        <title>VahanKhata End-to-End Working System</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-3 md:p-5 font-sans">
@@ -232,7 +232,7 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                             <div class="flex items-center space-x-2.5">
                                 <div class="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-sm">🤖</div>
                                 <div>
-                                    <h3 class="text-sm font-bold leading-tight">FleetFlow Bot (WhatsApp)</h3>
+                                    <h3 class="text-sm font-bold leading-tight">VahanKhata Bot (WhatsApp)</h3>
                                     <p class="text-[10px] text-emerald-200">Online • Automated Verification</p>
                                 </div>
                             </div>

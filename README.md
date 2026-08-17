@@ -1,6 +1,6 @@
-# FleetFlow: Real-Time Expense Verification & Auto-Settlement Engine
+# VahanKhata: Real-Time Expense Verification & Auto-Settlement Engine
 
-> **FleetFlow helps 2–5 truck operators verify diesel, trip, and repair expenses instantly through WhatsApp and auto-settle advances with less leakage.**
+> **VahanKhata helps 2–5 truck operators verify diesel, trip, and repair expenses instantly through WhatsApp and auto-settle advances with less leakage.**
 
 ---
 
@@ -8,7 +8,7 @@
 
 Commercial fleet operators lose **up to 15% of margin** to fragmented, opaque trip expense management (fake diesel slips, mileage skimming, bogus repair claims, and unauthorized cash tolls). 
 
-**FleetFlow** solves this with a **zero-app, WhatsApp-first workflow** and a multi-layer rules engine that cross-verifies driver expenses in real time, auto-reconciling driver cash advances into a 1-click audit-proof settlement sheet.
+**VahanKhata** (vahankhata.in) solves this with a **zero-app, WhatsApp-first workflow** and a multi-layer rules engine that cross-verifies driver expenses in real time, auto-reconciling driver cash advances into a 1-click audit-proof settlement sheet.
 
 ---
 

@@ -1,4 +1,4 @@
-"""FleetFlow backend package.
+"""VahanKhata backend package.
 
 Boundary between the application code and the rest of the repository.
 Run with:
