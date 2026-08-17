@@ -78,6 +78,8 @@ FleetFlow/
 ├── scripts/
 │   ├── run_tests.py                  # `python scripts/run_tests.py`
 │   └── smoke_check.py                # env + band + import-path sanity
+├── stat.ps                           # Windows install-status check (refs Installation.md §§1-6); run via `powershell -Command ". .\stat.ps"`
+├── start.ps1                         # validate-then-run launcher (Installation.md §5; -CheckOnly to dry-run)
 ├── docs/                             # product + plan + review docs
 ├── pyproject.toml                    # pytest/black/ruff config
 ├── requirements.txt, Dockerfile, render.yaml
