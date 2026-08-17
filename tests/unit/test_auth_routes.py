@@ -73,4 +73,4 @@ def test_healthz_public():
 def test_login_form_is_public():
     resp = client.get("/login")
     assert resp.status_code == 200
-    assert "Admin Login" in resp.text
+    assert "Login" in resp.text

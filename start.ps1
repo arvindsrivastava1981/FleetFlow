@@ -112,9 +112,9 @@ $envFile = Join-Path $Root '.env'
 if (Test-Path $envFile) {
     $envLines = Get-Content $envFile | Where-Object { $_ -match '=' -and $_ -notmatch '^\s*#' }
     $hasDb  = [bool]($envLines | Where-Object { $_ -match '^\s*DATABASE_URL\s*=' -and $_ -notmatch '=\s*$' })
-    $hasPw  = [bool]($envLines | Where-Object { $_ -match '^\s*ADMIN_PASSWORD\s*=' -and $_ -notmatch '=\s*$' })
+    $hasPw  = [bool]($envLines | Where-Object { $_ -match '^\s*USER_PASSWORD\s*=' -and $_ -notmatch '=\s*$' })
     Write-Check -Label 'DATABASE_URL set in .env'     -Pass $hasDb -Detail 'required always, Installation.md section 3'
-    Write-Check -Label 'ADMIN_PASSWORD set in .env'   -Pass $hasPw -Detail 'required in production, Installation.md section 3'
+    Write-Check -Label '_PASSWORD set in .env'   -Pass $hasPw -Detail 'required in production, Installation.md section 3'
 }
 else {
     Write-Check -Label '.env file exists' -Pass $false -Detail 'Installation.md section 3'

@@ -4,7 +4,7 @@ Replaces the flat `os.getenv` reads previously hoisted at module-import time in
 `utils.py`. Two production invariants:
 1. DATABASE_URL is required — fail loudly at startup, never silently run against a
    missing variable (fixes the masking risk flagged in deep_agent_recommendation §5).
-2. ADMIN_PASSWORD is required — no predictable "admin123" fallback (fixes §2.2).
+2. USER_PASSWORD is required — no fallback (fixes §2.2).
 
 Access anywhere as:  from backend.app.core.config import settings
 
@@ -28,19 +28,19 @@ class Settings:
         # ---- Database -----------------------------------------------------
         self.database_url: str = _require("DATABASE_URL")
 
-        # ---- Admin auth ----------------------------------------------------
-        # In prod, ADMIN_PASSWORD must be set. We allow the dev-only default
+        # ----  auth ----------------------------------------------------
+        # In prod, _PASSWORD must be set. We allow the dev-only default
         # ONLY when the app is not running in production mode.
-        default_password = "admin123"
-        self.password: str = os.getenv("ADMIN_PASSWORD", default_password)
+        default_password = "123"
+        self.password: str = os.getenv("USER_PASSWORD", default_password)
         self.is_production: bool = os.getenv("ENV", "development").lower() in (
             "production",
             "prod",
         )
         if self.is_production and self.password == default_password:
             raise RuntimeError(
-                "ADMIN_PASSWORD must be set explicitly in production — "
-                "refusing to boot with the 'admin123' default."
+                "USER_PASSWORD must be set explicitly in production — "
+                "refusing to boot with the '123' default."
             )
         self.auth_cookie: str = "ff_auth_session"
 

@@ -2,14 +2,14 @@
 
 Consolidates and hardens what was inline in `utils.py`:
 
-- `is_admin(request)` / session tokens (with TTL, not a bare unbounded set)
+- `is_(request)` / session tokens (with TTL, not a bare unbounded set)
 - `require_auth(request)` -> 303 redirect helper for routers
 - `csrf_token` generate/validate for every state-changing POST (fixes §2.4)
 - `esc(value)` -> html.escape for every DB-sourced value (fixes §2.3 XSS)
 - login rate limiting + lockout (fixes §2.2 brute-force gap)
 
 Session store remains process-local for the single-worker, in-memory reactor
-app; multi-worker deployments should swap `_admin_sessions` for a shared
+app; multi-worker deployments should swap `__sessions` for a shared
 store (e.g. DB-backed) without changing call sites.
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ def _now() -> float:
 
 
 def create_session() -> str:
-    """Issue a fresh admin session token with TTL."""
+    """Issue a fresh  session token with TTL."""
     token = secrets.token_urlsafe(32)
     with _session_lock:
         _auth_sessions[token] = _now()
@@ -76,7 +76,7 @@ def is_valid_token(token: str | None) -> bool:
     return token in _auth_sessions
 
 
-def is_admin(request: Request) -> bool:
+def is_authorized_user(request: Request) -> bool:
     return is_valid_token(request.cookies.get(AUTH_COOKIE))
 
 
@@ -88,7 +88,7 @@ def require_auth(request: Request, login_url: str = "/login") -> RedirectRespons
         if guard:
             return guard
     """
-    if not is_admin(request):
+    if not is_authorized_user(request):
         return RedirectResponse(url=login_url, status_code=303)
     return None
 
@@ -159,8 +159,8 @@ def esc(value) -> str:
     )
 
 
-# Dependency alias so routers read cleanly as `request: Request = Depends(admin_auth)`.
-def admin_auth(request: Request) -> Request:
+# Dependency alias so routers read cleanly as `request: Request = Depends(_auth)`.
+def _auth(request: Request) -> Request:
     guard = require_auth(request)
     if guard is not None:
         raise UnauthorizedRedirect(guard)

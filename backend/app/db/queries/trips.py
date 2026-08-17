@@ -36,7 +36,7 @@ def get_latest_active_trip(conn) -> dict | None:
 
 
 def get_trip_stats_by_code(conn) -> dict[str, dict]:
-    """Per-trip expense aggregates keyed by trip_code, for the trips/admin listings."""
+    """Per-trip expense aggregates keyed by trip_code, for the trips/ listings."""
     cur = conn.cursor()
     cur.execute(
         """SELECT trip_code, COUNT(*) AS expense_count,

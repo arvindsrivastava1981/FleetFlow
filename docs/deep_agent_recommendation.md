@@ -23,16 +23,16 @@
 ## 2. Bugs & Issues
 
 ### 2.1 Authorization gaps — unauthenticated mutation endpoints [CRITICAL] — ✅ FIXED
-Original: several mutation endpoints had **no `is_admin()` guard** (`POST /simulate-whatsapp`, `POST /create-trip`, `GET /action-expense`, `GET /reset-demo`, `GET /generate-settlement-pdf`).
+Original: several mutation endpoints had **no `is_authorized_user()` guard** (`POST /simulate-whatsapp`, `POST /create-trip`, `GET /action-expense`, `GET /reset-demo`, `GET /generate-settlement-pdf`).
 
 **Current state:** the migrated routers guard every mutation with `require_auth(request)` → 303 `/login`:
 - `POST /create-trip` (`api/trips.py`), `POST /simulate-whatsapp` + `GET /action-expense` (`api/expenses.py`), `GET /reset-demo` (`api/demo.py` — now guarded; previously an unauthenticated one-click data wipe).
 - `GET /generate-settlement-pdf` is **not** in the modular migration (prototype-only read-only UI) and remains unguarded there — migrate it behind `require_auth` when ported.
 
-### 2.2 Weak/hardcoded admin password & no login hardening [CRITICAL] — ✅ FIXED
-- `core/config.py`: `DATABASE_URL` is `_require`d (fails fast); in production (`ENV=production|prod`) the `admin123` fallback is **refused** — the app refuses to boot without an explicit `ADMIN_PASSWORD`.
+### 2.2 Weak/hardcoded  password & no login hardening [CRITICAL] — ✅ FIXED
+- `core/config.py`: `DATABASE_URL` is `_require`d (fails fast); in production (`ENV=production|prod`) the `123` fallback is **refused** — the app refuses to boot without an explicit `_PASSWORD`.
 - `core/security.py`: per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`), TTL sessions (72h, swept on read), secure cookie (httponly, samesite=lax).
-- Legacy `utils.py:28` still has the `admin123` fallback — dev-only; do not deploy the prototype.
+- Legacy `utils.py:28` still has the `123` fallback — dev-only; do not deploy the prototype.
 
 ### 2.3 Stored XSS via unescaped HTML f-strings [HIGH] — ✅ FIXED (modular) / ⭕ (prototype)
 - `core/security.esc()` provides HTML escaping; modular pages route DB-sourced values through it. Legacy prototype pages still interpolate raw strings — port to `esc()` when migrating remaining UI routes.
@@ -95,8 +95,8 @@ Original: several mutation endpoints had **no `is_admin()` guard** (`POST /simul
 ---
 
 ## 5. Config / Ops
-- `core/config.py` runs `load_dotenv()` and **fails fast** if `DATABASE_URL` is missing (resolves the "load_dotenv masking a missing var" risk). In production it refuses the `admin123` fallback.
-- `.env` is gitignored; must set `DATABASE_URL` + `ADMIN_PASSWORD` (prod) via Render environment secrets (`render.yaml` uses `sync: false`).
+- `core/config.py` runs `load_dotenv()` and **fails fast** if `DATABASE_URL` is missing (resolves the "load_dotenv masking a missing var" risk). In production it refuses the `123` fallback.
+- `.env` is gitignored; must set `DATABASE_URL` + `_PASSWORD` (prod) via Render environment secrets (`render.yaml` uses `sync: false`).
 - `requirements.txt` still lists `requests`/`httpx`/`anyio` for the WhatsApp/OCR roadmap but nothing calls them yet — still unused deps.
 - Docker `python:3.12-slim` still has no OCR/native libs; if OCR (Paddle/Tesseract) is added later the image needs OS packages (`libgl1`, `libtesseract`, `tesseract-ocr`, fontconfig). Plan Docker changes in the OCR phase.
 
@@ -104,7 +104,7 @@ Original: several mutation endpoints had **no `is_admin()` guard** (`POST /simul
 
 ## 6. Quick-Win Priority Order — revised
 1. ✅ **DONE:** Auth guards on `/action-expense`, `/reset-demo`, `/simulate-whatsapp`, `/create-trip` (migrated, `require_auth`).
-2. ✅ **DONE:** Enforce strong `ADMIN_PASSWORD` (no `admin123` in prod) + rate-limit login + TTL sessions.
+2. ✅ **DONE:** Enforce strong `_PASSWORD` (no `123` in prod) + rate-limit login + TTL sessions.
 3. ✅ **DONE:** `esc()` HTML escaping + CSRF + structured `get_db()` + input validation + `/healthz` + pytest suite.
 4. ⚠️ **REMAINING:** Wire `prev_odo` into `simulate_whatsapp` (§2.8) so mileage/rollback runs live in the modular app.
 5. ⭕ **REMAINING:** Align `total_flagged` definition (§2.6) when porting settlement/PDF.
@@ -115,5 +115,5 @@ Original: several mutation endpoints had **no `is_admin()` guard** (`POST /simul
 
 ## 7. Relationship to Existing Docs
 - **`docs/implementation_plan.md`** — product-roadmap gaps (WhatsApp G1, OCR G2, corridor G5, etc.) remain the open product work. The hardening in this report is now largely **done** in the modular migration; Phases A–F are the remaining product features.
-- **`APP_MINDMAP.md`** — **updated 2026-08-17** to reflect the migrated (admin-guarded) routes vs. prototype-only read-only UI, the modular routers, and the auth hardening. The open items above (§2.6/§2.8, read-only UI migration) are still pending there.
+- **`APP_MINDMAP.md`** — **updated 2026-08-17** to reflect the migrated (-guarded) routes vs. prototype-only read-only UI, the modular routers, and the auth hardening. The open items above (§2.6/§2.8, read-only UI migration) are still pending there.
 - **`docs/product_details.md`** — unchanged; product vision doc.

@@ -1,7 +1,7 @@
 """Views router — trips listing, overview, and the 3-column workspace.
 
 Migrated from `fleetflow_interactive_demo.py`'s `GET /`, `GET /trips`, and
-`GET /admin` routes (the read-only UI pages that were last on the prototype).
+`GET /` routes (the read-only UI pages that were last on the prototype).
 
 Security:
 - §2.1 unauthenticated access -> `require_auth` 303-redirects to /login.

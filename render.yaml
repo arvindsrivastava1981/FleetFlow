@@ -11,11 +11,11 @@ services:
       - key: PORT
         value: 10000
       # Required by backend/app/core/config.py — the app refuses to boot without
-      # these (no hardcoded "admin123" fallback in production). Set via the
+      # these (no hardcoded fallback in production). Set via the
       # Render dashboard "Environment" tab as secrets:
       - key: DATABASE_URL
         sync: false # set manually (Neon Postgres connection string)
-      - key: ADMIN_PASSWORD
-        sync: false # set manually (strong admin password)
+      - key: USER_PASSWORD
+        sync: false # set manually (strong  password)
       - key: ENV
         value: production

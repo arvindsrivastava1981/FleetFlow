@@ -36,7 +36,7 @@ def main() -> int:
 
     print("[3/3] import paths")
     from backend.app.db.connection import get_db, get_cursor, healthcheck  # noqa
-    from backend.app.core.security import esc, is_admin  # noqa
+    from backend.app.core.security import esc, is_authorized_user  # noqa
     checks.append(True)
 
     ok = all(checks)

@@ -30,9 +30,9 @@ FleetFlow/
 │       │   ├── settlement.py         # /settled-pdfs, /generate-settlement-pdf
 │       │   ├── benchmarks.py         # fuel-benchmarks page + CRUD
 │       │   ├── rule_engine.py        # GET /rule-engine
-│       │   ├── views.py              # GET /, GET /trips, GET /admin
+│       │   ├── views.py              # GET /, GET /trips, GET /
 │       │   ├── auth.py               # GET/POST /login, GET /logout
-│       │   ├── demo.py               # GET /reset-demo (admin-only)
+│       │   ├── demo.py               # GET /reset-demo (-only)
 │       │   ├── whatsapp/webhook.py   # POST /whatsapp/webhook  (Phase C, future)
 │       │   └── ocr/callback.py       # POST /ocr/callback       (Phase D, future)
 │       ├── core/                     # config + security (no DB)
@@ -93,8 +93,8 @@ FleetFlow/
 
 | # | Severity | Issue | Where the structure solves it |
 |---|---------|-------|------------------------------|
-| 2.1 | CRIT | Unauthenticated mutation endpoints | `api/*` routers use `core.security.require_auth()` / `admin_auth` on **every** mutation; `demo.py` isolates `/reset-demo` |
-| 2.2 | CRIT | Weak/hardcoded password, no login hardening | `core/config.py` (fail-fast, prod refuses `admin123`), `core/security.py` (rate-limit + lockout) |
+| 2.1 | CRIT | Unauthenticated mutation endpoints | `api/*` routers use `core.security.require_auth()` / `_auth` on **every** mutation; `demo.py` isolates `/reset-demo` |
+| 2.2 | CRIT | Weak/hardcoded password, no login hardening | `core/config.py` (fail-fast, prod refuses `123`), `core/security.py` (rate-limit + lockout) |
 | 2.3 | HIGH | Stored XSS via f-strings | `core/security.esc()` used by every `web/*` page builder; scoped HTML lives only in `web/` |
 | 2.4 | MED | No CSRF | `middleware/csrf.py` + `core/security.validate_csrf_token()` for all POSTs |
 | 2.5 | HIGH | Hardcoded 82/98 fuel band | `services/rules/bands.py` derives `90.50 +/- 8%` (83.26-97.74), proven by tests |
@@ -131,7 +131,7 @@ entrypoint and there is nothing left to cut over:
 
 - `Dockerfile` CMD runs `uvicorn backend.app.main:app --app-dir /app ...`
 - `render.yaml` declares a `/healthz` web-health-check and the required
-  secrets (`DATABASE_URL`, `ADMIN_PASSWORD`, `ENV=production`).
+  secrets (`DATABASE_URL`, `_PASSWORD`, `ENV=production`).
 
 What was migrated feature-by-feature:
 
@@ -157,6 +157,6 @@ reintroduce either file; all future route work happens directly in
 - **No FastAPI/`Request` in services.** Pure funcs take/return plain data.
 - **Zero DDL in the app.** Schema changes go to `database/` only.
 - **Every dynamic DB value passes `esc()`** before HTML interpolation.
-- **Every mutation route guards with `require_auth()`/`admin_auth`.**
+- **Every mutation route guards with `require_auth()`/`_auth`.**
 - **Pure rules depend only on `core/config` value objects** (no direct DB coupling),
   so unit tests run without a live database.

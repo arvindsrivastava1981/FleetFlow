@@ -19,7 +19,7 @@
 | **Rules engine** | `evaluate_rules()` in `utils.py` — FUEL (math/price-band/tank/mileage/rollback), TOLL (always flag), REPAIR (>₹3k flag), CHALLAN/RTO-FINE (always flag), DEF (rate + ratio). |
 | **Settlement** | ReportLab PDF (`/generate-settlement-pdf`), live ledger, settle-trip flow. |
 | **Manager review** | `/action-expense` approve/reject on flagged + goods transactions. |
-| **Admin UI** | Dashboard with savings chart, trips list, fuel-benchmark CRUD, rule-engine explainer. |
+| ** UI** | Dashboard with savings chart, trips list, fuel-benchmark CRUD, rule-engine explainer. |
 | **Seeding** | `database/seed.sql`, `schema.sql`, `incremental.sql`, `cleanup.sql`. |
 
 ---

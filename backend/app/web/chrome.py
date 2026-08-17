@@ -17,7 +17,7 @@ def render_header(authenticated: bool = False) -> str:
         else ""
     )
     auth_controls = (
-        '''<span class="text-xs text-slate-300 font-semibold">Welcome Admin</span>
+        '''<span class="text-xs text-slate-300 font-semibold">Welcome </span>
             <a href="/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">🚪 Logout</a>'''
         if authenticated
         else '''<a href="/login" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition">Login</a>'''

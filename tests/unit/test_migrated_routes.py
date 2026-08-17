@@ -1,7 +1,7 @@
 """Route-security tests for the routers completing the prototype migration.
 
 Covers the pages ported from `fleetflow_interactive_demo.py` in this change:
-`views.py` (`/`, `/trips`, `/admin`), `benchmarks.py` (`/fuel-benchmarks*`),
+`views.py` (`/`, `/trips`, `/`), `benchmarks.py` (`/fuel-benchmarks*`),
 `settlement.py` (`/settled-pdfs`, `/generate-settlement-pdf`), and confirms
 `rule_engine.py` is wired into the app (was previously built but never
 included by `main.py`).
@@ -42,8 +42,8 @@ def test_unauthenticated_trips_redirects_to_login():
     assert_login_redirect(client.get("/trips"))
 
 
-def test_unauthenticated_admin_redirects_to_login():
-    assert_login_redirect(client.get("/admin"))
+def test_unauthenticated__redirects_to_login():
+    assert_login_redirect(client.get("/"))
 
 
 # ---- benchmarks.py -----------------------------------------------------
