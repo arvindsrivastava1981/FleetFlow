@@ -103,7 +103,12 @@ def login_submit(
 
     clear_login_failures(ip)
     token = create_session(user["id"], user["username"], user["role"])
-    response = RedirectResponse(url="/dashboard", status_code=303)
+    landing = {
+        "super_admin": "/admin",
+        "trip_manager": "/manager",
+        "driver": "/driver",
+    }.get(user["role"], "/dashboard")
+    response = RedirectResponse(url=landing, status_code=303)
     response.set_cookie(
         key=AUTH_COOKIE,
         value=token,

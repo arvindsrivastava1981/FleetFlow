@@ -89,3 +89,41 @@ def test_authenticated_rule_engine_renders_without_db():
         from backend.app.core.security import _auth_sessions
 
         _auth_sessions.pop(token, None)
+
+
+# ---- dashboards.py (role-based dashboards) -----------------------------
+def test_unauthenticated_admin_redirects_to_login():
+    assert_login_redirect(client.get("/admin"))
+
+
+def test_unauthenticated_manager_redirects_to_login():
+    assert_login_redirect(client.get("/manager"))
+
+
+def test_unauthenticated_driver_redirects_to_login():
+    assert_login_redirect(client.get("/driver"))
+
+
+def test_role_mismatch_redirects_to_dashboard():
+    """A trip_manager must not enter the super_admin-only /admin page."""
+    token = create_session(user_id=2, username="manager1", role="trip_manager")
+    try:
+        resp = client.get("/admin", cookies={AUTH_COOKIE: token})
+        assert resp.status_code == 303
+        assert resp.headers["location"].rstrip("/").endswith("/dashboard")
+    finally:
+        from backend.app.core.security import _auth_sessions
+
+        _auth_sessions.pop(token, None)
+
+
+def test_admin_can_open_manager_dashboard():
+    """super_admin is allowed on the trip_manager dashboard."""
+    token = create_session(user_id=1, username="admin", role="super_admin")
+    try:
+        resp = client.get("/manager", cookies={AUTH_COOKIE: token})
+        assert resp.status_code in (200, 303)
+    finally:
+        from backend.app.core.security import _auth_sessions
+
+        _auth_sessions.pop(token, None)

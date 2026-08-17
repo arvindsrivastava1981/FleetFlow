@@ -43,7 +43,11 @@
 - `POST /simulate-whatsapp` — `api/expenses.py`: runs `evaluate_expense()` then inserts an `expenses` row (goods stay pending; flagged → pending); upserts `trips.current_odo`.
 - `GET /action-expense?id=&action=APPROVE|REJECT` — `api/expenses.py`: manager decision on a flagged/pending expense or goods transaction.
 - `GET /reset-demo` — `api/demo.py`: clears `expenses`+`trips` rows (no DDL, no reseed).
-- `GET /dashboard` — `api/dashboard.py`: -only savings dashboard (money-saved/claimed/approved/**pending** cards + per-trip Chart.js bar chart); the post-login landing page (redirect target of `POST /login`).
+- `GET /dashboard` — `api/dashboard.py`: -only savings dashboard (money-saved/claimed/approved/**pending** cards + per-trip Chart.js bar chart); fallback landing page.
+- `GET /admin` — `api/dashboards.py`: **Super Admin** macro dashboard (role-gated via `require_role(..., "super_admin")`): Active Fleet, Fuel & Road Spend (MTD), Leakage Prevented (REJECTED sum), Outstanding Cash Float; anomaly heatmap, km/L-efficiency leaderboard vs. `vehicles.expected_km_per_liter`, settlement approval summary + quick actions. Query helpers in `db/queries/dashboards.py`.
+- `GET /manager` — `api/dashboards.py`: **Trip Manager** dashboard (`require_role("trip_manager","super_admin")`): dispatched trips, pending escalations, advances disbursed today, awaiting-settlement count; live escalation feed with 1-click Approve/Deduct (`/action-expense`), active-trip progress table, 1-click settlement queue.
+- `GET /driver` — `api/dashboards.py`: **Driver** dashboard (`require_role("driver")`): live status card (active trip, advance, cash-in-hand = advance + approved net, logged-today), quick-log actions, recent expense logs + trip-end summary.
+- `POST /login` now redirects by role: `super_admin → /admin`, `trip_manager → /manager`, `driver → /driver` (fallback `/dashboard`).
 - `GET /` — `api/views.py`: 3-column dual-WhatsApp workspace UI (see UI Layout below); redirects to `/trips` if no `trip_code`/`new_trip` given.
 - `GET /trips` — `api/views.py`: trip listing (active first) with per-trip expense totals / pending counts; "Start New Trip" disabled while a trip is active.
 - `GET /` — `api/views.py`: tabular all-trips overview (legacy  landing page).

@@ -63,43 +63,77 @@ def render_footer() -> str:
         </footer>'''
 
 
-def _nav_link(href: str, label: str, icon: str, key: str, active: str) -> str:
+def _nav_link(href: str, label: str, icon: str, key: str, active: str, badge: str = "") -> str:
     classes = (
         "bg-sky-600 text-white"
         if active == key
         else "text-slate-300 hover:bg-slate-800 hover:text-white"
     )
+    badge_html = (
+        f'<span class="ml-auto bg-amber-500 text-white text-[10px] font-bold px-1.5 '
+        f'py-0.5 rounded-full">{badge}</span>'
+        if badge
+        else ""
+    )
     return (
-        f'<a href="{href}" class="flex items-center gap-2 px-4 py-2.5 '
-        f'rounded-xl text-sm font-semibold transition {classes}">{icon} {label}</a>'
+        f'<a href="{href}" class="flex items-center gap-2 px-3 py-2 '
+        f'rounded-lg text-[13px] font-semibold transition {classes}">'
+        f'<span class="w-5 text-center">{icon}</span> <span>{label}</span>{badge_html}</a>'
+    )
+
+
+def _nav_section(title: str) -> str:
+    return (
+        f'<p class="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider '
+        f'text-slate-500">{title}</p>'
     )
 
 
 def render_sidebar(active: str, role: str = "super_admin") -> str:
-    """Render the sidebar with role-appropriate nav links."""
+    """Render the grouped, role-aware sidebar navigation."""
     links: list[str] = []
 
-    # Dashboard is available to all roles
-    links.append(_nav_link("/dashboard", "Dashboard", "📊", "dashboard", active))
+    # Dashboard target varies by role.
+    dashboard_href = {"super_admin": "/admin", "trip_manager": "/manager",
+                      "driver": "/driver"}.get(role, "/dashboard")
+    dashboard_key = {"super_admin": "admin", "trip_manager": "manager",
+                     "driver": "driver"}.get(role, "dashboard")
+
+    # ── OPERATIONS ──────────────────────────────────────────────────────
+    links.append(_nav_section("Operations"))
+    links.append(_nav_link(dashboard_href, "My Dashboard", "📊", dashboard_key, active))
+    links.append(_nav_link("/trips", "Active Trips", "🚚", "trips", active))
+    links.append(_nav_link("/", "Expense Ledger", "🧾", "expense-ledger", active == "ledger"))
+    links.append(
+        _nav_link("/dashboard", "Fraud Alerts", "⚠️", "fraud-alerts", active == "fraud-alerts", "Live")
+    )
+    links.append(_nav_link("/settled-pdfs", "Trip Settlements", "📑", "settled-pdfs", active))
+
+    # ── FLEET & ASSETS (super_admin + trip_manager only) ───────────────
+    if role in ("super_admin", "trip_manager"):
+        links.append(_nav_section("Fleet & Assets"))
+        links.append(_nav_link("/trips", "Vehicles", "🚛", "vehicle", active == "vehicle"))
+        links.append(_nav_link("/drivers", "Drivers", "👤", "drivers", active))
+        links.append(_nav_link("/fuel-benchmarks", "Fuel Benchmarks", "⛽", "fuel-benchmarks", active))
 
     if role == "super_admin":
-        links.append(_nav_link("/users", "Manage Users", "👥", "users", active))
-        links.append(_nav_link("/trips", "All Trips", "🧾", "trips", active))
-        links.append(_nav_link("/settled-pdfs", "Settled PDFs", "📄", "settled-pdfs", active))
-        links.append(_nav_link("/fuel-benchmarks", "Fuel Benchmarks", "⛽", "fuel-benchmarks", active))
-        links.append(_nav_link("/rule-engine", "Rule Engine", "⚙️", "rule-engine", active))
-    elif role == "trip_manager":
-        links.append(_nav_link("/drivers", "Manage Drivers", "👥", "drivers", active))
-        links.append(_nav_link("/trips", "My Trips", "🧾", "trips", active))
-        links.append(_nav_link("/settled-pdfs", "My Settled PDFs", "📄", "settled-pdfs", active))
-        links.append(_nav_link("/rule-engine", "Rule Engine", "⚙️", "rule-engine", active))
+        # ── SYSTEM & REPORTS ────────────────────────────────────────────────
+        links.append(_nav_section("System & Reports"))
+        links.append(_nav_link("/dashboard", "Analytics & Reports", "📈", "analytics", active == "analytics"))
+        links.append(_nav_link("/users", "Organization Settings", "⚙️", "users", active))
 
-    links.append(_nav_link("/users/change-password", "Change Password", "🚪", "users/change-password", active))
-
-    links.append(_nav_link("/logout", "Logout", "🚪", "logout", active))
+        # ── ACCOUNT & SECURITY ──────────────────────────────────────────────
+        links.append(_nav_section("Account & Security"))
+        links.append(_nav_link("/users/change-password", "Change Password", "🔒", "users/change-password", active))
+        links.append(_nav_link("/logout", "Log Out", "🚪", "logout", active))
+    else:
+        # ── ACCOUNT ─────────────────────────────────────────────────────────
+        links.append(_nav_section("Account"))
+        links.append(_nav_link("/users/change-password", "Change Password", "🔒", "users/change-password", active))
+        links.append(_nav_link("/logout", "Log Out", "🚪", "logout", active))
 
     nav = "".join(links)
     return f'''
-        <aside class="bg-slate-900 rounded-2xl p-3 w-full lg:w-52 flex-shrink-0 space-y-1 h-fit">
+        <aside class="bg-slate-900 rounded-2xl p-3 w-full lg:w-56 flex-shrink-0 space-y-1 h-fit">
             {nav}
         </aside>'''
