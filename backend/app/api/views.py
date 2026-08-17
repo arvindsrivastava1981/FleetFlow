@@ -161,6 +161,8 @@ def dashboard(request: Request):
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request, trip_code: str | None = None, new_trip: bool = False):
+    return RedirectResponse(url="/login", status_code=303)
+
     guard = require_auth(request)
     if guard is not None:
         return guard
