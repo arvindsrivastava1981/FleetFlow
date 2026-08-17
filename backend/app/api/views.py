@@ -15,7 +15,7 @@ import datetime
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from backend.app.core.security import esc, require_auth
+from backend.app.core.security import esc, get_current_user, require_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.expenses import get_expenses_for_trip
 from backend.app.db.queries.trips import (
@@ -81,11 +81,12 @@ def trip_listing(request: Request):
         if all_trips_settled
         else '<span class="bg-slate-200 text-slate-400 text-xs font-bold px-4 py-2.5 rounded-xl cursor-not-allowed" title="Settle the current trip before starting another">➕ Start New Trip</span>'
     )
+    user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
     <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Trips</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-5xl mx-auto space-y-6">
-            {render_header(authenticated=True)}
+            {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="flex items-center justify-between"><div><h2 class="text-lg font-extrabold text-slate-900">All Trips</h2><p class="text-xs text-slate-500">Select a trip to open its complete ledger, audit thread, and settlement details.</p></div>{start_trip_control}<span class="text-xs text-slate-400">{len(all_trips)} total</span></div>
             <div class="space-y-3">{trip_rows if trip_rows else '<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">No trips yet. Start your first trip above.</div>'}</div>
             {render_footer()}
@@ -121,6 +122,7 @@ def dashboard(request: Request):
         </td>
     </tr>""" for t in all_trips])
 
+    user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -131,7 +133,7 @@ def dashboard(request: Request):
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
-            {render_header(authenticated=True)}
+            {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <table class="w-full text-left">
                     <thead class="bg-slate-50 border-b border-slate-200">
@@ -204,6 +206,7 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
         else ""
     )
 
+    user = get_current_user(request) or {}
     html = f"""<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -215,7 +218,7 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
     <body class="bg-slate-100 min-h-screen p-3 md:p-5 font-sans">
         <div class="max-w-[1500px] mx-auto space-y-4">
 
-            {render_header(authenticated=True)}
+            {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
 
             <div class="flex flex-col lg:flex-row gap-4 items-start">
                 {render_sidebar("trips")}

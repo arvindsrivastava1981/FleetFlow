@@ -53,8 +53,9 @@ VALUES
          ((SELECT id FROM trips WHERE trip_code = 'TRIP-105'), 'TRIP-105', 'GOODS_SALE', 28750.00, 0.00, 0.00, 104680.00, 'Lucknow Fashion District Retail Center', FALSE, NULL, 'APPROVED');
 
 -- ----------------------------------------------------------------------------
--- Seed users: super_admin / trip_manager / driver
--- Passwords: admin123 / manager123 / driver123
+-- admin	admin123
+-- manager1	manager123
+-- driver1	driver123
 -- ----------------------------------------------------------------------------
 INSERT INTO users (username, password_hash, full_name, role, phone, email, is_active, created_by)
 VALUES

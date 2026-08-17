@@ -27,6 +27,21 @@ _ROLE_COLORS = {
     "trip_manager": "bg-blue-100 text-blue-800",
     "driver": "bg-green-100 text-green-800",
 }
+_ROLE_LABELS = {
+    "super_admin": "Super Admin",
+    "trip_manager": "Trip Manager",
+    "driver": "Driver",
+}
+
+
+def _role_opts(selected: str = "") -> str:
+    """Render role <option> elements, flagging the currently selected role."""
+    opts = []
+    for role in VALID_ROLES:
+        sel = " selected" if role == selected else ""
+        label = _ROLE_LABELS.get(role, role)
+        opts.append(f'<option value="{role}"{sel}>{label}</option>')
+    return "".join(opts)
 
 
 

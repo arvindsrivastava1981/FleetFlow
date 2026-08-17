@@ -52,11 +52,12 @@ def fuel_benchmarks_page(request: Request, edit_id: int | None = None):
     id_field = f'<input type="hidden" name="id" value="{editing["id"]}">' if editing else ''
     cancel_link = '<a href="/fuel-benchmarks" class="text-xs text-slate-400 hover:text-slate-600 ml-2">Cancel edit</a>' if editing else ''
 
+    user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
     <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>FleetFlow Fuel Benchmarks</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
-            {render_header(authenticated=True)}
+            {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="flex flex-col lg:flex-row gap-4">
                 {render_sidebar("fuel-benchmarks")}
                 <main class="flex-1 space-y-4">

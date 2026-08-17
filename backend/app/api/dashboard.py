@@ -19,7 +19,7 @@ import json
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from backend.app.core.security import require_auth
+from backend.app.core.security import get_current_user, require_auth
 from backend.app.db.connection import get_db
 from backend.app.web.chrome import render_footer, render_header, render_sidebar
 
@@ -74,6 +74,7 @@ def savings_dashboard(request: Request):
     )
     chart_values = _safe_json([row["saved"] for row in savings_by_trip] or [0])
 
+    user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -85,7 +86,7 @@ def savings_dashboard(request: Request):
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
-            {render_header(authenticated=True)}
+            {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="flex flex-col lg:flex-row gap-4">
                 {render_sidebar("dashboard")}
                 <main class="flex-1 space-y-4">

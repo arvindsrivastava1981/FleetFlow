@@ -167,5 +167,7 @@ Write-Host ''
 
 # python -m uvicorn is more robust than the bare `uvicorn` shim (venv-friendly)
 # and resolves the backend package + .env from the repo root (Set-Location above).
-& python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $BoundPort
+# --reload enables watch auto-reload on source changes (dev); --reload-dir scopes
+# the watch to the backend package so the app rebuilds only on code edits.
+& python -m uvicorn backend.app.main:app --host 0.0.0.0 --port $BoundPort --reload --reload-dir backend
 exit $LASTEXITCODE

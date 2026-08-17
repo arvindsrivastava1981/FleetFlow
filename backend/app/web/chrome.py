@@ -36,9 +36,7 @@ def render_header(authenticated: bool = False, username: str = "", role: str = "
             f'</span>'
             f'<a href="/logout" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">Logout</a>'
         )
-        nav_links = (
-            '<a href="/dashboard" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold px-3 py-2 rounded-xl transition">Dashboard</a>'
-        )
+        nav_links = ""
     else:
         nav_links = ""
         auth_controls = (
@@ -95,9 +93,6 @@ def render_sidebar(active: str, role: str = "super_admin") -> str:
         links.append(_nav_link("/trips", "My Trips", "🧾", "trips", active))
         links.append(_nav_link("/settled-pdfs", "My Settled PDFs", "📄", "settled-pdfs", active))
         links.append(_nav_link("/rule-engine", "Rule Engine", "⚙️", "rule-engine", active))
-    # driver
-    links.append(_nav_link("/driver/trips", "Active Trips", "🚗", "driver-trips", active))
-    links.append(_nav_link("/driver/settled", "Settled Trips", "📄", "driver-settled", active))
 
     links.append(_nav_link("/users/change-password", "Change Password", "🚪", "users/change-password", active))
 
