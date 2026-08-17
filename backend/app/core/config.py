@@ -32,17 +32,17 @@ class Settings:
         # In prod, ADMIN_PASSWORD must be set. We allow the dev-only default
         # ONLY when the app is not running in production mode.
         default_password = "admin123"
-        self.admin_password: str = os.getenv("ADMIN_PASSWORD", default_password)
+        self.password: str = os.getenv("ADMIN_PASSWORD", default_password)
         self.is_production: bool = os.getenv("ENV", "development").lower() in (
             "production",
             "prod",
         )
-        if self.is_production and self.admin_password == default_password:
+        if self.is_production and self.password == default_password:
             raise RuntimeError(
                 "ADMIN_PASSWORD must be set explicitly in production — "
                 "refusing to boot with the 'admin123' default."
             )
-        self.admin_cookie: str = "ff_admin_session"
+        self.auth_cookie: str = "ff_auth_session"
 
         # ---- Session / security -------------------------------------------
         self.session_ttl_hours: int = 72

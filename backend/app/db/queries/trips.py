@@ -14,6 +14,41 @@ def active_trip_exists(conn) -> bool:
     return cur.fetchone() is not None
 
 
+def get_all_trips(conn) -> list[dict]:
+    """All trips, active first then newest-created first."""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM trips ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC"
+    )
+    return cur.fetchall()
+
+
+def get_trip_by_code(conn, trip_code: str) -> dict | None:
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM trips WHERE trip_code = %s", (trip_code,))
+    return cur.fetchone()
+
+
+def get_latest_active_trip(conn) -> dict | None:
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM trips WHERE status = 'ACTIVE' ORDER BY id DESC LIMIT 1")
+    return cur.fetchone()
+
+
+def get_trip_stats_by_code(conn) -> dict[str, dict]:
+    """Per-trip expense aggregates keyed by trip_code, for the trips/admin listings."""
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT trip_code, COUNT(*) AS expense_count,
+                  COALESCE(SUM(amount), 0) AS total_claimed,
+                  COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR (NOT is_flagged AND manager_status != 'REJECTED') THEN amount ELSE 0 END), 0) AS total_approved,
+                  COALESCE(SUM(CASE WHEN is_flagged THEN amount ELSE 0 END), 0) AS flagged_amount,
+                  COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
+           FROM expenses GROUP BY trip_code"""
+    )
+    return {row["trip_code"]: row for row in cur.fetchall()}
+
+
 def trip_status(conn, trip_code: str) -> str | None:
     """Return the status of a trip, or None if the trip doesn't exist."""
     cur = conn.cursor()

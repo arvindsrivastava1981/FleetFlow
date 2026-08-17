@@ -25,9 +25,9 @@
 ### 2.1 Authorization gaps — unauthenticated mutation endpoints [CRITICAL] — ✅ FIXED
 Original: several mutation endpoints had **no `is_admin()` guard** (`POST /simulate-whatsapp`, `POST /create-trip`, `GET /action-expense`, `GET /reset-demo`, `GET /generate-settlement-pdf`).
 
-**Current state:** the migrated routers guard every mutation with `require_admin(request)` → 303 `/login`:
+**Current state:** the migrated routers guard every mutation with `require_auth(request)` → 303 `/login`:
 - `POST /create-trip` (`api/trips.py`), `POST /simulate-whatsapp` + `GET /action-expense` (`api/expenses.py`), `GET /reset-demo` (`api/demo.py` — now guarded; previously an unauthenticated one-click data wipe).
-- `GET /generate-settlement-pdf` is **not** in the modular migration (prototype-only read-only UI) and remains unguarded there — migrate it behind `require_admin` when ported.
+- `GET /generate-settlement-pdf` is **not** in the modular migration (prototype-only read-only UI) and remains unguarded there — migrate it behind `require_auth` when ported.
 
 ### 2.2 Weak/hardcoded admin password & no login hardening [CRITICAL] — ✅ FIXED
 - `core/config.py`: `DATABASE_URL` is `_require`d (fails fast); in production (`ENV=production|prod`) the `admin123` fallback is **refused** — the app refuses to boot without an explicit `ADMIN_PASSWORD`.
@@ -62,7 +62,7 @@ Original: several mutation endpoints had **no `is_admin()` guard** (`POST /simul
 ## 3. What to ADD
 
 ### 3.1 Automated tests — ✅ FIXED
-- A pytest suite exists under `tests/` (15 rules-engine + 7 route-security = **22 tests**), run via `python scripts/run_tests.py` (or `pytest -q --tb=line tests/`). Coverage includes math mismatch, band boundaries, tank overflow, mileage/rollback, DEF ratio, goods buy/sale settlement math, and the `require_admin` guards. The rules engine is pure (`evaluate_expense(RuleInput)`), testable without a live DB.
+- A pytest suite exists under `tests/` (15 rules-engine + 7 route-security = **22 tests**), run via `python scripts/run_tests.py` (or `pytest -q --tb=line tests/`). Coverage includes math mismatch, band boundaries, tank overflow, mileage/rollback, DEF ratio, goods buy/sale settlement math, and the `require_auth` guards. The rules engine is pure (`evaluate_expense(RuleInput)`), testable without a live DB.
 
 ### 3.2 Auth on all mutation routes + login hardening [CRITICAL] — ✅ FIXED (see §2.1/2.2)
 
@@ -103,12 +103,12 @@ Original: several mutation endpoints had **no `is_admin()` guard** (`POST /simul
 ---
 
 ## 6. Quick-Win Priority Order — revised
-1. ✅ **DONE:** Auth guards on `/action-expense`, `/reset-demo`, `/simulate-whatsapp`, `/create-trip` (migrated, `require_admin`).
+1. ✅ **DONE:** Auth guards on `/action-expense`, `/reset-demo`, `/simulate-whatsapp`, `/create-trip` (migrated, `require_auth`).
 2. ✅ **DONE:** Enforce strong `ADMIN_PASSWORD` (no `admin123` in prod) + rate-limit login + TTL sessions.
 3. ✅ **DONE:** `esc()` HTML escaping + CSRF + structured `get_db()` + input validation + `/healthz` + pytest suite.
 4. ⚠️ **REMAINING:** Wire `prev_odo` into `simulate_whatsapp` (§2.8) so mileage/rollback runs live in the modular app.
 5. ⭕ **REMAINING:** Align `total_flagged` definition (§2.6) when porting settlement/PDF.
-6. ⭕ **REMAINING:** Migrate remaining read-only UI + `GET /generate-settlement-pdf` into `backend/app/api/` behind `require_admin`.
+6. ⭕ **REMAINING:** Migrate remaining read-only UI + `GET /generate-settlement-pdf` into `backend/app/api/` behind `require_auth`.
 7. ⭕ **HOUSEKEEPING:** delete or fill `docs/product_subscription.md`; fix stale README structure section.
 
 ---

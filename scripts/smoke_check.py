@@ -25,7 +25,7 @@ def main() -> int:
     checks: list[bool] = []
     print("[1/3] env")
     checks.append(bool(settings.database_url))
-    checks.append(bool(settings.admin_password))
+    checks.append(bool(settings.password))
     print("   database_url set:", bool(settings.database_url))
 
     print("[2/3] rules band")

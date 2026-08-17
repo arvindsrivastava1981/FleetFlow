@@ -26,7 +26,7 @@ Commercial fleet operators lose **up to 15% of margin** to fragmented, opaque tr
 
 ## 🛠️ Project Structure
 
-├── fleetflow_interactive_demo.py   # FastAPI web app (Driver WhatsApp simulator + Owner ledger), backed by Neon PostgreSQL
+├── backend/app/                    # FastAPI package (routers, services, db) — the only entry point
 ├── database/schema.sql             # PostgreSQL schema (managed manually, no ORM/migrations)
 ├── FleetFlow_Sample_Settlement_Sheet.pdf # Generated sample settlement balance sheet
 └── README.md                       # Documentation & setup instructions

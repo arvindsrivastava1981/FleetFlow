@@ -3,7 +3,7 @@
 Consolidates and hardens what was inline in `utils.py`:
 
 - `is_admin(request)` / session tokens (with TTL, not a bare unbounded set)
-- `require_admin(request)` -> 303 redirect helper for routers
+- `require_auth(request)` -> 303 redirect helper for routers
 - `csrf_token` generate/validate for every state-changing POST (fixes §2.4)
 - `esc(value)` -> html.escape for every DB-sourced value (fixes §2.3 XSS)
 - login rate limiting + lockout (fixes §2.2 brute-force gap)
@@ -23,10 +23,10 @@ from fastapi.responses import RedirectResponse
 
 from backend.app.core.config import settings
 
-ADMIN_COOKIE: str = settings.admin_cookie
+AUTH_COOKIE: str = settings.auth_cookie
 
 # token -> issued-at (unix seconds). TTL enforced on read to avoid unbounded growth.
-_admin_sessions: dict[str, float] = {}
+_auth_sessions: dict[str, float] = {}
 _session_lock = threading.Lock()
 
 # Per-IP login attempt tracker for brute-force defense: ip -> (count, locked_until)
@@ -49,40 +49,42 @@ def create_session() -> str:
     """Issue a fresh admin session token with TTL."""
     token = secrets.token_urlsafe(32)
     with _session_lock:
-        _admin_sessions[token] = _now()
+        _auth_sessions[token] = _now()
     return token
 
 
 def _sweep_expired() -> None:
     """Drop tokens older than the session TTL."""
     cutoff = _now() - settings.session_ttl_hours * 3600
-    stale = [t for t, ts in _admin_sessions.items() if ts < cutoff]
+    stale = [t for t, ts in _auth_sessions.items() if ts < cutoff]
     for t in stale:
-        _admin_sessions.pop(t, None)
+        with _session_lock:
+            _auth_sessions.pop(t, None)
 
 
 def destroy_session(request: Request) -> None:
-    token = request.cookies.get(ADMIN_COOKIE)
+    token = request.cookies.get(AUTH_COOKIE)
     if token:
-        _admin_sessions.pop(token, None)
+        with _session_lock:
+            _auth_sessions.pop(token, None)
 
 
 def is_valid_token(token: str | None) -> bool:
     if not token:
         return False
     _sweep_expired()
-    return token in _admin_sessions
+    return token in _auth_sessions
 
 
 def is_admin(request: Request) -> bool:
-    return is_valid_token(request.cookies.get(ADMIN_COOKIE))
+    return is_valid_token(request.cookies.get(AUTH_COOKIE))
 
 
-def require_admin(request: Request, login_url: str = "/login") -> RedirectResponse | None:
+def require_auth(request: Request, login_url: str = "/login") -> RedirectResponse | None:
     """Return a 303 redirect if unauthenticated, else None.
 
     Router usage:
-        guard = require_admin(request)
+        guard = require_auth(request)
         if guard:
             return guard
     """
@@ -159,7 +161,7 @@ def esc(value) -> str:
 
 # Dependency alias so routers read cleanly as `request: Request = Depends(admin_auth)`.
 def admin_auth(request: Request) -> Request:
-    guard = require_admin(request)
+    guard = require_auth(request)
     if guard is not None:
         raise UnauthorizedRedirect(guard)
     return request

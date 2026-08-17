@@ -44,3 +44,12 @@ def action_expense_status(conn, expense_id: int, status: str) -> str:
     cur.execute("SELECT trip_code FROM expenses WHERE id = %s", (expense_id,))
     row = cur.fetchone()
     return row["trip_code"] if row else ""
+
+
+def get_expenses_for_trip(conn, trip_code: str) -> list[dict]:
+    """All expenses for a trip, newest first (for the ledger view)."""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM expenses WHERE trip_code = %s ORDER BY id DESC", (trip_code,)
+    )
+    return cur.fetchall()

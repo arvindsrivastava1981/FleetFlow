@@ -1,15 +1,16 @@
 # FleetFlow — Production Folder Structure & Module Map
 
 > **Purpose:** Defines the target, best-in-class folder structure for FleetFlow.
-> It decomposes the current single-file prototype (`fleetflow_interactive_demo.py`
-> + `utils.py`) into a layered FastAPI package, resolves every
-> `docs/deep_agent_recommendation.md` issue in the module design, and gives each
+> The former single-file prototype (`fleetflow_interactive_demo.py` + `utils.py`)
+> has been fully decomposed into this layered FastAPI package, resolving every
+> `docs/deep_agent_recommendation.md` issue in the module design, and giving each
 > future phase (`docs/implementation_plan.md`, `docs/product_details.md`) a
 > permanent home.
 >
-> **Deploy status:** The container/deploy entrypoint is already switched to the
-> new package (`backend.app.main:app` in `Dockerfile`; `render.yaml` now declares
-> the required secrets + a `/healthz` health check). See §4 for the cutover note.
+> **Deploy status:** Migration complete. The container/deploy entrypoint is
+> `backend.app.main:app` (`Dockerfile`; `render.yaml` declares the required
+> secrets + a `/healthz` health check) and it is the **only** entry point —
+> the legacy prototype files have been deleted. See §4.
 
 ---
 
@@ -28,12 +29,12 @@ FleetFlow/
 │       │   ├── expenses.py           # POST /simulate-whatsapp, GET /action-expense
 │       │   ├── settlement.py         # /settled-pdfs, /generate-settlement-pdf
 │       │   ├── benchmarks.py         # fuel-benchmarks page + CRUD
-│       │   ├── rules.py              # GET /rule-engine
+│       │   ├── rule_engine.py        # GET /rule-engine
+│       │   ├── views.py              # GET /, GET /trips, GET /admin
 │       │   ├── auth.py               # GET/POST /login, GET /logout
 │       │   ├── demo.py               # GET /reset-demo (admin-only)
-│       │   ├── health.py             # GET /healthz
-│       │   ├── whatsapp/webhook.py   # POST /whatsapp/webhook  (Phase C)
-│       │   └── ocr/callback.py       # POST /ocr/callback       (Phase D)
+│       │   ├── whatsapp/webhook.py   # POST /whatsapp/webhook  (Phase C, future)
+│       │   └── ocr/callback.py       # POST /ocr/callback       (Phase D, future)
 │       ├── core/                     # config + security (no DB)
 │       │   ├── config.py             # env-driven, fail-fast settings
 │       │   ├── security.py           # auth, sessions, CSRF, login-lock, esc()
@@ -71,8 +72,10 @@ FleetFlow/
 │   └── seed/                         # production-reference seed
 ├── tests/
 │   ├── conftest.py                   # repo-root on path + shared fixtures
-│   ├── unit/rules/
-│   │   └── test_evaluate.py          # 15 passing rules-engine tests
+│   ├── unit/
+│   │   ├── test_auth_routes.py       # auth-guard tests for mutation routes
+│   │   ├── test_migrated_routes.py   # auth-guard tests for the remaining pages
+│   │   └── rules/test_evaluate.py    # 15 passing rules-engine tests
 │   ├── integration/                  # DB-backed route tests (future)
 │   └── fixtures/                     # throwaway sample data + expected verdicts
 ├── scripts/
@@ -82,10 +85,7 @@ FleetFlow/
 ├── start.ps1                         # validate-then-run launcher (Installation.md §5; -CheckOnly to dry-run)
 ├── docs/                             # product + plan + review docs
 ├── pyproject.toml                    # pytest/black/ruff config
-├── requirements.txt, Dockerfile, render.yaml
-└── (legacy, until migration completes)
-    ├── fleetflow_interactive_demo.py
-    └── utils.py
+└── requirements.txt, Dockerfile, render.yaml
 ```
 ---
 
@@ -93,7 +93,7 @@ FleetFlow/
 
 | # | Severity | Issue | Where the structure solves it |
 |---|---------|-------|------------------------------|
-| 2.1 | CRIT | Unauthenticated mutation endpoints | `api/*` routers use `core.security.require_admin()` / `admin_auth` on **every** mutation; `demo.py` isolates `/reset-demo` |
+| 2.1 | CRIT | Unauthenticated mutation endpoints | `api/*` routers use `core.security.require_auth()` / `admin_auth` on **every** mutation; `demo.py` isolates `/reset-demo` |
 | 2.2 | CRIT | Weak/hardcoded password, no login hardening | `core/config.py` (fail-fast, prod refuses `admin123`), `core/security.py` (rate-limit + lockout) |
 | 2.3 | HIGH | Stored XSS via f-strings | `core/security.esc()` used by every `web/*` page builder; scoped HTML lives only in `web/` |
 | 2.4 | MED | No CSRF | `middleware/csrf.py` + `core/security.validate_csrf_token()` for all POSTs |
@@ -124,37 +124,29 @@ FleetFlow/
 | F tests/docs | `tests/`, `docs/`, `APP_MINDMAP.md` |
 
 ---
-## 4. Migration Path (incremental, non-breaking)
+## 4. Migration Path (complete)
 
-The prototype still runs today for local dev. The new package is additive — no
-existing Python source file is touched during this restructure, and the **deploy
-artifacts already point at the new entrypoint**:
+The prototype has been fully retired. The deploy artifacts point at the new
+entrypoint and there is nothing left to cut over:
 
-- `Dockerfile` CMD now runs `uvicorn backend.app.main:app --app-dir /app ...`
-- `render.yaml` adds a `/healthz` web-health-check and declares the required
+- `Dockerfile` CMD runs `uvicorn backend.app.main:app --app-dir /app ...`
+- `render.yaml` declares a `/healthz` web-health-check and the required
   secrets (`DATABASE_URL`, `ADMIN_PASSWORD`, `ENV=production`).
 
-Migrate feature-by-feature:
+What was migrated feature-by-feature:
 
-1. **Rules engine** — done. `services/rules/*` hosts `evaluate_rules()` plus the
-   pure `evaluate_expense()`. The legacy import path still works via the
-   compatibility shim in `evaluate.py`.
-2. **Config/security** — done for `core/config.py` + `core/security.py`; these are
-   the single sources. Wire `utils.py` to delegate as routes migrate.
-3. **DB layer** — `db/connection.py` becomes the only place that opens a connection.
-4. **Transport (routers)** — copy each handler into the matching `api/*.py`, swapping
-   `conn.cursor()` for `get_db()` and adding `esc()` + `require_admin()`. Delete each
-   prototype block once no route references it.
+1. **Rules engine** — `services/rules/*` hosts `evaluate_rules()`'s successor,
+   the pure `evaluate_expense()`.
+2. **Config/security** — `core/config.py` + `core/security.py` are the single
+   sources for settings, sessions, CSRF, and login lockout.
+3. **DB layer** — `db/connection.py` is the only place that opens a connection;
+   `db/queries/*.py` hold all SQL.
+4. **Transport (routers)** — every handler from the prototype now lives in the
+   matching `api/*.py`, using `get_db()` + `esc()` + `require_auth()`.
 
-> **Note on rollback during the cutover:** if you deploy with `backend.app.main` and the
-> router migration isn't complete, the container serves only `/healthz` and `/` — it will
-> boot healthy but not yet expose the ledger/trips UI. Until all routers are ported,
-> keep the old prototype available for local demo (`uvicorn fleetflow_interactive_demo:app`),
-> or run the app factory once routers land. The production UI should only be switched to the
-> packaged factory after step 4 finishes.
->
-> **Once every router is migrated:** delete `utils.py` + `fleetflow_interactive_demo.py`
-> and the deploy entrypoint is already correct — no further change needed.
+`utils.py` and `fleetflow_interactive_demo.py` have been deleted — do not
+reintroduce either file; all future route work happens directly in
+`backend/app/`.
 
 ---
 
@@ -165,6 +157,6 @@ Migrate feature-by-feature:
 - **No FastAPI/`Request` in services.** Pure funcs take/return plain data.
 - **Zero DDL in the app.** Schema changes go to `database/` only.
 - **Every dynamic DB value passes `esc()`** before HTML interpolation.
-- **Every mutation route guards with `require_admin()`/`admin_auth`.**
+- **Every mutation route guards with `require_auth()`/`admin_auth`.**
 - **Pure rules depend only on `core/config` value objects** (no direct DB coupling),
   so unit tests run without a live database.

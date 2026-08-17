@@ -8,17 +8,13 @@
 - Frontend: Server-rendered HTML strings (f-strings) styled with Tailwind CDN (`grid grid-cols-1 lg:grid-cols-12 gap-4`). No separate JS build.
 
 ## Entry Point
-- **[backend/app/main.py](/backend/app/main.py)** — new modular FastAPI factory; the **deploy target**.
-  - Run: `uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}` (see `Dockerfile` / `render.yaml`, which now point here).
-  - Wires `backend/app/api/{auth,trips,expenses,demo,dashboard}.py` routers (see Routes below) + exposes `/healthz` (DB liveness probe) and `/`.
+- **[backend/app/main.py](/backend/app/main.py)** — the modular FastAPI factory; the **only entry point** (migration complete).
+  - Run: `uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}` (see `Dockerfile` / `render.yaml`, which point here).
+  - Wires every router in `backend/app/api/{auth,trips,expenses,demo,dashboard,benchmarks,rule_engine,settlement,views}.py` (see Routes below) + exposes `/healthz` (DB liveness probe).
   - Config/security live in `backend/app/core/{config,security}.py` (env-driven, fail-fast; prod refuses `admin123` fallback).
-  - **Auth hardening (migrated routers):** every mutation guards via `security.require_admin` → 303 to `/login` when unauthenticated; sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); state-changing requests use single-use CSRF tokens; all DB-sourced values are escaped via `security.esc()` (stored-XSS fix). Sessions/attempts are process-local in-memory (single-worker); swap `_admin_sessions`/`_login_attempts`/`_csrf_tokens` for a shared store in multi-worker deploys.
-- Legacy single-file prototype (dev tool only, still runs unchanged while routes migrate):
-  - [/fleetflow_interactive_demo.py](/fleetflow_interactive_demo.py) — single-file FastAPI demo app (routes only).
-    - Run: `uvicorn fleetflow_interactive_demo:app` or `python fleetflow_interactive_demo.py` (binds `0.0.0.0:$PORT`, default 8080).
-    - Deps: [/requirements.txt](/requirements.txt).
-- [/utils.py](/utils.py) — shared code imported by the entry point: `get_db()`, `fmt_dt()`, admin auth, HTML chrome, and the rules engine. Being migrated into the package: rules → `backend/app/services/rules/`, auth → `backend/app/core/security.py`, DB → `backend/app/db/connection.py`, chrome → `backend/app/web/chrome.py`. A compatibility shim in `evaluate.py` keeps `utils.py` imports working.
-- [/start.ps1](/start.ps1) — Windows/PowerShell launcher (validate-then-run, non-mutating until start). Validates Python 3.12+, deps, `.env` (`DATABASE_URL`/`ADMIN_PASSWORD`), `database/schema.sql`, and the modular + legacy entry points against `Installation.md` §§1-6; if all required checks pass, starts the deploy target `uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}` (Installation.md §5). Pass `-CheckOnly` to run validation without launching the server; optional items (`.venv`, `incremental.sql`) are reported but do not fail. Pure status snapshot: see `/stat.ps` (`powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\stat.ps"`).
+  - **Auth hardening (all routers):** every mutation and page guards via `security.require_auth` → 303 to `/login` when unauthenticated; sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); state-changing requests use single-use CSRF tokens; all DB-sourced values are escaped via `security.esc()` (stored-XSS fix). Sessions/attempts are process-local in-memory (single-worker); swap `_admin_sessions`/`_login_attempts`/`_csrf_tokens` for a shared store in multi-worker deploys.
+- **Legacy `fleetflow_interactive_demo.py` + `utils.py` have been deleted** — every route and helper they contained (rules engine, HTML chrome, DB access, admin auth) now lives in the `backend/app/` package (see Routes below and `PROJECT_STRUCTURE.md` §4). Do not reintroduce either file.
+- [/start.ps1](/start.ps1) — Windows/PowerShell launcher (validate-then-run, non-mutating until start). Validates Python 3.12+, deps, `.env` (`DATABASE_URL`/`ADMIN_PASSWORD`), `database/schema.sql`, and the modular entry point against `Installation.md` §§1-6; if all required checks pass, starts the deploy target `uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}` (Installation.md §5). Pass `-CheckOnly` to run validation without launching the server; optional items (`.venv`, `incremental.sql`, legacy-file absence) are reported but do not fail. Pure status snapshot: see `/stat.ps` (`powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\stat.ps"`).
 - Legacy SQLite prototypes (`init_db.py`, `fleetflow_backend_core.py`) have been removed; do not reintroduce SQLite.
 
 ## Database Access Pattern (Postgres/Neon)
@@ -36,28 +32,25 @@
 - `fuel_benchmarks` (id, state_code, state_name, benchmark_price_per_liter, tolerance_pct default 0.08, effective_date, updated_at) — per-state fuel price index for the anomaly rules engine (managed via the `/fuel-benchmarks` admin CRUD).
 
 ## Routes
-> Two surfaces coexist during the incremental migration. Mutation/security-critical routes are
-> **migrated** into `backend/app/api/` (guarded by `require_admin` — unauthenticated → 303 `/login`);
-> the read-only UI pages remain **prototype-only** in `fleetflow_interactive_demo.py` until their
-> cutover (see [`PROJECT_STRUCTURE.md`](./PROJECT_STRUCTURE.md#4-migration-path-incremental-non-breaking)).
+> Migration complete: every route now lives in `backend/app/api/*` (guarded by
+> `require_auth` — unauthenticated → 303 `/login` — except the public `/login`
+> page and `/healthz`). There is no separate prototype surface anymore.
 
-### Modular app (`backend/app/api/*` — security-hardened, all admin-guarded)
-- `GET /login`, `POST /login`, `GET /logout` — `api/auth.py`: TTL sessions via `create_session`, per-IP brute-force lockout, secure cookie (httponly, samesite=lax). Wrong password → `303 /login?error=1`.
+### `backend/app/api/*` (security-hardened, all admin-guarded unless noted)
+- `GET /login`, `POST /login`, `GET /logout` — `api/auth.py`: TTL sessions via `create_session`, per-IP brute-force lockout, secure cookie (httponly, samesite=lax). Wrong password → `303 /login?error=1`. `GET /login` is public.
 - `POST /create-trip` — `api/trips.py`: inserts `trips` row (requires driver_phone); validates plate regex, `+91` phone, non-negative advance/odo; blocked if another ACTIVE trip exists.
+- `GET /settle-trip?trip_code=` — `api/trips.py`: marks trip `SETTLED` (only when no PENDING expenses remain).
 - `POST /simulate-whatsapp` — `api/expenses.py`: runs `evaluate_expense()` then inserts an `expenses` row (goods stay pending; flagged → pending); upserts `trips.current_odo`.
 - `GET /action-expense?id=&action=APPROVE|REJECT` — `api/expenses.py`: manager decision on a flagged/pending expense or goods transaction.
-- `GET /settle-trip?trip_code=` — `api/trips.py`: marks trip `SETTLED` (only when no PENDING expenses remain).
-- `GET /reset-demo` — `api/demo.py`: clears `expenses`+`trips` rows (no DDL, no reseed) — now **admin-guarded** (was previously unauthenticated).
-- `GET /dashboard` — `api/dashboard.py`: admin-only savings dashboard (money-saved/claimed/approved/**pending** cards + per-trip Chart.js bar chart); the authenticated post-login landing page (redirect target of `POST /login`) — **migrated**.
-
-### Prototype-only read-only UI (`fleetflow_interactive_demo.py` — not yet migrated)
-- `GET /` — 3-column dashboard UI (see UI Layout below).
-- `GET /trips` — admin-only trip listing (active first) with per-trip expense totals / pending counts.
-- `GET /fuel-benchmarks` + `POST /fuel-benchmarks/add`, `POST /fuel-benchmarks/edit`, `GET /fuel-benchmarks/delete?id=` — admin CRUD for per-state fuel price benchmarks.
-- `GET /rule-engine` — admin-only read-only explainer of the anomaly rules per expense type.
-- `GET /settled-pdfs` — lists settled trips with links to their settlement PDFs.
-- `GET /generate-settlement-pdf?trip_code=` — builds a reportlab PDF settlement/reconciliation sheet.
-- `GET /admin` — admin-only landing/dashboard page (prototype only).
+- `GET /reset-demo` — `api/demo.py`: clears `expenses`+`trips` rows (no DDL, no reseed).
+- `GET /dashboard` — `api/dashboard.py`: admin-only savings dashboard (money-saved/claimed/approved/**pending** cards + per-trip Chart.js bar chart); the post-login landing page (redirect target of `POST /login`).
+- `GET /` — `api/views.py`: 3-column dual-WhatsApp workspace UI (see UI Layout below); redirects to `/trips` if no `trip_code`/`new_trip` given.
+- `GET /trips` — `api/views.py`: trip listing (active first) with per-trip expense totals / pending counts; "Start New Trip" disabled while a trip is active.
+- `GET /admin` — `api/views.py`: tabular all-trips overview (legacy admin landing page).
+- `GET /fuel-benchmarks` + `POST /fuel-benchmarks/add`, `POST /fuel-benchmarks/edit`, `GET /fuel-benchmarks/delete?id=` — `api/benchmarks.py`: admin CRUD for per-state fuel price benchmarks.
+- `GET /rule-engine` — `api/rule_engine.py`: read-only explainer of the anomaly rules per expense type (static `settings` constants only, no DB).
+- `GET /settled-pdfs` — `api/settlement.py`: lists settled trips with links to their settlement PDFs.
+- `GET /generate-settlement-pdf?trip_code=` — `api/settlement.py`: builds a reportlab PDF settlement/reconciliation sheet via `services/pdf/settlement.py`.
 
 ## UI Layout — 3-Column Dual-WhatsApp Architecture (`GET /`)
 `grid grid-cols-1 lg:grid-cols-12 gap-4`, 3 equal `lg:col-span-4` columns:

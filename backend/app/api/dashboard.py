@@ -7,7 +7,7 @@ routers (auth/trips/expenses/demo) were wired into the modular app, so the
 landing page the login handler pointed at did not exist.
 
 Security:
-- §2.1 unauthenticated access -> `require_admin` 303-redirects to /login.
+- §2.1 unauthenticated access -> `require_auth` 303-redirects to /login.
 - §2.3 stored-XSS -> DB-sourced trip codes are embedded as JSON with `<`,
   `>`, `&` neutralized to \\uXXXX (safe inside a <script> block); every money
   figure is numeric-only (`₹<float>`) and never interpolates raw DB text.
@@ -19,7 +19,7 @@ import json
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from backend.app.core.security import require_admin
+from backend.app.core.security import require_auth
 from backend.app.db.connection import get_db
 from backend.app.web.chrome import render_footer, render_header, render_sidebar
 
@@ -51,7 +51,7 @@ def _safe_json(obj) -> str:
 
 @router.get("/dashboard", response_class=HTMLResponse)
 def savings_dashboard(request: Request):
-    guard = require_admin(request)
+    guard = require_auth(request)
     if guard is not None:
         return guard
 

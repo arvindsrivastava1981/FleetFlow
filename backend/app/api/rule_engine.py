@@ -1,4 +1,4 @@
-"""Rule-engine explainer page — admin-only, read-only view.
+"""Rule-engine explainer page — read-only view.
 
 Migrated from `fleetflow_interactive_demo.py`'s `/rule-engine` route so the
 sidebar link resolves (was a 404 in the modular app). Renders the anomaly
@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from backend.app.core.config import settings
-from backend.app.core.security import require_admin
+from backend.app.core.security import require_auth
 from backend.app.web.chrome import render_footer, render_header, render_sidebar
 
 router = APIRouter()
@@ -29,7 +29,7 @@ def _rule_card(exp_type: str, badge_color: str, rules: list[str]) -> str:
 
 @router.get("/rule-engine", response_class=HTMLResponse)
 def rule_engine_page(request: Request):
-    guard = require_admin(request)
+    guard = require_auth(request)
     if guard is not None:
         return guard
 

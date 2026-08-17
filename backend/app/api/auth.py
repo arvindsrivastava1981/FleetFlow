@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from backend.app.core.config import settings
 from backend.app.core.security import (
-    ADMIN_COOKIE,
+    AUTH_COOKIE,
     clear_login_failures,
     create_session,
     destroy_session,
@@ -37,7 +37,7 @@ def _client_ip(request: Request) -> str:
 
 
 @router.get("/login", response_class=HTMLResponse)
-def admin_login_form(request: Request, error: str | None = None) -> str:
+def login_form(request: Request, error: str | None = None) -> str:
     ip = _client_ip(request)
     allowed, _seconds = login_allowed(ip)
     return f"""<!DOCTYPE html>
@@ -45,7 +45,7 @@ def admin_login_form(request: Request, error: str | None = None) -> str:
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>FleetFlow Admin Login</title>
+        <title>FleetFlow Login</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -55,8 +55,8 @@ def admin_login_form(request: Request, error: str | None = None) -> str:
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
             <div class="text-center space-y-1">
                 <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">FF</div>
-                <h1 class="text-lg font-extrabold text-slate-800">Admin Login</h1>
-                <p class="text-xs text-slate-500">Enter the admin password to continue</p>
+                <h1 class="text-lg font-extrabold text-slate-800">Login</h1>
+                <p class="text-xs text-slate-500">Enter the password to continue</p>
             </div>
             {'<p class="text-xs text-rose-600 font-semibold text-center">Incorrect password. Try again.</p>' if error else ''}
             <form action="/login" method="post" class="space-y-3">
@@ -75,13 +75,13 @@ def admin_login_form(request: Request, error: str | None = None) -> str:
 
 
 @router.post("/login")
-def admin_login_submit(request: Request, password: str = Form(...)):
+def login_submit(request: Request, password: str = Form(...)):
     ip = _client_ip(request)
     allowed, _lock_remaining = login_allowed(ip)
     if not allowed:
         return RedirectResponse(url="/login?error=locked", status_code=303)
 
-    if password != settings.admin_password:
+    if password != settings.password:
         remaining = register_login_failure(ip)
         return RedirectResponse(url="/login?error=1", status_code=303)
 
@@ -89,7 +89,7 @@ def admin_login_submit(request: Request, password: str = Form(...)):
     token = create_session()
     response = RedirectResponse(url="/dashboard", status_code=303)
     response.set_cookie(
-        key=ADMIN_COOKIE,
+        key=AUTH_COOKIE,
         value=token,
         httponly=True,
         samesite="lax",
@@ -99,8 +99,8 @@ def admin_login_submit(request: Request, password: str = Form(...)):
 
 
 @router.get("/logout")
-def admin_logout(request: Request):
+def logout(request: Request):
     destroy_session(request)
     response = RedirectResponse(url="/login", status_code=303)
-    response.delete_cookie(ADMIN_COOKIE)
+    response.delete_cookie(AUTH_COOKIE)
     return response

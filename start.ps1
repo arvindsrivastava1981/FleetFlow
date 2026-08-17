@@ -126,8 +126,7 @@ Write-Check -Label 'database/incremental.sql exists'  -Pass (Test-Path (Join-Pat
 
 # --- [5] Entry points -------------------------------------------------------
 Write-Check -Label 'backend/app/main.py (modular deploy target)' -Pass (Test-Path (Join-Path (Join-Path (Join-Path $Root 'backend') 'app') 'main.py')) -Detail 'Installation.md section 5'
-Write-Check -Label 'fleetflow_interactive_demo.py (legacy dev tool)' -Pass (Test-Path (Join-Path $Root 'fleetflow_interactive_demo.py')) -Detail 'Installation.md section 5'
-Write-Check -Label 'utils.py at repo root (legacy dep)' -Pass (Test-Path (Join-Path $Root 'utils.py')) -Detail 'Installation.md section 5'
+Write-Check -Label 'legacy fleetflow_interactive_demo.py + utils.py removed' -Pass (-not (Test-Path (Join-Path $Root 'fleetflow_interactive_demo.py')) -and -not (Test-Path (Join-Path $Root 'utils.py'))) -Detail 'migration complete, Installation.md section 5' -Optional
 
 # --- [6] Validation scripts -------------------------------------------------
 Write-Check -Label 'scripts/smoke_check.py exists' -Pass (Test-Path (Join-Path (Join-Path $Root 'scripts') 'smoke_check.py')) -Detail 'Installation.md section 6'

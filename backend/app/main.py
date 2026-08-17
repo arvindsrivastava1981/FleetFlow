@@ -1,21 +1,27 @@
 """FleetFlow application entrypoint (FastAPI factory).
 
-Target invocation after the router migration is complete:
-    uvicorn backend.app.main:app
+Primary deploy target (see Dockerfile / render.yaml / start.ps1):
+    uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}
 
-For the current incremental migration (prototype still live), run the existing
-`fleetflow_interactive_demo.py` unchanged — nothing here is imported by it yet.
-This module is the *destination* the routers in `backend/app/api/` get wired
-into. Until a router is migrated, `app` exposes just a health probe and root so
-the package boots cleanly and the structure is verifiable.
+All routes from the legacy `fleetflow_interactive_demo.py` prototype have been
+migrated into `backend/app/api/*` routers wired below. The prototype file and
+`utils.py` have been removed (see APP_MINDMAP.md / PROJECT_STRUCTURE.md).
 """
 from __future__ import annotations
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
-from backend.app.api import auth, dashboard, demo, expenses, trips
-from backend.app.core.config import settings
+from backend.app.api import (
+    auth,
+    benchmarks,
+    dashboard,
+    demo,
+    expenses,
+    rule_engine,
+    settlement,
+    trips,
+    views,
+)
 from backend.app.db.connection import healthcheck
 
 app = FastAPI(
@@ -24,29 +30,19 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# ---- Routers (security-critical mutations ported first) ---------------------
+# ---- Routers (auth/mutations first, then read-only UI pages) ----------------
 app.include_router(auth.router)
 app.include_router(trips.router)
 app.include_router(expenses.router)
 app.include_router(demo.router)
 app.include_router(dashboard.router)
+app.include_router(benchmarks.router)
+app.include_router(rule_engine.router)
+app.include_router(settlement.router)
+app.include_router(views.router)
 
 
 @app.get("/healthz")
 def healthz() -> dict:
     """Liveness + DB reachability probe for Render/Docker health checks."""
     return {"status": "ok", **healthcheck()}
-
-
-@app.get("/")
-def root(request: Request) -> JSONResponse:
-    """Silence the safe mapping issue and return environment summary."""
-    return JSONResponse(
-        {
-            "service": "fleetflow",
-            "env": "production" if settings.is_production else "development",
-            "docs": "/docs",
-            "note": "Routes are migrated incrementally from the prototype into "
-            "backend/app/api; ruff the resident prototypes until then.",
-        }
-    )

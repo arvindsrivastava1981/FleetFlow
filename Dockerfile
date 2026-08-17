@@ -25,9 +25,8 @@ COPY . .
 EXPOSE 10000
 
 # Run the modular FastAPI factory using the dynamic PORT provided by Render.
-# The new package entrypoint lives at backend.app.main:app. The legacy single-file
-# prototype (fleetflow_interactive_demo:app) remains only as a dev tool until all
-# routes are migrated into backend/app/api/ (see PROJECT_STRUCTURE.md §4).
+# backend.app.main:app is the only entry point — the legacy single-file
+# prototype (fleetflow_interactive_demo.py) has been fully migrated and removed.
 # Note: WORKDIR is /app, and `COPY . .` above already placed /app/backend, so the
 # package import `backend.app.main` resolves because --app-dir /app puts the repo
 # root (which contains the `backend` package) onto sys.path.

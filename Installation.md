@@ -72,30 +72,18 @@ psql "$DATABASE_URL" -f database/incremental.sql
 
 ## 5. Run the app
 
-### Primary / deploy entry point (modular FastAPI app)
+### Entry point (modular FastAPI app)
 
-This is the production target (`backend/app/main.py`) — see `Dockerfile` / `render.yaml`:
+This is the only entry point (`backend/app/main.py`) — see `Dockerfile` / `render.yaml`:
 
 ```bash
 uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}
 ```
 
-Open **http://localhost:10000** (or `$PORT` if set).
+Open **http://localhost:10000** (or `$PORT` if set) — you'll be redirected to `/login`; use the `ADMIN_PASSWORD` you set.
 
-### Legacy single-file prototype (dev tool only)
-
-> Runs unchanged while routes migrate into `backend/app/api/` (see `PROJECT_STRUCTURE.md` §4).
-> Depends on `utils.py` still sitting at the repo root.
-
-```bash
-python fleetflow_interactive_demo.py    # binds 0.0.0.0:$PORT, default 8080
-# or
-uvicorn fleetflow_interactive_demo:app --host 0.0.0.0 --port 8080
-```
-
-Open **http://localhost:8080** — you'll be redirected to `/login`; use the `ADMIN_PASSWORD` you set.
-
-> ⚠️ **Port is 8080**, not 8000 — the legacy prototype does not listen on 8000.
+> The legacy single-file prototype (`fleetflow_interactive_demo.py` + `utils.py`) has been
+> fully migrated into `backend/app/` and removed from the repo (see `PROJECT_STRUCTURE.md` §4).
 
 ---
 

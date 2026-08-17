@@ -1,7 +1,7 @@
 """Trips router — trip creation and settlement.
 
 Fixes from deep_agent_recommendation:
-- §2.1 unauthenticated mutations: both endpoints guard via `require_admin`
+- §2.1 unauthenticated mutations: both endpoints guard via `require_auth`
   (POST /create-trip, GET /settle-trip) -> 303 to /login when unauthenticated.
 - §3.5 input validation: plate regex + `+91` phone formats are enforced here
   (the prototype never checked either), plus non-negative advance/odo.
@@ -15,13 +15,13 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 from backend.app.core.config import settings
-from backend.app.core.security import require_admin
+from backend.app.core.security import require_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.trips import (
     active_trip_exists,
     insert_trip,
     pending_expense_count,
-    settle_trip,
+    settle_trip as mark_trip_settled,
 )
 
 router = APIRouter()
@@ -39,7 +39,7 @@ def create_trip(
     advance_amount: float = Form(...),
     start_odo: float = Form(...),
 ):
-    guard = require_admin(request)
+    guard = require_auth(request)
     if guard is not None:
         return guard
 
@@ -69,12 +69,12 @@ def create_trip(
 
 @router.get("/settle-trip")
 def settle_trip(request: Request, trip_code: str):
-    guard = require_admin(request)
+    guard = require_auth(request)
     if guard is not None:
         return guard
 
     with get_db() as conn:
         if pending_expense_count(conn, trip_code):
             return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
-        settle_trip(conn, trip_code)
+        mark_trip_settled(conn, trip_code)
     return RedirectResponse(url="/trips", status_code=303)

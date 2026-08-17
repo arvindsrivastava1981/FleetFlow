@@ -1,7 +1,7 @@
 """Expenses router — WhatsApp-simulation logging + manager approval action.
 
 Fixes from deep_agent_recommendation:
-- §2.1 unauthenticated mutations: both endpoints guard via `require_admin`
+- §2.1 unauthenticated mutations: both endpoints guard via `require_auth`
   (`/simulate-whatsapp` and `/action-expense` -> 303 to /login).
 - §2.5/§2.8: uses the pure `evaluate_expense` engine (benchmark-derived band,
   prev-odo from any expense type).
@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
-from backend.app.core.security import require_admin
+from backend.app.core.security import require_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.expenses import action_expense_status, insert_expense
 from backend.app.db.queries.trips import trip_status
@@ -38,7 +38,7 @@ def simulate_whatsapp(
     liters: float = Form(0.0),
     rate: float = Form(0.0),
 ):
-    guard = require_admin(request)
+    guard = require_auth(request)
     if guard is not None:
         return guard
 
@@ -89,7 +89,7 @@ def simulate_whatsapp(
 
 @router.get("/action-expense")
 def action_expense(request: Request, id: int, action: str):
-    guard = require_admin(request)
+    guard = require_auth(request)
     if guard is not None:
         return guard
 
