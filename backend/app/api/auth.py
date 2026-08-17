@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from backend.app.core.config import settings
 from backend.app.core.security import (
     AUTH_COOKIE,
     clear_login_failures,
