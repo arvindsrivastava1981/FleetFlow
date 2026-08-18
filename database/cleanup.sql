@@ -9,3 +9,5 @@ truncate table vehicles cascade;
 truncate table trips cascade;
 truncate table expenses cascade;
 truncate table fuel_benchmarks cascade;
+truncate table fuel_logs cascade;
+
