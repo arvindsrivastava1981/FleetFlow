@@ -121,6 +121,8 @@ def render_sidebar(active: str, role: str = "super_admin") -> str:
     # ── FLEET & ASSETS (super_admin + trip_manager only) ───────────────
     if role in ("super_admin", "trip_manager"):
         links.append(_nav_section("Fleet & Assets"))
+        if role == "super_admin":
+            links.append(_nav_link("/fleets", "Fleets", "🏢", "fleets", active))
         links.append(_nav_link("/vehicles", "Vehicles", "🚛", "vehicles", active))
         links.append(_nav_link("/drivers", "Drivers", "👤", "drivers", active))
         links.append(_nav_link("/fuel-benchmarks", "Fuel Benchmarks", "⛽", "fuel-benchmarks", active))

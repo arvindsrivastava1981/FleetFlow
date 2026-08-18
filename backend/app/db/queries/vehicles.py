@@ -22,11 +22,15 @@ def _visible_clause(role: str, user_id: int | None) -> tuple[str, list]:
 
 
 def get_all_vehicles(conn, role: str = "super_admin", user_id: int | None = None) -> list[dict]:
-    """Return vehicles visible to the caller, newest first."""
+    """Return vehicles visible to the caller, newest first, with fleet owner name."""
     clause, params = _visible_clause(role, user_id)
     cur = conn.cursor()
     cur.execute(
-        f"SELECT * FROM vehicles WHERE {clause} ORDER BY id DESC",
+        f"""SELECT v.*, f.owner_name AS fleet_owner
+              FROM vehicles v
+              LEFT JOIN fleets f ON f.id = v.fleet_id
+             WHERE {clause}
+             ORDER BY v.id DESC""",
         params,
     )
     return cur.fetchall()
@@ -67,17 +71,23 @@ def insert_vehicle(
     expected_km_per_liter: float,
     owner_phone: str | None,
     created_by: int | None = None,
+    fleet_id: int | None = None,
 ) -> int:
-    """Insert a new vehicle and return its ID. *created_by* is the manager."""
+    """Insert a new vehicle and return its ID. *created_by* is the manager.
+
+    *fleet_id* binds the vehicle to the fleet it belongs to (resolved from the
+    creating manager's `users.fleet_id`), so it counts against the fleet's
+    subscription vehicle limit.
+    """
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO vehicles
                (vehicle_number, make_model, tank_capacity_liters,
-                expected_km_per_liter, owner_phone, created_by)
-           VALUES (%s, %s, %s, %s, %s, %s)
+                expected_km_per_liter, owner_phone, created_by, fleet_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)
            RETURNING id""",
         (vehicle_number, make_model, tank_capacity_liters,
-         expected_km_per_liter, owner_phone, created_by),
+         expected_km_per_liter, owner_phone, created_by, fleet_id),
     )
     return cur.fetchone()["id"]
 

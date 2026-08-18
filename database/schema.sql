@@ -24,6 +24,35 @@ CREATE TABLE IF NOT EXISTS fleets (
 CREATE INDEX IF NOT EXISTS idx_fleets_phone ON fleets(phone);
 
 -- ----------------------------------------------------------------------------
+-- 1b. SUBSCRIPTION PLANS TABLE — the billable product catalogue
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS subscription_plans (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(30) UNIQUE NOT NULL,      -- 'TRIAL', 'MONTHLY', 'YEARLY'
+    name VARCHAR(80) NOT NULL,
+    billing_cycle VARCHAR(20) NOT NULL,    -- 'TRIAL', 'MONTHLY', 'YEARLY'
+    trial_days INT NOT NULL DEFAULT 0,
+    price NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
+    vehicle_limit INT NOT NULL DEFAULT 1,  -- vehicles included with this plan
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Subscription-state columns live on the fleets table so a fleet owns its
+-- entitlement (status, current plan, trial window, Razorpay refs).
+ALTER TABLE fleets
+    ADD COLUMN IF NOT EXISTS plan_id BIGINT REFERENCES subscription_plans(id),
+    ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(20) DEFAULT 'TRIAL'
+        CHECK (subscription_status IN ('TRIAL','ACTIVE','PAST_DUE','CANCELLED','EXPIRED')),
+    ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS vehicle_limit INT NOT NULL DEFAULT 1,
+    ADD COLUMN IF NOT EXISTS next_billing_date DATE,
+    ADD COLUMN IF NOT EXISTS razorpay_subscription_id VARCHAR(64),
+    ADD COLUMN IF NOT EXISTS razorpay_customer_id VARCHAR(64);
+
+-- ----------------------------------------------------------------------------
 -- 2. VEHICLES TABLE
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS vehicles (
@@ -147,6 +176,11 @@ CREATE TRIGGER trg_fuel_benchmarks_updated_at
     FOR EACH ROW
     EXECUTE PROCEDURE update_timestamp_column();
 
+CREATE TRIGGER trg_subscription_plans_updated_at
+    BEFORE UPDATE ON subscription_plans
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_timestamp_column();
+
 -- ----------------------------------------------------------------------------
 -- 7. USERS TABLE — role-based access (Super Admin / Trip Manager / Driver)
 -- ----------------------------------------------------------------------------
@@ -159,6 +193,7 @@ CREATE TABLE IF NOT EXISTS users (
         CHECK (role IN ('super_admin', 'trip_manager', 'driver')),
     phone VARCHAR(20),
     email VARCHAR(150),
+    fleet_id BIGINT REFERENCES fleets(id),   -- fleet the manager/driver belongs to
     is_active BOOLEAN DEFAULT TRUE,
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -168,6 +203,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_fleet_id ON users(fleet_id);
 
 CREATE TRIGGER trg_users_updated_at
     BEFORE UPDATE ON users

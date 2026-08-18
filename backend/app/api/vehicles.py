@@ -15,6 +15,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from backend.app.core.config import settings
 from backend.app.core.security import esc, get_current_user, require_role
 from backend.app.db.connection import get_db
+from backend.app.db.queries.fleets import (
+    count_active_vehicles,
+    get_default_fleet,
+    get_fleet_entitlement,
+    is_trial_active,
+)
+from backend.app.db.queries.users import get_user_fleet_id
 from backend.app.db.queries.vehicles import (
     deactivate_vehicle,
     get_all_vehicles,
@@ -52,6 +59,7 @@ def _vehicle_row(v: dict) -> str:
         <tr class="border-b border-slate-100 hover:bg-slate-50">
             <td class="p-3 text-xs font-bold text-slate-800">{esc(v['vehicle_number'])}</td>
             <td class="p-3 text-xs text-slate-600">{esc(v['make_model'] or '—')}</td>
+            <td class="p-3 text-xs text-slate-600">{esc(v['fleet_owner'] or '—')}</td>
             <td class="p-3 text-xs text-slate-600">{v['tank_capacity_liters']:,.0f} L</td>
             <td class="p-3 text-xs text-slate-600">{v['expected_km_per_liter']:,.2f} km/L</td>
             <td class="p-3 text-xs text-slate-600">{esc(v['owner_phone'] or '—')}</td>
@@ -74,7 +82,7 @@ def list_vehicles(request: Request):
     with get_db() as conn:
         vehicles = get_all_vehicles(conn, role=role, user_id=user_id)
     rows = "".join([_vehicle_row(v) for v in vehicles])
-    empty = '<tr><td colspan="7" class="p-6 text-center text-xs text-slate-400">No vehicles registered yet. Add one below.</td></tr>'
+    empty = '<tr><td colspan="8" class="p-6 text-center text-xs text-slate-400">No vehicles registered yet. Add one below.</td></tr>'
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Manage Vehicles</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -92,6 +100,7 @@ def list_vehicles(request: Request):
 <thead class="bg-slate-50 border-b"><tr>
 <th class="p-3 text-[10px] font-bold text-slate-500">Vehicle Number</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Make / Model</th>
+<th class="p-3 text-[10px] font-bold text-slate-500">Fleet</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Tank Capacity</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Expected km/L</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Owner Phone</th>
@@ -171,13 +180,34 @@ def create_vehicle_submit(
     if not PLATE_RE.match(number):
         return RedirectResponse(url="/vehicles/create?error=plate", status_code=303)
     user = get_current_user(request)
+    user_id = user.get("user_id")
     with get_db() as conn:
         if vehicle_number_exists(conn, number):
             return RedirectResponse(url="/vehicles/create?error=dup", status_code=303)
+
+        # Resolve which fleet this vehicle belongs to.
+        fleet_id = get_user_fleet_id(conn, user_id) if user_id else None
+        if fleet_id is None:
+            default = get_default_fleet(conn)
+            if default:
+                fleet_id = default["id"]
+        if fleet_id is None:
+            return RedirectResponse(url="/vehicles/create?error=no_fleet", status_code=303)
+
+        # Subscription gate: entitlement + vehicle limit.
+        entitlement = get_fleet_entitlement(conn, fleet_id)
+        if not entitlement or entitlement["subscription_status"] != "ACTIVE":
+            # Free 15-day trial counts as active while it hasn't lapsed.
+            if not (entitlement and is_trial_active(conn, fleet_id)):
+                return RedirectResponse(url="/billing/upgrade", status_code=303)
+        if count_active_vehicles(conn, fleet_id) >= entitlement["vehicle_limit"]:
+            # Hit the cap -> single-vehicle subscription purchase.
+            return RedirectResponse(url="/billing/vehicle-slot", status_code=303)
+
         insert_vehicle(
             conn, number, make_model.strip() or None,
             tank_capacity_liters, expected_km_per_liter,
-            owner_phone.strip() or None, created_by=user.get("user_id"),
+            owner_phone.strip() or None, created_by=user_id, fleet_id=fleet_id,
         )
     return RedirectResponse(url="/vehicles", status_code=303)
 

@@ -14,11 +14,13 @@ from fastapi import FastAPI
 from backend.app.api import (
     auth,
     benchmarks,
+    billing,
     dashboard,
     dashboards,
     demo,
     drivers,
     expenses,
+    fleets,
     rule_engine,
     settlement,
     trips,
@@ -39,6 +41,8 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(drivers.router)
 app.include_router(vehicles.router)
+app.include_router(fleets.router)
+app.include_router(billing.router)
 app.include_router(trips.router)
 app.include_router(expenses.router)
 app.include_router(demo.router)

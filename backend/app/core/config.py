@@ -63,6 +63,14 @@ class Settings:
         self.whatsapp_phone_id: str | None = os.getenv("WHATSAPP_PHONE_ID")
         self.webhook_verify_token: str | None = os.getenv("WEBHOOK_VERIFY_TOKEN")
 
+        # ---- Razorpay billing (subscription + per-vehicle payments) --------
+        self.razorpay_key_id: str | None = os.getenv("RAZORPAY_API_KEY")
+        self.razorpay_key_secret: str | None = os.getenv("RAZORPAY_API_SECRET")
+        self.razorpay_webhook_secret: str | None = os.getenv("RAZORPAY_WEBHOOK_SECRET")
+        self.razorpay_test_mode: bool = (
+            os.getenv("RAZORPAY_TEST_MODE", "1").strip().lower() in ("1", "true", "yes")
+        )
+
 
 def _require(name: str) -> str:
     value = os.getenv(name)

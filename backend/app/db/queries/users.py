@@ -51,15 +51,20 @@ def create_user(
     phone: str | None = None,
     email: str | None = None,
     created_by: int | None = None,
+    fleet_id: int | None = None,
 ) -> int:
-    """Insert a new user and return the new ID."""
+    """Insert a new user and return the new ID.
+
+    *fleet_id* binds a trip_manager/driver to the fleet they belong to
+    (the fleet they create vehicles under).
+    """
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO users
-               (username, password_hash, full_name, role, phone, email, is_active, created_by)
-           VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s)
+               (username, password_hash, full_name, role, phone, email, is_active, created_by, fleet_id)
+           VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s)
            RETURNING id""",
-        (username, password_hash, full_name, role, phone, email, created_by),
+        (username, password_hash, full_name, role, phone, email, created_by, fleet_id),
     )
     return cur.fetchone()["id"]
 
@@ -73,6 +78,7 @@ def update_user(
     email: str | None = None,
     is_active: bool | None = None,
     password_hash: str | None = None,
+    fleet_id: int | None = None,
 ) -> bool:
     """Update a user. Returns True if a row was updated."""
     cur = conn.cursor()
@@ -96,6 +102,9 @@ def update_user(
     if password_hash is not None:
         fields.append("password_hash = %s")
         values.append(password_hash)
+    if fleet_id is not None:
+        fields.append("fleet_id = %s")
+        values.append(fleet_id)
     if not fields:
         return False
     values.append(user_id)
@@ -104,6 +113,14 @@ def update_user(
         values,
     )
     return cur.rowcount > 0
+
+
+def get_user_fleet_id(conn, user_id: int) -> int | None:
+    """Return the fleet_id bound to a user (their owning fleet), if any."""
+    cur = conn.cursor()
+    cur.execute("SELECT fleet_id FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    return row["fleet_id"] if row else None
 
 
 def deactivate_user(conn, user_id: int) -> bool:

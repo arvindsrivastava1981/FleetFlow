@@ -14,6 +14,8 @@ store (e.g. DB-backed) without changing call sites.
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import secrets
 import threading
 import time
@@ -184,6 +186,24 @@ def esc(value) -> str:
         .replace('"', "&quot;")
         .replace("'", "&#x27;")
     )
+
+
+def verify_razorpay_webhook(body: bytes, signature: str | None, timestamp: str | None) -> bool:
+    """Verify a Razorpay webhook signature (HMAC-SHA256 of `body|timestamp`).
+
+    Razorpay signs each webhook with the webhook secret:
+        signed_bytes = f"{body}|{timestamp}".encode()
+        expected     = hmac_sha256(signed_bytes, webhook_secret).hexdigest()
+    Returns False (never raises) when the payload is forged or untrusted.
+    """
+    secret = settings.razorpay_webhook_secret
+    if not secret or not signature or not timestamp:
+        return False
+    if not isinstance(body, bytes):
+        body = body.encode()
+    signed_bytes = f"{body.decode('utf-8', errors='ignore')}|{timestamp}".encode()
+    expected = hmac.new(secret.encode(), signed_bytes, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature)
 
 
 # Dependency alias so routers read cleanly as `request: Request = Depends(_auth)`.
