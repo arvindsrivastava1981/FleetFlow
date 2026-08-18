@@ -23,10 +23,10 @@
 ## 2. Bugs & Issues
 
 ### 2.1 Authorization gaps — unauthenticated mutation endpoints [CRITICAL] — ✅ FIXED
-Original: several mutation endpoints had **no `is_authorized_user()` guard** (`POST /simulate-whatsapp`, `POST /create-trip`, `GET /action-expense`, `GET /reset-demo`, `GET /generate-settlement-pdf`).
+Original: several mutation endpoints had **no `is_authorized_user()` guard** (`POST /simulate-whatsapp`, `POST /create-trip`, `GET /action-expense`, `GET /generate-settlement-pdf`).
 
 **Current state:** the migrated routers guard every mutation with `require_auth(request)` → 303 `/login`:
-- `POST /create-trip` (`api/trips.py`), `POST /simulate-whatsapp` + `GET /action-expense` (`api/expenses.py`), `GET /reset-demo` (`api/demo.py` — now guarded; previously an unauthenticated one-click data wipe).
+- `POST /create-trip` (`api/trips.py`), `POST /simulate-whatsapp` + `GET /action-expense` (`api/expenses.py`). The dev-only `GET /reset-demo` (previously an unauthenticated one-click data wipe) has been **removed** entirely.
 - `GET /generate-settlement-pdf` is **not** in the modular migration (prototype-only read-only UI) and remains unguarded there — migrate it behind `require_auth` when ported.
 
 ### 2.2 Weak/hardcoded  password & no login hardening [CRITICAL] — ✅ FIXED
@@ -103,7 +103,7 @@ Original: several mutation endpoints had **no `is_authorized_user()` guard** (`P
 ---
 
 ## 6. Quick-Win Priority Order — revised
-1. ✅ **DONE:** Auth guards on `/action-expense`, `/reset-demo`, `/simulate-whatsapp`, `/create-trip` (migrated, `require_auth`).
+1. ✅ **DONE:** Auth guards on `/action-expense`, `/simulate-whatsapp`, `/create-trip` (migrated, `require_auth`); dev-only `/reset-demo` removed.
 2. ✅ **DONE:** Enforce strong `_PASSWORD` (no `123` in prod) + rate-limit login + TTL sessions.
 3. ✅ **DONE:** `esc()` HTML escaping + CSRF + structured `get_db()` + input validation + `/healthz` + pytest suite.
 4. ⚠️ **REMAINING:** Wire `prev_odo` into `simulate_whatsapp` (§2.8) so mileage/rollback runs live in the modular app.

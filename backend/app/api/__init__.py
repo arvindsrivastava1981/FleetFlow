@@ -11,7 +11,6 @@ single feature area and depends on `services.*` + `web/templates.*`.
 - benchmarks.py       : GET/POST fuel-benchmarks page + add/edit/delete
 - rules.py            : GET /rule-engine (read-only explainer)
 - auth.py             : GET/POST /login, GET /logout
-- demo.py             : GET /reset-demo (only dev helper)
 - health.py           : GET /healthz, GET / (root landing/dashboard)
 
 Webhook-based future work (Phases C+) lives in:

@@ -32,7 +32,6 @@ FleetFlow/
 │       │   ├── rule_engine.py        # GET /rule-engine
 │       │   ├── views.py              # GET /, GET /trips, GET /
 │       │   ├── auth.py               # GET/POST /login, GET /logout
-│       │   ├── demo.py               # GET /reset-demo (-only)
 │       │   ├── whatsapp/webhook.py   # POST /whatsapp/webhook  (Phase C, future)
 │       │   └── ocr/callback.py       # POST /ocr/callback       (Phase D, future)
 │       ├── core/                     # config + security (no DB)
@@ -93,7 +92,7 @@ FleetFlow/
 
 | # | Severity | Issue | Where the structure solves it |
 |---|---------|-------|------------------------------|
-| 2.1 | CRIT | Unauthenticated mutation endpoints | `api/*` routers use `core.security.require_auth()` / `_auth` on **every** mutation; `demo.py` isolates `/reset-demo` |
+| 2.1 | CRIT | Unauthenticated mutation endpoints | `api/*` routers use `core.security.require_auth()` / `_auth` on **every** mutation (dev-only `/reset-demo` removed) |
 | 2.2 | CRIT | Weak/hardcoded password, no login hardening | `core/config.py` (fail-fast, prod refuses `123`), `core/security.py` (rate-limit + lockout) |
 | 2.3 | HIGH | Stored XSS via f-strings | `core/security.esc()` used by every `web/*` page builder; scoped HTML lives only in `web/` |
 | 2.4 | MED | No CSRF | `middleware/csrf.py` + `core/security.validate_csrf_token()` for all POSTs |

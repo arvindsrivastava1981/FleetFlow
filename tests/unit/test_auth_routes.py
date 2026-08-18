@@ -59,11 +59,6 @@ def test_unauthenticated_settle_trip_redirects_to_login():
     assert_login_redirect(client.get("/settle-trip?trip_code=TRIP-101"))
 
 
-def test_unauthenticated_reset_demo_redirects_to_login():
-    # The original CRITICAL: `/reset-demo` wiped all data via any GET.
-    assert_login_redirect(client.get("/reset-demo"))
-
-
 def test_healthz_public():
     resp = client.get("/healthz")
     assert resp.status_code == 200

@@ -17,7 +17,6 @@ from backend.app.api import (
     billing,
     dashboard,
     dashboards,
-    demo,
     drivers,
     expenses,
     fleets,
@@ -45,7 +44,6 @@ app.include_router(fleets.router)
 app.include_router(billing.router)
 app.include_router(trips.router)
 app.include_router(expenses.router)
-app.include_router(demo.router)
 app.include_router(dashboard.router)
 app.include_router(dashboards.router)
 app.include_router(benchmarks.router)
