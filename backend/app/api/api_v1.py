@@ -1032,3 +1032,91 @@ def api_drivers(request: Request):
     for d in drivers:
         d.pop("password_hash", None)
     return _ok(drivers)
+
+
+@router.post("/drivers")
+async def api_create_driver(request: Request):
+    """Create a driver user (Trip Manager / Super Admin), with batta profile."""
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _bad("invalid JSON body")
+    if not isinstance(body, dict):
+        return _bad("body must be a JSON object")
+    username = str(body.get("username", "")).strip()
+    full_name = str(body.get("full_name", "")).strip()
+    password = str(body.get("password", ""))
+    if not username or not full_name or not password:
+        return _bad("username, full_name and password are required", "MISSING_FIELDS")
+    phone = (body.get("phone") or "").strip() or None
+    email = (body.get("email") or "").strip() or None
+    batta_type = (body.get("batta_type") or "").strip() or None
+    default_batta_rate = body.get("default_batta_rate")
+    with get_db() as conn:
+        new_id = create_user(
+            conn, username, hash_password(password), full_name, "driver",
+            phone, email, created_by=user.get("user_id"),
+            batta_type=batta_type,
+            default_batta_rate=default_batta_rate,
+        )
+    return _created({"id": new_id})
+
+
+@router.put("/drivers/{uid}")
+async def api_update_driver(request: Request, uid: int):
+    """Update a driver's profile / batta (Trip Manager / Super Admin)."""
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _bad("invalid JSON body")
+    if not isinstance(body, dict):
+        return _bad("body must be a JSON object")
+    full_name = str(body.get("full_name", "")).strip()
+    if not full_name:
+        return _bad("full_name is required", "MISSING_FIELDS")
+    phone = (body.get("phone") or "").strip() or None
+    email = (body.get("email") or "").strip() or None
+    password = body.get("password") or None
+    pw_hash = hash_password(password) if password else None
+    batta_type = (body.get("batta_type") or "").strip() or None
+    default_batta_rate = body.get("default_batta_rate")
+    with get_db() as conn:
+        existing = get_user_by_id(conn, uid)
+        if existing is None or existing.get("role") != "driver":
+            return _not_found("driver not found")
+        ok = update_user(
+            conn, uid, full_name, "driver", phone, email, password_hash=pw_hash,
+            batta_type=batta_type, default_batta_rate=default_batta_rate,
+        )
+    if not ok:
+        return _not_found("driver not found")
+    return _ok({"id": uid})
+
+
+@router.post("/drivers/{uid}/toggle")
+async def api_toggle_driver(request: Request, uid: int):
+    """Activate / deactivate a driver (Trip Manager / Super Admin)."""
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _bad("invalid JSON body")
+    should_activate = bool((body or {}).get("activate", False))
+    with get_db() as conn:
+        existing = get_user_by_id(conn, uid)
+        if existing is None or existing.get("role") != "driver":
+            return _not_found("driver not found")
+        if should_activate:
+            reactivate_user(conn, uid)
+        else:
+            deactivate_user(conn, uid)
+    return _ok({"id": uid, "is_active": should_activate})

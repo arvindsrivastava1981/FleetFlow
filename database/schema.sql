@@ -73,9 +73,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(150),
     fleet_id BIGINT REFERENCES fleets(id) ON DELETE CASCADE,
     is_active BOOLEAN DEFAULT TRUE,
-    batta_type VARCHAR(20) DEFAULT 'FIXED_TRIP'
-        CHECK (batta_type IN ('FIXED_TRIP', 'PER_KM', 'DAILY', 'NONE')),
-    default_batta_rate NUMERIC(10, 2) DEFAULT 2500.00,
+    batta_type VARCHAR(20) DEFAULT NULL,
+    default_batta_rate NUMERIC(10, 2) DEFAULT NULL
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

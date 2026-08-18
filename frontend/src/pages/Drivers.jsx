@@ -1,16 +1,74 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 
+const BATTA_TYPES = ["FIXED_TRIP", "PER_KM", "DAILY", "NONE"];
+const emptyForm = {
+  username: "",
+  full_name: "",
+  phone: "",
+  email: "",
+  password: "",
+  batta_type: "FIXED_TRIP",
+  default_batta_rate: "2500.00",
+};
+
 export default function DriversPage() {
   const [drivers, setDrivers] = useState([]);
   const [error, setError] = useState("");
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
 
-  useEffect(() => {
+  function load() {
     api
       .get("/api/v1/drivers")
       .then(setDrivers)
       .catch((e) => setError(e.message));
-  }, []);
+  }
+  useEffect(load, []);
+
+  function set(k, v) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setError("");
+    try {
+      if (editingId) {
+        const { username, ...payload } = form; // username is immutable on edit
+        await api.put(`/api/v1/drivers/${editingId}`, payload);
+      } else {
+        await api.post("/api/v1/drivers", form);
+      }
+      setForm(emptyForm);
+      setEditingId(null);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function startEdit(d) {
+    setEditingId(d.id);
+    setForm({
+      username: d.username,
+      full_name: d.full_name,
+      phone: d.phone || "",
+      email: d.email || "",
+      password: "",
+      batta_type: d.batta_type || "FIXED_TRIP",
+      default_batta_rate: d.default_batta_rate != null ? String(d.default_batta_rate) : "2500.00",
+    });
+  }
+
+  async function toggle(d) {
+    try {
+      await api.post(`/api/v1/drivers/${d.id}/toggle`, { activate: !d.is_active });
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -23,6 +81,84 @@ export default function DriversPage() {
           {error}
         </div>
       )}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-sm font-extrabold text-slate-800 mb-3">
+          {editingId ? "Edit Driver" : "Add New Driver"}
+        </h3>
+        <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+          <input
+            value={form.username}
+            onChange={(e) => set("username", e.target.value)}
+            placeholder="Username"
+            required
+            disabled={!!editingId}
+            className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50"
+          />
+          <input
+            value={form.full_name}
+            onChange={(e) => set("full_name", e.target.value)}
+            placeholder="Full Name"
+            required
+            className="border rounded-lg p-2 bg-slate-50"
+          />
+          <input
+            value={form.phone}
+            onChange={(e) => set("phone", e.target.value)}
+            placeholder="Phone (+91...)"
+            className="border rounded-lg p-2 bg-slate-50"
+          />
+          <input
+            value={form.email}
+            onChange={(e) => set("email", e.target.value)}
+            placeholder="Email"
+            type="email"
+            className="border rounded-lg p-2 bg-slate-50"
+          />
+          <input
+            value={form.password}
+            onChange={(e) => set("password", e.target.value)}
+            placeholder={editingId ? "Password (blank = keep)" : "Password"}
+            required={!editingId}
+            type="password"
+            className="border rounded-lg p-2 bg-slate-50"
+          />
+          <select
+            value={form.batta_type}
+            onChange={(e) => set("batta_type", e.target.value)}
+            className="border rounded-lg p-2 bg-slate-50"
+          >
+            {BATTA_TYPES.map((b) => (
+              <option key={b} value={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+          <input
+            value={form.default_batta_rate}
+            onChange={(e) => set("default_batta_rate", e.target.value)}
+            placeholder="Batta Rate (₹/trip)"
+            type="number"
+            step="0.01"
+            min="0"
+            className="border rounded-lg p-2 bg-slate-50"
+          />
+          <div className="col-span-2 md:col-span-3 flex gap-2">
+            <button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow">
+              {editingId ? "Save Changes" : "Add Driver"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={() => { setForm(emptyForm); setEditingId(null); }}
+                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-xl"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -33,6 +169,7 @@ export default function DriversPage() {
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Batta Rate</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Phone</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -64,11 +201,22 @@ export default function DriversPage() {
                     {d.is_active ? "Active" : "Inactive"}
                   </span>
                 </td>
+                <td className="p-3 text-xs flex gap-3">
+                  <button onClick={() => startEdit(d)} className="text-sky-600 hover:text-sky-800 font-semibold">
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => toggle(d)}
+                    className={d.is_active ? "text-rose-600 hover:text-rose-800 font-semibold" : "text-emerald-600 hover:text-emerald-800 font-semibold"}
+                  >
+                    {d.is_active ? "Deactivate" : "Activate"}
+                  </button>
+                </td>
               </tr>
             ))}
             {!drivers.length && (
               <tr>
-                <td colSpan="6" className="p-6 text-center text-xs text-slate-400">
+                <td colSpan="7" className="p-6 text-center text-xs text-slate-400">
                   No drivers yet.
                 </td>
               </tr>
