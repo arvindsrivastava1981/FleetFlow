@@ -6,6 +6,7 @@ and return plain dict rows / booleans. None of them commit — the caller's
 """
 from __future__ import annotations
 
+import re
 from backend.app.services.audit.cash import compute_settlement
 
 
@@ -93,10 +94,37 @@ def trip_status(conn, trip_code: str) -> str | None:
     return row["status"] if row else None
 
 
+def next_trip_code(conn, vehicle_no: str) -> str:
+    """Auto-generate the next trip_code as `{last4-of-plate}-{next-number}`.
+
+    The prefix is the final 4 digits of the vehicle number (e.g. `UP32MA1234`
+    -> `1234`). The suffix is the highest existing trip number for that prefix
+    plus one, so codes increment per vehicle and never collide across distinct
+    plates that happen to share the same last-4 digits (trip_code is UNIQUE).
+
+    Tie-break: the highest numeric suffix wins (WHEN `1234-1` and `1234-01`
+    coexist, the next code is `1234-2`).
+    """
+    last4 = (vehicle_no or "").strip()[-4:]
+    if not last4.isdigit() or len(last4) != 4:
+        last4 = "0000"
+
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT trip_code FROM trips
+           WHERE trip_code ~ ('^' || %s || '-(\\d+)$')
+           ORDER BY (regexp_replace(trip_code, '^' || %s || '-(\\d+)$', '\\1'))::int DESC
+           LIMIT 1""",
+        (re.escape(last4), re.escape(last4)),
+    )
+    row = cur.fetchone()
+    last_number = int(row["trip_code"].split("-")[-1]) if row else 0
+    return f"{last4}-{last_number + 1}"
+
+
 def insert_trip(
     conn,
     fleet_id: int | None,
-    trip_code: str,
     vehicle_no: str,
     driver_name: str,
     driver_phone: str,
@@ -106,15 +134,20 @@ def insert_trip(
     driver_user_id: int | None = None,
     vehicle_id: int | None = None,
     driver_batta_amount: float | None = None,
-) -> None:
+) -> str:
     """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first.
-    *fleet_id* is REQUIRED (schema: trips.fleet_id NOT NULL) and binds the trip
-    to its owning tenant. *created_by* is the trip_manager who started the trip;
-    *driver_user_id* links the trip to a driver user so drivers can see their
-    own trips. *vehicle_id* links the trip to the vehicle selected from the
-    dropdown. *driver_batta_amount* is the resolved batta snapshotted from the
-    driver's profile at creation (None -> DB default ₹2,500).
+
+    The `trip_code` is auto-generated (via `next_trip_code`) as
+    `{last4-of-plate}-{next-number}`; the generated code is returned so callers
+    can redirect/report the exact code created. *fleet_id* is REQUIRED (schema:
+    trips.fleet_id NOT NULL) and binds the trip to its owning tenant.
+    *created_by* is the trip_manager who started the trip; *driver_user_id*
+    links the trip to a driver user so drivers can see their own trips.
+    *vehicle_id* links the trip to the vehicle selected from the dropdown.
+    *driver_batta_amount* is the resolved batta snapshotted from the driver's
+    profile at creation (None -> DB default ₹2,500).
     """
+    trip_code = next_trip_code(conn, vehicle_no)
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO trips
@@ -126,6 +159,7 @@ def insert_trip(
          advance_amount, start_odo, start_odo,
          created_by, driver_user_id, driver_batta_amount),
     )
+    return trip_code
 
 
 def get_trips_for_user(conn, user_id: int, role: str) -> list[dict]:

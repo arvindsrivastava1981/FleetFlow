@@ -10,8 +10,6 @@ Security:
 """
 from __future__ import annotations
 
-import datetime
-
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
@@ -570,9 +568,8 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                 </div>
 
                 <form action="/create-trip" method="post" class="space-y-3 text-xs">
-                    <div>
-                        <label class="font-bold text-slate-700 block">Trip Code</label>
-                        <input type="text" name="trip_code" required value="TRIP-{datetime.datetime.now().strftime('%M%S')}" class="w-full border rounded-lg p-2 bg-slate-50 font-mono">
+                    <div class="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono">
+                        Trip code is auto-generated from the vehicle number.
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>

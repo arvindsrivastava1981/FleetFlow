@@ -36,7 +36,6 @@ PLATE_RE = re.compile(settings.plate_regex)
 @router.post("/create-trip")
 def create_trip(
     request: Request,
-    trip_code: str = Form(...),
     vehicle_no: str = Form(...),
     driver_name: str = Form(...),
     driver_phone: str = Form(...),
@@ -74,10 +73,9 @@ def create_trip(
             return RedirectResponse(url="/trips", status_code=303)
         driver = get_driver_batta_profile(conn, driver_user_id)
         driver_batta_amount = resolve_trip_batta(driver)
-        insert_trip(
+        trip_code = insert_trip(
             conn,
             fleet_id,
-            trip_code.strip().upper(),
             vehicle_no.strip().upper(),
             driver_name.strip(),
             driver_phone.strip(),

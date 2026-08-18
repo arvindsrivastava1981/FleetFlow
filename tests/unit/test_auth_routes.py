@@ -18,7 +18,6 @@ from backend.app.main import app
 client = TestClient(app, follow_redirects=False)
 
 CREATE_TRIP_BODY = {
-    "trip_code": "TRIP-TEST",
     "vehicle_no": "UP32MA1234",
     "driver_name": "Test Driver",
     "driver_phone": "+91 99999 99999",

@@ -340,7 +340,6 @@ def api_create_trip(request: Request):
     if not isinstance(body, dict):
         return _bad("body must be a JSON object")
 
-    trip_code = str(body.get("trip_code", "")).strip().upper()
     vehicle_no = str(body.get("vehicle_no", "")).strip().upper()
     driver_name = str(body.get("driver_name", "")).strip()
     driver_phone = str(body.get("driver_phone", "")).strip()
@@ -349,8 +348,8 @@ def api_create_trip(request: Request):
     vehicle_id = body.get("vehicle_id") or None
     driver_user_id = body.get("driver_user_id") or None
 
-    if not trip_code or not vehicle_no or not driver_name:
-        return _bad("trip_code, vehicle_no and driver_name are required", "MISSING_FIELDS")
+    if not vehicle_no or not driver_name:
+        return _bad("vehicle_no and driver_name are required", "MISSING_FIELDS")
     if advance_amount < 0 or start_odo < 0:
         return _bad("advance_amount and start_odo must be non-negative", "INVALID_NUMBER")
     if not PLATE_RE.match(vehicle_no):
@@ -370,10 +369,9 @@ def api_create_trip(request: Request):
             )
         driver = get_driver_batta_profile(conn, driver_user_id)
         driver_batta_amount = resolve_trip_batta(driver)
-        insert_trip(
+        trip_code = insert_trip(
             conn,
             fleet_id,
-            trip_code,
             vehicle_no,
             driver_name,
             driver_phone,
