@@ -173,7 +173,7 @@ export default function ManagerWhatsAppPage() {
 
           <div className="p-3 bg-white border-t border-slate-200 text-center">
             <span className="text-[10px] text-slate-400">
-              Approvals here update the Master Ledger in real time.
+              Approvals here update the Expense Ledger in real time.
             </span>
           </div>
         </div>

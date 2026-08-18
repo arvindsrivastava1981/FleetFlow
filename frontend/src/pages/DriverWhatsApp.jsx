@@ -1,15 +1,16 @@
 import { useEffect, useState, useRef } from "react";
 import { api } from "../lib/api.js";
 
-const EXPENSE_TYPES = [
+const EXPENSE_TYPES = // Quick Copy Array:
+[
   { value: "FUEL", label: "Diesel (डीजल)" },
   { value: "DEF", label: "DEF (यूरिया)" },
   { value: "TOLL", label: "Toll (टोल)" },
   { value: "REPAIR", label: "Repair (मरम्मत)" },
   { value: "CHALLAN", label: "Challan (चालान)" },
-  { value: "MISC", label: "Misc (विविध)" },
-  { value: "GOODS_BUY", label: "Buy (खरीद)" },
-  { value: "GOODS_SALE", label: "Sell (बिक्री)" },
+  { value: "MISC", label: "Kanta / Misc (कांटा / विविध)" },
+  { value: "GOODS_BUY", label: "Goods Buy (माल खरीद)" },
+  { value: "GOODS_SALE", label: "Goods Sell (माल बिक्री)" }
 ];
 
 function fmtRs(n) {

@@ -12,6 +12,8 @@ import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
 import SettledTripsPage from "./pages/SettledTrips.jsx";
 import ChangePasswordPage from "./pages/ChangePassword.jsx";
 import DriversPage from "./pages/Drivers.jsx";
+import DriverSalaryPage from "./pages/DriverSalary.jsx";
+import ReportsPage from "./pages/Reports.jsx";
 import DriverWhatsAppPage from "./pages/DriverWhatsApp.jsx";
 import ManagerWhatsAppPage from "./pages/ManagerWhatsApp.jsx";
 import Layout from "./components/Layout.jsx";
@@ -95,6 +97,26 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <SettledTripsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/driver-salary"
+        element={
+          <ProtectedRoute roles={["driver"]}>
+            <Layout>
+              <DriverSalaryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <ProtectedRoute roles={["driver"]}>
+            <Layout>
+              <ReportsPage />
             </Layout>
           </ProtectedRoute>
         }

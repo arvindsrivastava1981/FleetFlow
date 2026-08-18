@@ -11,7 +11,7 @@
   - Dev: `npm run dev` (proxies `/api` → `http://localhost:10000`).
   - **Deploy:** `backend/app/main.py` mounts `frontend/dist/` at `/` (see Entry Point below) — single-origin, no separate CDN, no CORS. The SPA uses **relative** `/api/v1/*` paths.
   - Routing note: it is a **pure client-side SPA** (Vite) — dynamic routes like `/trips/:tripCode` resolve client-side via React Router, NOT server-side. The FastAPI catch-all returns `index.html` for any non-API path.
-  - **Pages:** `/login`, `/dashboard`, `/trips`, `/trips/:tripCode`, `/expenses`, `/settlements` (Settled Trips PDF listing), `/change-password` (all roles), `/drivers` (trip_manager/super_admin), plus **Super Admin** `/fleets`, `/users`, `/vehicles`, `/benchmarks` (role-guarded via `<ProtectedRoute>`). CRUD pages call the `/api/v1/*` create/update/toggle endpoints directly. **WhatsApp simulator views:** `/whatsapp-driver` (driver-only chat-style receipt sender posting to `POST /api/v1/expenses`) and `/whatsapp-manager` (trip_manager/super_admin chat-style escalation thread with inline Approve/Deduct quick-reply buttons posting to `POST /api/v1/expenses/{id}/action`); both are linked from the role-aware sidebar.
+  - **Pages:** `/login`, `/dashboard`, `/trips`, `/trips/:tripCode`, `/expenses`, `/settlements` (Settled Trips PDF listing), `/change-password` (all roles), `/drivers` (trip_manager/super_admin), **driver-only** `/driver-salary` (read-only salary/batta view) and `/reports` (driver's settled-trip PDFs), plus **Super Admin** `/fleets`, `/users`, `/vehicles`, `/benchmarks` (role-guarded via `<ProtectedRoute>`). CRUD pages call the `/api/v1/*` create/update/toggle endpoints directly. **WhatsApp simulator views:** `/whatsapp-driver` (driver-only chat-style receipt sender posting to `POST /api/v1/expenses`) and `/whatsapp-manager` (trip_manager/super_admin chat-style escalation thread with inline Approve/Deduct quick-reply buttons posting to `POST /api/v1/expenses/{id}/action`); both are linked from the role-aware sidebar.
 - **Phase 0 JSON API (new):** `/api/v1/*` transport-agnostic endpoints in `backend/app/api/api_v1.py` (auth, dashboard, trips, expenses, settle, PDF, vehicles, users, fleets, benchmarks). Reuses `db/queries/*` — no business-logic duplication. Serves the React SPA + hybrid/mobile app; the legacy HTML pages still work unchanged.
 
 ## Route Guards — two auth paths (do not confuse them)
@@ -84,6 +84,7 @@
 - `POST /api/v1/trips` — `api/api_v1.py`: create/start a trip (trip_manager/super_admin). Validates plate regex, +91 phone, non-negative advance/odo; resolves tenant fleet; blocks if an active trip exists (409). The `trip_code` is **auto-generated** (`{last4-of-plate}-{next-number}`); no client-supplied code is accepted. 201 on success returns the generated `trip_code`.
 - `POST /api/v1/trips/{trip_code}/settle` — `api/api_v1.py`: settle a trip (manager/super_admin). 409 if pending expenses remain; 403 for cross-scope managers.
 - `GET /api/v1/settlements` — `api/api_v1.py`: role-scoped list of SETTLED trips for the PDF listing.
+- `GET /api/v1/driver/salary` — `api/api_v1.py`: **read-only** driver salary/batta summary for the logged-in driver (`require_json_role("driver")`). Returns the driver's batta profile + per-trip settlement breakdown (batta, net payable/refund) for their own assigned trips, plus totals. Powers the **Driver Salary** SPA page.
 - `GET /api/v1/settlements/{trip_code}/pdf` — `api/api_v1.py`: streams the settlement PDF (`application/pdf`, inline) via `services/pdf/settlement.py`. Ownership-guarded 403.
 - `POST /api/v1/expenses` — `api/api_v1.py`: JSON expense log (runs `evaluate_expense`, sets manager_status, upserts odometer). **No single-use CSRF** (React parallel-safe). 201 on success, 400 invalid type, 404 trip not active.
 - `POST /api/v1/expenses/{id}/action` — `api/api_v1.py`: JSON approve/reject.
@@ -98,7 +99,7 @@
 `grid grid-cols-1 lg:grid-cols-12 gap-4`, 3 equal `lg:col-span-4` columns:
 1. **Driver WhatsApp** — chat-style simulator where the driver "sends" expense receipts (form posts to `/simulate-whatsapp`).
 2. **Manager WhatsApp Escalation** — chat thread showing only flagged expenses with inline Approve/Deduct quick-reply links (posts to `/action-expense`).
-3. **Master Ledger** — trip summary card, financial metrics (Claimed/Approved/Flagged/Cash in Hand), read-only ledger table, and the 1-click Settlement PDF action.
+3. **Expense Ledger** — trip summary card, financial metrics (Claimed/Approved/Flagged/Cash in Hand), read-only ledger table, and the 1-click Settlement PDF action.
 
 ## System Invariants
 - Vehicle Plate Regex: `^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$`

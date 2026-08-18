@@ -468,6 +468,58 @@ def api_settlement_pdf(request: Request, trip_code: str):
         media_type="application/pdf",
         headers={"Content-Disposition": f"inline; filename={trip_code}_Settlement.pdf"},
     )
+@router.get("/driver/salary")
+def api_driver_salary(request: Request):
+    """Read-only salary/batta summary for the logged-in driver.
+
+    Returns the driver's batta profile plus a per-trip settlement breakdown
+    (batta resolved, net payable/refund) for every trip assigned to them.
+    Data is strictly read-only and scoped to the caller's own trips.
+    """
+    guard = require_json_role(request, "driver")
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    user_id = user.get("user_id")
+
+    with get_db() as conn:
+        profile = get_driver_batta_profile(conn, user_id) or {}
+        trips = get_trips_for_user(conn, user_id, "driver")
+        rows: list[dict] = []
+        for t in trips:
+            expenses = get_expenses_for_trip(conn, t["trip_code"])
+            res = compute_settlement(t, expenses)
+            rows.append({
+                "trip_code": t["trip_code"],
+                "vehicle_no": t.get("vehicle_no"),
+                "origin": t.get("origin"),
+                "destination": t.get("destination"),
+                "status": t.get("status"),
+                "completed_at": t.get("completed_at"),
+                "settled_at": t.get("settled_at"),
+                "advance_amount": res.advance_amount,
+                "total_road_expenses": res.total_road_expenses,
+                "driver_batta": res.driver_batta,
+                "net_balance": res.net_balance,
+                "status_label_en": res.status_label_en,
+            })
+        total_batta = round(sum(r["driver_batta"] for r in rows), 2)
+        total_payable = round(sum(
+            -r["net_balance"] for r in rows if r["net_balance"] < 0
+        ), 2)
+        total_refund = round(sum(
+            r["net_balance"] for r in rows if r["net_balance"] > 0
+        ), 2)
+
+    return _ok({
+        "profile": {k: _jsonable(v) for k, v in profile.items()},
+        "trips": rows,
+        "totals": {
+            "total_batta": total_batta,
+            "total_payable": total_payable,
+            "total_refund": total_refund,
+        },
+    })
 # ---------------------------------------------------------------------------#
 # ---------------------------------------------------------------------------#
 # Fuel benchmarks CRUD (JSON)

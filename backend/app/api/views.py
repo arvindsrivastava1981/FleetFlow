@@ -451,7 +451,7 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                         </div>
 
                         <div class="p-3 bg-white border-t border-slate-200 text-center">
-                            <span class="text-[10px] text-slate-400">{'This settled trip is read-only.' if is_trip_settled else 'Approvals here update the Master Ledger in real time.'}</span>
+                            <span class="text-[10px] text-slate-400">{'This settled trip is read-only.' if is_trip_settled else 'Approvals here update the Expense Ledger in real time.'}</span>
                         </div>
 
                     </div>
@@ -509,7 +509,7 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
 
                         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                             <div class="p-4 border-b flex justify-between items-center">
-                                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Master Ledger</h3>
+                                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Expense Ledger</h3>
                                 <span class="text-xs text-slate-400">{len(expenses)} Logs</span>
                             </div>
 
