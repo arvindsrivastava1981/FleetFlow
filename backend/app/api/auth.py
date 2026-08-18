@@ -52,29 +52,55 @@ def login_form(request: Request, error: str | None = None) -> str:
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans flex flex-col">
-        <div class="max-w-5xl mx-auto w-full flex flex-col flex-1 space-y-6">
+        <div class="max-w-6xl mx-auto w-full flex flex-col flex-1">
             {render_header(authenticated=False)}
-            <main class="flex-1 flex items-center justify-center py-2">
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
-            <div class="text-center space-y-1">
-                <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">VK</div>
-                <h1 class="text-lg font-extrabold text-slate-800">Login</h1>
-                <p class="text-xs text-sky-400 font-medium">Real-Time Expense Verification & Settlement Engine</p>
-                <p class="text-xs text-slate-500">Enter your username and password</p>
-            </div>
-            {'<p class="text-xs text-rose-600 font-semibold text-center">Incorrect username or password. Try again.</p>' if error == '1' else ''}
-            {'<p class="text-xs text-rose-600 font-semibold text-center">Account is inactive. Contact your administrator.</p>' if error == 'inactive' else ''}
-            {'<p class="text-xs text-rose-600 font-semibold text-center">Too many failed attempts. Try again later.</p>' if error == 'locked' else ''}
-            <form action="/login" method="post" class="space-y-3">
-                <input type="text" name="username" required autofocus placeholder="Username"
-                       class="w-full text-sm border rounded-lg p-2.5 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
-                <input type="password" name="password" required placeholder="Password"
-                       class="w-full text-sm border rounded-lg p-2.5 bg-slate-50 outline-none focus:ring-2 focus:ring-sky-400">
-                <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2.5 rounded-xl text-sm transition shadow">
-                    Login
-                </button>
-            </form>
-            </div>
+            <main class="flex-1 flex items-center justify-center py-6">
+                <section class="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-4xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+                    <!-- Brand panel -->
+                    <div class="bg-gradient-to-br from-sky-600 to-slate-800 text-white p-8 md:p-10 flex flex-col justify-between gap-8">
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-white/15 border border-white/20 p-3 rounded-2xl text-white font-black text-2xl">VK</div>
+                                <div>
+                                    <h1 class="text-2xl font-extrabold tracking-tight">VahanKhata</h1>
+                                    <p class="text-xs text-sky-200 font-medium">Fleet Expense Verification</p>
+                                </div>
+                            </div>
+                            <h2 class="text-xl font-bold leading-snug">Real-Time Expense Verification<br>&amp; Settlement Engine</h2>
+                            <p class="text-sm text-sky-100/90 leading-relaxed">Track trips, verify fuel claims, flag fraud, and settle fleet expenses from one dashboard.</p>
+                        </div>
+                        <ul class="space-y-2 text-sm text-sky-100/90">
+                            <li class="flex items-center gap-2"><span class="text-sky-300">✓</span> Live fraud alerts &amp; savings</li>
+                            <li class="flex items-center gap-2"><span class="text-sky-300">✓</span> Driver &amp; fleet management</li>
+                            <li class="flex items-center gap-2"><span class="text-sky-300">✓</span> PDF settlement reports</li>
+                        </ul>
+                    </div>
+                    <!-- Form panel -->
+                    <div class="p-8 md:p-10 flex flex-col justify-center">
+                        <div class="mb-5">
+                            <h2 class="text-2xl font-extrabold text-slate-800">Welcome back</h2>
+                            <p class="text-sm text-slate-500">Enter your credentials to access your dashboard</p>
+                        </div>
+                        {'<p class="text-sm text-rose-600 font-semibold text-center bg-rose-50 border border-rose-200 rounded-lg py-2 mb-4">Incorrect username or password. Try again.</p>' if error == '1' else ''}
+                        {'<p class="text-sm text-rose-600 font-semibold text-center bg-rose-50 border border-rose-200 rounded-lg py-2 mb-4">Account is inactive. Contact your administrator.</p>' if error == 'inactive' else ''}
+                        {'<p class="text-sm text-rose-600 font-semibold text-center bg-rose-50 border border-rose-200 rounded-lg py-2 mb-4">Too many failed attempts. Try again later.</p>' if error == 'locked' else ''}
+                        <form action="/login" method="post" class="space-y-4">
+                            <div>
+                                <label for="username" class="block text-sm font-semibold text-slate-700 mb-1.5">Username</label>
+                                <input type="text" name="username" id="username" required autofocus placeholder="Enter your username"
+                                       class="w-full text-sm border border-slate-300 rounded-lg p-3 bg-white outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+                            </div>
+                            <div>
+                                <label for="password" class="block text-sm font-semibold text-slate-700 mb-1.5">Password</label>
+                                <input type="password" name="password" id="password" required placeholder="Enter your password"
+                                       class="w-full text-sm border border-slate-300 rounded-lg p-3 bg-white outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition">
+                            </div>
+                            <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-3 rounded-xl text-sm transition shadow">
+                                Login
+                            </button>
+                        </form>
+                    </div>
+                </section>
             </main>
             {render_footer()}
         </div>
