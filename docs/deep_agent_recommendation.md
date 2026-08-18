@@ -89,7 +89,7 @@ Original: several mutation endpoints had **no `is_authorized_user()` guard** (`P
 | Empty `docs/product_subscription.md` | `docs/` | ⭕ **Still 0 bytes** (verified 2026-08-17). Fill it in or delete. |
 | Stale `README.md` structure section | `README.md:29-31` | ⭕ **Still stale** — references `FleetFlow_Sample_Settlement_Sheet.pdf`, which does **not exist** in the repo. Update the file tree. |
 | `DEC2FLOAT` global caster | `utils.py:13-16` → now `backend/app/db/connection.py` | 🟢 RETAIN (mirrored correctly in the module; registers `NUMERIC`→`float` at import). |
-| Duplicate `/logout` in both header + sidebar | `utils.py` / `backend/app/web/chrome.py` | 🟡 Still applies (header has Logout link; sidebar also lists `/logout`). Cosmetic only. |
+| Duplicate `/logout` in both header + sidebar | `backend/app/web/chrome.py` | ✅ **FIXED (2026-08-18)** — removed the redundant sidebar `/logout` link; the persistent header Logout (top-right) remains the single nav target. |
 | `EXPOSE 10000` in Dockerfile | `Dockerfile` | 🟡 Still present; advisory only (`PORT` is injected by Render at runtime). Cosmetic. |
 
 ---

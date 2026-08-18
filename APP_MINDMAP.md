@@ -60,6 +60,7 @@
 - `GET /rule-engine` — `api/rule_engine.py`: read-only explainer of the anomaly rules per expense type (static `settings` constants only, no DB).
 - `GET /settled-pdfs` — `api/settlement.py`: lists settled trips with links to their settlement PDFs (scoped to the caller's own trips).
 - `GET /generate-settlement-pdf?trip_code=` — `api/settlement.py`: builds a reportlab PDF settlement/reconciliation sheet via `services/pdf/settlement.py`.
+- `GET /users` + `GET /users/create`, `POST /users/create`, `GET /users/edit/{id}`, `POST /users/edit/{id}`, `GET /users/deactivate/{id}`, `GET /users/activate/{id}` — `api/users.py`: **User CRUD** (Super Admin only) for Trip Managers and Drivers. `GET /users/change-password` — Super Admin (and any role) shows the logged-in user's password change form (no DB); `POST /users/change-password` handles its submission.
 
 ## UI Layout — 3-Column Dual-WhatsApp Architecture (`GET /`)
 `grid grid-cols-1 lg:grid-cols-12 gap-4`, 3 equal `lg:col-span-4` columns:

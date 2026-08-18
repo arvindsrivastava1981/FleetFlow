@@ -136,12 +136,10 @@ def render_sidebar(active: str, role: str = "super_admin") -> str:
         # ── ACCOUNT & SECURITY ──────────────────────────────────────────────
         links.append(_nav_section("Account & Security"))
         links.append(_nav_link("/users/change-password", "Change Password", "🔒", "users/change-password", active))
-        links.append(_nav_link("/logout", "Log Out", "🚪", "logout", active))
     else:
         # ── ACCOUNT ─────────────────────────────────────────────────────────
         links.append(_nav_section("Account"))
         links.append(_nav_link("/users/change-password", "Change Password", "🔒", "users/change-password", active))
-        links.append(_nav_link("/logout", "Log Out", "🚪", "logout", active))
 
     nav = "".join(links)
     return f'''

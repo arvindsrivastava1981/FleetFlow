@@ -91,6 +91,30 @@ def test_authenticated_rule_engine_renders_without_db():
         _auth_sessions.pop(token, None)
 
 
+# ---- users.py (change-password) -----------------------------------------
+def test_unauthenticated_change_password_redirects_to_login():
+    """The sidebar renders a GET to /users/change-password; unauthenticated
+    requests must 303 to /login (before any DB work)."""
+    assert_login_redirect(client.get("/users/change-password"))
+
+
+def test_authenticated_change_password_form_renders_without_db():
+    """The (GET) change-password form renders purely from the session user, so
+    it needs no live DB — mirroring the /rule-engine authenticated test."""
+    token = create_session(user_id=1, username="admin", role="super_admin")
+    try:
+        resp = client.get("/users/change-password", cookies={AUTH_COOKIE: token})
+        assert resp.status_code == 200
+        assert "Change Password" in resp.text
+        # The form must POST back to the same URL, which hits change_password_submit.
+        assert 'method="post"' in resp.text
+        assert 'name="current_password"' in resp.text
+    finally:
+        from backend.app.core.security import _auth_sessions
+
+        _auth_sessions.pop(token, None)
+
+
 # ---- vehicles.py (new Vehicle CRUD) --------------------------------------
 def test_unauthenticated_vehicles_page_redirects_to_login():
     assert_login_redirect(client.get("/vehicles"))

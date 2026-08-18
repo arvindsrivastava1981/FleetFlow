@@ -7,7 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from backend.app.core.password import hash_password
+from backend.app.core.password import hash_password, verify_password
 from backend.app.core.security import esc, get_current_user, require_auth, require_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.users import (
@@ -225,7 +225,7 @@ def activate_user_route(request: Request, id: int):
     return RedirectResponse(url="/users", status_code=303)
 
 
-@router.post("/users/change-password", response_class=HTMLResponse)
+@router.get("/users/change-password", response_class=HTMLResponse)
 def change_password_form(request: Request):
     """Show password change form for logged-in user."""
     guard = require_auth(request)
