@@ -238,6 +238,33 @@ def get_fleet_entitlement(conn, fleet_id: int) -> dict | None:
     return fleet
 
 
+def start_trial_subscription(conn, fleet_id: int) -> None:
+    """Start (or restart) the free 15-day trial for a fleet.
+
+    Since the trial is ₹0 there is no Razorpay payment — the manager picks the
+    Trial Pack on the upgrade page and the trial clock (re)starts immediately
+    so they can continue registering vehicles. Clears billing references so a
+    previous subscription doesn't leak into the trial window.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """
+        UPDATE fleets
+           SET plan_id = (SELECT id FROM subscription_plans WHERE code = 'TRIAL'),
+               subscription_plan = 'TRIAL',
+               subscription_status = 'TRIAL',
+               vehicle_limit = (SELECT vehicle_limit FROM subscription_plans WHERE code = 'TRIAL'),
+               trial_started_at = CURRENT_TIMESTAMP,
+               trial_ends_at = CURRENT_TIMESTAMP + INTERVAL '15 days',
+               next_billing_date = NULL,
+               razorpay_subscription_id = NULL,
+               razorpay_customer_id = NULL
+         WHERE id = %s
+        """,
+        (fleet_id,),
+    )
+
+
 def set_plan_subscription(
     conn,
     fleet_id: int,

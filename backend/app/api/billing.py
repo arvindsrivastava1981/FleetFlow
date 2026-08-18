@@ -22,7 +22,7 @@ from backend.app.db.queries.billing import (
 )
 from backend.app.db.queries.fleets import (
     bump_vehicle_limit, get_fleet_by_id, get_fleet_entitlement,
-    set_plan_subscription, set_yearly_subscription,
+    set_plan_subscription, set_yearly_subscription, start_trial_subscription,
 )
 from backend.app.db.queries.users import get_user_fleet_id
 from backend.app.services.billing.razorpay import (
@@ -62,13 +62,15 @@ def upgrade_page(request: Request):
 <p class="font-extrabold text-lg">{n}</p><p class="text-xs text-slate-500 mb-2">{d}</p>
 <form method="post" action="/billing/subscribe">
 <input type="hidden" name="plan_code" value="{c}">
-<button class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm">Pay Now</button>
+<button class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm">{b}</button>
 </form></div>"""
-        for c, n, d in [
+        for c, n, d, b in [
+            ("TRIAL", "Trial Pack",
+             "15 days for free \u00b7 1 vehicle", "Start Trial"),
             ("MONTHLY", "Monthly \u20b9{:,}".format(int(MONTHLY_PRICE)),
-             "1 vehicle \u00b7 \u20b9{:,}/mo".format(int(MONTHLY_PRICE))),
+             "1 vehicle \u00b7 \u20b9{:,}/mo".format(int(MONTHLY_PRICE)), "Pay Now"),
             ("YEARLY", "Yearly \u20b9{:,}".format(int(YEARLY_PRICE)),
-             "1 vehicle \u00b7 \u20b9{:,}/yr (25% off)".format(int(YEARLY_PRICE))),
+             "1 vehicle \u00b7 \u20b9{:,}/yr (25% off)".format(int(YEARLY_PRICE)), "Pay Now"),
         ]
     )
     uname = user.get("username", "")
@@ -104,6 +106,10 @@ def subscribe(request: Request, plan_code: str = Form(...)):
             return HTMLResponse("<h2>No fleet</h2>", status_code=400)
         cust = _cust_info(fleet)
     fid = fleet["id"]
+    if plan_code == "TRIAL":
+        with get_db() as conn:
+            start_trial_subscription(conn, fid)
+        return RedirectResponse(url="/vehicles", status_code=303)
     if plan_code == "YEARLY":
         amount, desc, ref = YEARLY_PRICE, "VK Yearly Rs.7191 (25% off)", f"fleet_{fid}_yearly"
     else:
