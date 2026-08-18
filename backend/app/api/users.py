@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from backend.app.core.password import hash_password, verify_password
 from backend.app.core.security import esc, get_current_user, require_auth, require_role
 from backend.app.db.connection import get_db
+from backend.app.db.queries.fleets import get_default_fleet, get_fleet_email_context
 from backend.app.db.queries.users import (
     create_user,
     deactivate_user,
@@ -18,10 +19,46 @@ from backend.app.db.queries.users import (
     reactivate_user,
     update_user,
 )
+from backend.app.services.email.client import (
+    manager_onboarding_email_context,
+    send_manager_onboarding_email_sync,
+)
 from backend.app.web.chrome import render_footer, render_header, render_sidebar
 
 router = APIRouter()
 VALID_ROLES = ("super_admin", "trip_manager", "driver")
+
+
+def _resolve_fleet_for_email(conn):
+    """Resolve the fleet to show in a manager's onboarding email."""
+    default = get_default_fleet(conn)
+    if default is None:
+        return None
+    return get_fleet_email_context(conn, default["id"])
+
+
+def _mail_manager_onboarding(manager_id: int, username: str, password: str,
+                             manager_email: str | None, request: Request) -> None:
+    """Fire a Trip Manager onboarding email (no-op if data incomplete)."""
+    manager_email = (manager_email or "").strip()
+    if not password or not manager_email:
+        return
+    with get_db() as conn:
+        fleet = _resolve_fleet_for_email(conn)
+        user = get_user_by_id(conn, manager_id)
+    if fleet is None:
+        return
+    full_name = (user or {}).get("full_name") or username
+    base = str(request.base_url).rstrip("/")
+    ctx = manager_onboarding_email_context(
+        manager_full_name=full_name,
+        manager_username=username,
+        temporary_password=password,
+        fleet=fleet,
+        login_url=f"{base}/login",
+    )
+    ctx["to_email"] = manager_email
+    send_manager_onboarding_email_sync(**ctx)
 _ROLE_COLORS = {
     "super_admin": "bg-purple-100 text-purple-800",
     "trip_manager": "bg-blue-100 text-blue-800",
@@ -195,12 +232,15 @@ def create_user_submit(
     if role not in VALID_ROLES or not password:
         return RedirectResponse(url="/users/create", status_code=303)
     with get_db() as conn:
-        create_user(conn, username.strip(), hash_password(password), full_name.strip(),
-                    role, phone.strip() if phone else None,
-                    email.strip() if email else None,
-                    created_by=get_current_user(request)["user_id"],
-                    batta_type=(batta_type if role == "driver" else None),
-                    default_batta_rate=(default_batta_rate if role == "driver" else None))
+        manager_id = create_user(
+            conn, username.strip(), hash_password(password), full_name.strip(),
+            role, phone.strip() if phone else None,
+            email.strip() if email else None,
+            created_by=get_current_user(request)["user_id"],
+            batta_type=(batta_type if role == "driver" else None),
+            default_batta_rate=(default_batta_rate if role == "driver" else None))
+    if role == "trip_manager":
+        _mail_manager_onboarding(manager_id, username.strip(), password, email, request)
     return RedirectResponse(url="/users", status_code=303)
 
 

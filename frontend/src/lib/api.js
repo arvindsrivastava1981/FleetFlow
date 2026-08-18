@@ -23,9 +23,17 @@ async function parseResponse(res) {
 
 const TOKEN_KEY = "vk_token";
 
-// Base URL for the /api/v1 JSON API. Reads VITE_API_BASE_URL at build time so the
-// hosted SPA can target the Render backend; falls back to localhost for local dev.
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+// Base URL for the /api/v1 JSON API.
+//
+// The SPA is served same-origin by the FastAPI backend (frontend/dist is mounted
+// at "/" on the same Render container), and the must always be relative so
+// every request hits the backend that issued the session / token. A hardcoded
+// absolute fallback (e.g. http://localhost:8000) would send auth'd calls to the
+// wrong origin in production and trigger 401 "unauthorized".
+//
+// VITE_API_BASE_URL is supported strictly for local cross-origin dev; production
+// builds must NOT set it so relative paths are used (see vite.config.js proxy).
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);

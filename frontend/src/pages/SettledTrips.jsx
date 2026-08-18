@@ -25,9 +25,7 @@ export default function SettledTripsPage() {
   }, []);
 
   const pdfUrl = (tripCode) =>
-    `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"}/api/v1/settlements/${encodeURIComponent(
-      tripCode
-    )}/pdf`;
+    `/api/v1/settlements/${encodeURIComponent(tripCode)}/pdf`;
 
   return (
     <div className="space-y-4">

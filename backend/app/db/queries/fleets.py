@@ -57,6 +57,31 @@ def get_fleet_by_id(conn, id: int) -> dict | None:
     return cur.fetchone()
 
 
+def get_fleet_email_context(conn, fleet_id: int) -> dict | None:
+    """Return the data a Trip Manager onboarding email needs for a fleet.
+
+    Enriches the fleet row with:
+      * ``plan_name``  — subscription plan display name (via `subscription_plans`),
+      * ``driver_limit`` — count of **active** driver users in the fleet.
+    ``default_batta_rate`` is *not* a fleet attribute; the email context assumes
+    the product default and falls back only when present on the row.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT f.*, sp.name AS plan_name,
+               (SELECT COUNT(*) FROM users u
+                 WHERE u.fleet_id = f.id AND u.role = 'driver'
+                   AND u.is_active = TRUE) AS driver_limit
+          FROM fleets f
+          LEFT JOIN subscription_plans sp ON sp.id = f.plan_id
+         WHERE f.id = %s
+        """,
+        (fleet_id,),
+    )
+    return cur.fetchone()
+
+
 def get_fleet_detail(conn, id: int) -> dict | None:
     """Single fleet with plan_name and vehicle_count (for the detail page)."""
     cur = conn.cursor()

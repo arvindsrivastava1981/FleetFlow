@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to VahanKhata</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b; }
+    .container { max-width: 600px; margin: 24px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .header { background: #0f172a; padding: 24px 32px; text-align: left; }
+    .header h1 { color: #ffffff; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
+    .content { padding: 32px; }
+    .greeting { font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 12px; }
+    .credentials-box { background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #2563eb; border-radius: 6px; padding: 18px; margin: 20px 0; }
+    .cred-row { display: flex; margin-bottom: 8px; font-size: 14px; }
+    .cred-label { width: 140px; font-weight: 600; color: #64748b; }
+    .cred-value { font-family: monospace; font-weight: 700; color: #0f172a; word-break: break-all; }
+    .btn { display: inline-block; background-color: #2563eb; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 600; font-size: 15px; margin-top: 8px; }
+    .section-title { font-size: 15px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px; margin: 24px 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px; }
+    .plan-grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+    .plan-grid td { padding: 8px 0; border-bottom: 1px dashed #f1f5f9; }
+    .plan-grid td.bold { font-weight: 600; color: #0f172a; text-align: right; }
+    .step-list { padding-left: 20px; margin: 12px 0; font-size: 14px; line-height: 1.6; color: #334155; }
+    .step-list li { margin-bottom: 8px; }
+    .footer { background: #f8fafc; padding: 20px 32px; font-size: 12px; color: #94a3b8; border-top: 1px solid #e2e8f0; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚚 VAHANKHATA.IN</h1>
+    </div>
+    
+    <div class="content">
+      <div class="greeting">Welcome, {{ manager_name }}!</div>
+      <p style="font-size: 14px; line-height: 1.5; color: #475569; margin: 0 0 16px 0;">
+        You have been registered as a <strong>Trip Manager</strong> for <strong>{{ fleet_name }}</strong> on VahanKhata. Your account is ready for operation.
+      </p>
+
+      <div class="credentials-box">
+        <div class="cred-row"><span class="cred-label">Login Portal:</span> <span class="cred-value"><a href="{{ login_url }}" style="color: #2563eb;">{{ login_url }}</a></span></div>
+        <div class="cred-row"><span class="cred-label">Username:</span> <span class="cred-value">{{ username }}</span></div>
+        <div class="cred-row"><span class="cred-label">Temp Password:</span> <span class="cred-value">{{ password }}</span></div>
+      </div>
+
+      <div style="text-align: center; margin: 20px 0;">
+        <a href="{{ login_url }}" class="btn">Login to Dashboard ➔</a>
+      </div>
+
+      <div class="section-title">Subscription & Fleet Limits</div>
+      <table class="plan-grid">
+        <tr><td>Active Plan</td><td class="bold">{{ subscription_plan }}</td></tr>
+        <tr><td>Plan Validity</td><td class="bold">Until {{ subscription_expiry }}</td></tr>
+        <tr><td>Vehicle Capacity</td><td class="bold">Up to {{ vehicle_limit }} Trucks</td></tr>
+        <tr><td>Driver Capacity</td><td class="bold">Up to {{ driver_limit }} Drivers</td></tr>
+        <tr><td>Default Driver Batta</td><td class="bold">₹{{ default_batta_rate }} / Trip</td></tr>
+      </table>
+
+      <div class="section-title">Getting Started in 3 Steps</div>
+      <ol class="step-list">
+        <li><strong>Add Fleet Vehicles:</strong> Navigate to <em>Vehicles</em> and register truck numbers (e.g. <code>UP92T4589</code>).</li>
+        <li><strong>Add Drivers & Phone:</strong> Navigate to <em>Drivers</em>, set their WhatsApp phone numbers, and assign their default batta rate (pre-filled to ₹{{ default_batta_rate }}).</li>
+        <li><strong>Dispatch Trip:</strong> Click <em>New Trip</em>, select Vehicle & Driver, enter the trip advance amount, and hand off road logging to the driver.</li>
+      </ol>
+    </div>
+
+    <div class="footer">
+      This is an automated operational notification. For support, contact <a href="mailto:{{ support_email }}" style="color: #64748b;">{{ support_email }}</a>.<br>
+      © 2026 VahanKhata Technologies. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>

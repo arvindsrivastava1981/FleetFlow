@@ -16,7 +16,7 @@ export default function DriversPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-extrabold text-slate-900">Drivers</h2>
-        <p className="text-xs text-slate-500">Registered driver users.</p>
+        <p className="text-xs text-slate-500">Registered driver users and their batta profile.</p>
       </div>
       {error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
@@ -29,6 +29,8 @@ export default function DriversPage() {
             <tr>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Username</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Name</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Batta Type</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Batta Rate</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Phone</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
             </tr>
@@ -38,6 +40,18 @@ export default function DriversPage() {
               <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="p-3 text-xs font-bold text-slate-800">{d.username}</td>
                 <td className="p-3 text-xs text-slate-600">{d.full_name}</td>
+                <td className="p-3 text-xs text-slate-600">
+                  {d.batta_type === "NONE" ? (
+                    <span className="text-slate-400">—</span>
+                  ) : (
+                    d.batta_type || "FIXED_TRIP"
+                  )}
+                </td>
+                <td className={`p-3 text-xs font-semibold ${d.batta_type === "NONE" ? "text-slate-400" : "text-emerald-700"}`}>
+                  {d.batta_type === "NONE"
+                    ? "—"
+                    : `₹${(Number(d.default_batta_rate) || 0).toLocaleString("en-IN")}`}
+                </td>
                 <td className="p-3 text-xs text-slate-600">{d.phone || "—"}</td>
                 <td className="p-3 text-xs">
                   <span
@@ -54,7 +68,7 @@ export default function DriversPage() {
             ))}
             {!drivers.length && (
               <tr>
-                <td colSpan="4" className="p-6 text-center text-xs text-slate-400">
+                <td colSpan="6" className="p-6 text-center text-xs text-slate-400">
                   No drivers yet.
                 </td>
               </tr>

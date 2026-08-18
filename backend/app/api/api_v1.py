@@ -45,6 +45,7 @@ from backend.app.db.queries.fleets import (
     get_all_plans,
     get_default_fleet,
     get_fleet_by_id,
+    get_fleet_email_context,
     get_fleet_entitlement,
     insert_fleet,
     is_trial_active,
@@ -88,6 +89,10 @@ from backend.app.db.queries.benchmarks import (
     update_benchmark,
 )
 from backend.app.services.audit.cash import compute_settlement, resolve_trip_batta
+from backend.app.services.email.client import (
+    manager_onboarding_email_context,
+    send_manager_onboarding_email_sync,
+)
 from backend.app.services.pdf.settlement import build_settlement_pdf
 from backend.app.services.rules.constants import GOODS_TYPES
 from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
@@ -824,6 +829,50 @@ def api_users(request: Request):
 VALID_ROLES: tuple[str, ...] = ("super_admin", "trip_manager", "driver")
 
 
+def _resolve_user_fleet(conn) -> dict | None:
+    """Resolve the fleet a freshly-created trip manager belongs to.
+
+    The manager's own `users.fleet_id` is NULL at creation (create_user does not
+    bind one), so fall back to the default active fleet — the same resolution
+    the trip/vehicle creation paths use.
+    """
+    default = get_default_fleet(conn)
+    if default is None:
+        return None
+    return get_fleet_email_context(conn, default["id"])
+
+
+def _login_url(request: Request) -> str:
+    base = str(request.base_url).rstrip("/")
+    return f"{base}/login"
+
+
+def _manager_onboarding_payload(
+    conn, new_id: int, username: str, temporary_password: str, manager_email: str | None,
+    request: Request,
+) -> dict | None:
+    """Build the manager onboarding email kwargs, or None if it can't be sent."""
+    if not temporary_password:
+        return None
+    manager_email = (manager_email or "").strip()
+    if not manager_email:
+        return None
+    fleet = _resolve_user_fleet(conn)
+    if fleet is None:
+        return None
+    user = get_user_by_id(conn, new_id)
+    full_name = (user or {}).get("full_name") or username
+    ctx = manager_onboarding_email_context(
+        manager_full_name=full_name,
+        manager_username=username,
+        temporary_password=temporary_password,
+        fleet=fleet,
+        login_url=_login_url(request),
+    )
+    ctx["to_email"] = manager_email
+    return ctx
+
+
 @router.post("/users")
 async def api_create_user(request: Request):
     guard = require_json_role(request, "super_admin")
@@ -856,6 +905,12 @@ async def api_create_user(request: Request):
             batta_type=batta_type,
             default_batta_rate=default_batta_rate,
         )
+        if role == "trip_manager":
+            ctx = _manager_onboarding_payload(
+                conn, new_id, username, password, email, request
+            )
+            if ctx is not None:
+                send_manager_onboarding_email_sync(**ctx)
     return _created({"id": new_id})
 
 
