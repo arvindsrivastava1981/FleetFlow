@@ -23,17 +23,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (username, password) => {
-    const form = new URLSearchParams({ username, password });
-    const res = await fetch("/api/v1/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: form,
-    });
-    const payload = await res.json();
-    if (!res.ok) throw new Error(payload?.error || "Login failed");
-    setToken(payload.token);
-    setUser(payload.user);
-    return payload.landing || "/dashboard";
+    const data = await api.postForm("/api/v1/auth/login", { username, password });
+    // postForm resolves to null on empty bodies; guard so a missing response
+    // fails loudly with a readable message instead of a JSON parse error.
+    if (!data || !data.token) throw new Error("Login failed");
+    setToken(data.token);
+    setUser(data.user);
+    return data.landing || "/dashboard";
   }, []);
 
   const logout = useCallback(async () => {

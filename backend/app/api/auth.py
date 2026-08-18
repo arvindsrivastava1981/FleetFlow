@@ -59,6 +59,7 @@ def login_form(request: Request, error: str | None = None) -> str:
             <div class="text-center space-y-1">
                 <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">VK</div>
                 <h1 class="text-lg font-extrabold text-slate-800">Login</h1>
+                <p class="text-xs text-sky-400 font-medium">Real-Time Expense Verification & Settlement Engine</p>
                 <p class="text-xs text-slate-500">Enter your username and password</p>
             </div>
             {'<p class="text-xs text-rose-600 font-semibold text-center">Incorrect username or password. Try again.</p>' if error == '1' else ''}

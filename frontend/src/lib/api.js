@@ -3,6 +3,24 @@
 // - Returns the parsed JSON body; throws on non-2xx with a decoded error message.
 // - Uses relative paths so the SPA is fully portable across single-origin deploys.
 
+// Parse a fetch Response into its JSON payload. A body is optional: 204 and
+// other empty responses resolve to `null` instead of throwing
+// "Unexpected end of JSON input" when callers `.json()` an empty body.
+async function parseResponse(res) {
+  if (res.status === 204) return null;
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+  if (!res.ok) {
+    const message = payload?.error || `Request failed (${res.status})`;
+    throw new ApiError(message, res.status, payload?.code);
+  }
+  return payload?.data !== undefined ? payload.data : payload;
+}
+
 const TOKEN_KEY = "vk_token";
 
 // Base URL for the /api/v1 JSON API. Reads VITE_API_BASE_URL at build time so the
@@ -39,21 +57,24 @@ async function request(path, { method = "GET", body } = {}) {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  // Empty (204) responses
-  if (res.status === 204) return null;
+  return parseResponse(res);
+}
 
-  let payload = null;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
+// Form-encoded POST (e.g. /api/v1/auth/login), so responses go through the same
+// safe parsing/error handling as JSON calls instead of a brittle `res.json()`.
+async function postForm(path, form) {
+  const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  if (!res.ok) {
-    const message = payload?.error || `Request failed (${res.status})`;
-    throw new ApiError(message, res.status, payload?.code);
-  }
-  return payload?.data !== undefined ? payload.data : payload;
+  const url = `${API_BASE_URL}${path}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: new URLSearchParams(form).toString(),
+  });
+
+  return parseResponse(res);
 }
 
 export const api = {
@@ -61,4 +82,5 @@ export const api = {
   post: (path, body) => request(path, { method: "POST", body }),
   put: (path, body) => request(path, { method: "PUT", body }),
   del: (path) => request(path, { method: "DELETE" }),
+  postForm,
 };
