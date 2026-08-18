@@ -332,10 +332,9 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                                             <option value="TOLL">Toll (टोल)</option>
                                             <option value="REPAIR">Repair (मरम्मत)</option>
                                             <option value="CHALLAN">Challan (चालान)</option>
-                                            <option value="RTO-FINE">RTO Fine (आरटीओ जुर्माना)</option>
+                                            <option value="MISC">Misc (विविध)</option>
                                             <option value="GOODS_BUY">Goods Buy (माल खरीद)</option>
                                             <option value="GOODS_SALE">Goods Sale (माल बिक्री)</option>
-                                            <option value="OTHER">Other (अन्य)</option>
                                         </select>
                                     </div>
                                     <div>
@@ -375,10 +374,9 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                                 REPAIR: '📸 Dual-photo required: mechanic/garage invoice + photo of the replaced/damaged part. Prevents padded labor bills, especially above ₹3,000.',
                                 TOLL: '📸 Upload: printed cash toll plaza slip. Proves legitimate cash payment when FASTag failed or on an off-corridor toll road.',
                                 CHALLAN: '📸 Upload: official traffic challan/e-challan copy showing offense code and vehicle number.',
-                                'RTO-FINE': '📸 Upload: official RTO fine slip with offense code, vehicle registration and penalty amount. Validates statutory deductions.',
+                                MISC: '📸 Upload: physical receipt (weighbridge/Dharam Kanta, parking token, entry fee, loading/unloading voucher) for reconciliation.',
                                 GOODS_BUY: '📸 Upload: supplier invoice or purchase receipt. This remains pending until the trip manager reviews it.',
-                                GOODS_SALE: '📸 Upload: customer invoice or sale receipt. This remains pending until the trip manager reviews it.',
-                                OTHER: '📸 Upload: physical receipt (weighbridge/Dharam Kanta, parking token, entry fee, loading/unloading voucher) for reconciliation.'
+                                GOODS_SALE: '📸 Upload: customer invoice or sale receipt. This remains pending until the trip manager reviews it.'
                             }};
                             function ffToggleExpenseFields() {{
                                 const type = document.getElementById('exp_type_select').value;

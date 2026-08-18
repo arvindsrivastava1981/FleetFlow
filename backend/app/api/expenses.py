@@ -23,8 +23,7 @@ from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
 router = APIRouter()
 
 EXPENSE_TYPES: tuple[str, ...] = (
-    "FUEL", "TOLL", "REPAIR", "OTHER", "CHALLAN", "MISC",
-    "RTO-FINE", "DEF", "GOODS_BUY", "GOODS_SALE",
+    "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
 )
 
 

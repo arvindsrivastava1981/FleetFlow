@@ -54,9 +54,6 @@ def rule_engine_page(request: Request):
             f"<b>Price benchmark:</b> flags if DEF/AdBlue rate exceeds ₹{settings.def_rate_max:.0f}/L ceiling.",
             f"<b>Consumption ratio:</b> flags if cumulative DEF volume falls outside {settings.def_min_ratio_pct:.0f}–{settings.def_max_ratio_pct:.0f}% of cumulative diesel volume.",
         ]),
-        _rule_card("RTO-FINE", "bg-rose-100 text-rose-800", [
-            "Always flagged — RTO fines always require owner review.",
-        ]),
     ])
 
     user = get_current_user(request) or {}

@@ -57,7 +57,7 @@ def evaluate_expense(expense: RuleInput) -> RuleVerdict:
     """Return the flag verdict + human reason for a single expense line.
 
     Mirrors the original branching order (FUEL math -> band -> tank -> mileage,
-    then TOLL/REPAIR/CHALLAN/DEF/RTO-FINE/GOODS) with the band fix applied.
+    then TOLL/REPAIR/CHALLAN/DEF/GOODS) with the band fix applied.
     """
     exp_type = expense.exp_type
 # ---- FUEL -----------------------------------------------------------
@@ -122,11 +122,9 @@ def evaluate_expense(expense: RuleInput) -> RuleVerdict:
             )
         return RuleVerdict(False, "")
 
-    # ---- CHALLAN / RTO-FINE ------------------------------------------------
+    # ---- CHALLAN -------------------------------------------------------------
     if exp_type == "CHALLAN":
         return RuleVerdict(True, "Traffic challan claimed - verify against e-challan portal")
-    if exp_type == "RTO-FINE":
-        return RuleVerdict(True, "RTO fine claimed - always requires owner review")
 # ---- DEF ---------------------------------------------------------------
     if exp_type == "DEF":
         if expense.rate > DEF_RATE_MAX:
@@ -148,8 +146,8 @@ def evaluate_expense(expense: RuleInput) -> RuleVerdict:
                     )
         return RuleVerdict(False, "")
 
-    # ---- GOODS (buy/sale) stay pending for manager review, never auto-flag ----
-    if exp_type in ("GOODS_BUY", "GOODS_SALE", "OTHER", "MISC"):
+    # ---- GOODS (buy/sale) + MISC stay pending for manager review, never auto-flag ----
+    if exp_type in ("GOODS_BUY", "GOODS_SALE", "MISC"):
         return RuleVerdict(False, "")
 
     return RuleVerdict(False, "")

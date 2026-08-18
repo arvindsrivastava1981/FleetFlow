@@ -7,10 +7,20 @@ and return plain dict rows / booleans. None of them commit — the caller's
 from __future__ import annotations
 
 
-def active_trip_exists(conn) -> bool:
-    """True when any trip is currently ACTIVE (only one active trip allowed)."""
+def active_trip_exists(conn, fleet_id: int | None = None) -> bool:
+    """True when an ACTIVE trip exists, scoped to *fleet_id* when provided.
+
+    Multi-tenant isolation: the "one active trip" invariant applies per fleet,
+    not globally across all tenants.
+    """
     cur = conn.cursor()
-    cur.execute("SELECT 1 FROM trips WHERE status = 'ACTIVE' LIMIT 1")
+    if fleet_id is not None:
+        cur.execute(
+            "SELECT 1 FROM trips WHERE status = 'ACTIVE' AND fleet_id = %s LIMIT 1",
+            (fleet_id,),
+        )
+    else:
+        cur.execute("SELECT 1 FROM trips WHERE status = 'ACTIVE' LIMIT 1")
     return cur.fetchone() is not None
 
 
@@ -83,6 +93,7 @@ def trip_status(conn, trip_code: str) -> str | None:
 
 def insert_trip(
     conn,
+    fleet_id: int | None,
     trip_code: str,
     vehicle_no: str,
     driver_name: str,
@@ -94,18 +105,20 @@ def insert_trip(
     vehicle_id: int | None = None,
 ) -> None:
     """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first.
-    *created_by* is the trip_manager who started the trip; *driver_user_id*
-    links the trip to a driver user so drivers can see their own trips.
-    *vehicle_id* links the trip to the vehicle selected from the dropdown.
+    *fleet_id* is REQUIRED (schema: trips.fleet_id NOT NULL) and binds the trip
+    to its owning tenant. *created_by* is the trip_manager who started the trip;
+    *driver_user_id* links the trip to a driver user so drivers can see their
+    own trips. *vehicle_id* links the trip to the vehicle selected from the
+    dropdown.
     """
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO trips
-               (trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
+               (fleet_id, trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
                 advance_amount, start_odo, current_odo, status,
                 created_by, driver_user_id)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
-        (trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
+        (fleet_id, trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
          advance_amount, start_odo, start_odo,
          created_by, driver_user_id),
     )

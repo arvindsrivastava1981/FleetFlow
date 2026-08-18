@@ -17,6 +17,7 @@ from fastapi.responses import RedirectResponse
 from backend.app.core.config import settings
 from backend.app.core.security import get_current_user, require_auth
 from backend.app.db.connection import get_db
+from backend.app.db.queries.fleets import get_default_fleet
 from backend.app.db.queries.trips import (
     active_trip_exists,
     get_trip_by_code,
@@ -24,6 +25,7 @@ from backend.app.db.queries.trips import (
     pending_expense_count,
     settle_trip as mark_trip_settled,
 )
+from backend.app.db.queries.users import get_user_fleet_id
 
 router = APIRouter()
 
@@ -56,11 +58,22 @@ def create_trip(
         return RedirectResponse(url="/trips?error=phone", status_code=303)
 
     user = get_current_user(request) or {}
+
     with get_db() as conn:
-        if active_trip_exists(conn):
+        # Resolve the tenant fleet for the trip (multi-tenant isolation).
+        fleet_id = get_user_fleet_id(conn, user.get("user_id")) if user.get("user_id") else None
+        if fleet_id is None:
+            default = get_default_fleet(conn)
+            if default:
+                fleet_id = default["id"]
+        if fleet_id is None:
+            return RedirectResponse(url="/trips?error=no_fleet", status_code=303)
+
+        if active_trip_exists(conn, fleet_id=fleet_id):
             return RedirectResponse(url="/trips", status_code=303)
         insert_trip(
             conn,
+            fleet_id,
             trip_code.strip().upper(),
             vehicle_no.strip().upper(),
             driver_name.strip(),

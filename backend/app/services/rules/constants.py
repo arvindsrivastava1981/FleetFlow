@@ -33,11 +33,11 @@ QR_CODE_LENGTH: int = settings.qr_code_length
 ANTI_SPAM_SCANS_PER_HOUR: int = settings.anti_spam_scans_per_hour
 
 # ---- Expense domains --------------------------------------------------------
+# Must stay in sync with the `expenses.exp_type` CHECK constraint in schema.sql.
 EXPENSE_TYPES: tuple[str, ...] = (
-    "FUEL", "TOLL", "REPAIR", "OTHER", "CHALLAN", "MISC",
-    "RTO-FINE", "DEF", "GOODS_BUY", "GOODS_SALE",
+    "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
 )
 GOODS_TYPES: tuple[str, ...] = ("GOODS_BUY", "GOODS_SALE")
 ALWAYS_FLAG_NON_GOODS_REVIEW: tuple[str, ...] = (
-    "TOLL", "CHALLAN", "RTO-FINE",
+    "TOLL", "CHALLAN",
 )

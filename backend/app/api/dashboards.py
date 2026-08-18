@@ -73,11 +73,11 @@ def admin_dashboard(request: Request):
     mtd = kpi["mtd_spend_by_type"]
     mtd_total = sum(mtd.values())
 
-    fuel = mtd.get("FUEL", 0) + mtd.get("MISC", 0) + mtd.get("OTHER", 0)
+    fuel = mtd.get("FUEL", 0) + mtd.get("MISC", 0)
     def_ = mtd.get("DEF", 0)
     toll = mtd.get("TOLL", 0)
     repairs = mtd.get("REPAIR", 0)
-    challans = mtd.get("CHALLAN", 0) + mtd.get("RTO-FINE", 0)
+    challans = mtd.get("CHALLAN", 0)
 
     heat_rows = "".join(f"""
         <div class="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-50 px-3 py-2">
