@@ -34,3 +34,9 @@ ALTER TABLE trips ADD COLUMN IF NOT EXISTS driver_user_id BIGINT REFERENCES user
 
 CREATE INDEX IF NOT EXISTS idx_trips_created_by ON trips(created_by);
 CREATE INDEX IF NOT EXISTS idx_trips_driver_user_id ON trips(driver_user_id);
+
+-- Vehicle ownership: which Trip Manager / Super Admin created each vehicle so
+-- managers see the vehicles they registered and can load them in the trip form.
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS created_by BIGINT REFERENCES users(id);
+
+CREATE INDEX IF NOT EXISTS idx_vehicles_created_by ON vehicles(created_by);

@@ -55,13 +55,59 @@ def savings_dashboard(request: Request):
     if guard is not None:
         return guard
 
+    user = get_current_user(request) or {}
+    # Scope all figures to trips the logged-in user created (trip_manager) or
+    # the trips assigned to them (driver); super_admin sees everything.
+    if user.get("role") == "trip_manager":
+        # Join against the manager's own trips for both totals and per-trip rows.
+        totals_sql = """SELECT COALESCE(SUM(e.amount), 0) AS total_claimed,
+                               COALESCE(SUM(CASE WHEN e.manager_status = 'REJECTED' THEN e.amount ELSE 0 END), 0) AS money_saved,
+                               COALESCE(SUM(CASE WHEN e.manager_status = 'APPROVED' OR (NOT e.is_flagged AND e.manager_status != 'REJECTED') THEN e.amount ELSE 0 END), 0) AS total_approved,
+                               COALESCE(SUM(CASE WHEN e.manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
+                          FROM expenses e
+                          JOIN trips t ON t.trip_code = e.trip_code
+                         WHERE t.created_by = %s"""
+        trips_count_sql = "SELECT COUNT(*) AS trip_count FROM trips WHERE created_by = %s"
+        savings_sql = """SELECT e.trip_code,
+                                COALESCE(SUM(CASE WHEN e.manager_status = 'REJECTED' THEN e.amount ELSE 0 END), 0) AS saved
+                           FROM expenses e
+                           JOIN trips t ON t.trip_code = e.trip_code
+                          WHERE t.created_by = %s
+                          GROUP BY e.trip_code
+                         HAVING COALESCE(SUM(CASE WHEN e.manager_status = 'REJECTED' THEN e.amount ELSE 0 END), 0) > 0
+                          ORDER BY saved DESC LIMIT 6"""
+        scope_params = (user.get("user_id"),)
+    elif user.get("role") == "driver":
+        totals_sql = """SELECT COALESCE(SUM(e.amount), 0) AS total_claimed,
+                               COALESCE(SUM(CASE WHEN e.manager_status = 'REJECTED' THEN e.amount ELSE 0 END), 0) AS money_saved,
+                               COALESCE(SUM(CASE WHEN e.manager_status = 'APPROVED' OR (NOT e.is_flagged AND e.manager_status != 'REJECTED') THEN e.amount ELSE 0 END), 0) AS total_approved,
+                               COALESCE(SUM(CASE WHEN e.manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
+                          FROM expenses e
+                          JOIN trips t ON t.trip_code = e.trip_code
+                         WHERE t.driver_user_id = %s"""
+        trips_count_sql = "SELECT COUNT(*) AS trip_count FROM trips WHERE driver_user_id = %s"
+        savings_sql = """SELECT e.trip_code,
+                                COALESCE(SUM(CASE WHEN e.manager_status = 'REJECTED' THEN e.amount ELSE 0 END), 0) AS saved
+                           FROM expenses e
+                           JOIN trips t ON t.trip_code = e.trip_code
+                          WHERE t.driver_user_id = %s
+                          GROUP BY e.trip_code
+                         HAVING COALESCE(SUM(CASE WHEN e.manager_status = 'REJECTED' THEN e.amount ELSE 0 END), 0) > 0
+                          ORDER BY saved DESC LIMIT 6"""
+        scope_params = (user.get("user_id"),)
+    else:
+        totals_sql = _DASHBOARD_TOTALS
+        trips_count_sql = "SELECT COUNT(*) AS trip_count FROM trips"
+        savings_sql = _SAVINGS_BY_TRIP
+        scope_params = ()
+
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(_DASHBOARD_TOTALS)
+        cur.execute(totals_sql, scope_params)
         totals = cur.fetchone()
-        cur.execute("SELECT COUNT(*) AS trip_count FROM trips")
+        cur.execute(trips_count_sql, scope_params)
         trip_count = cur.fetchone()["trip_count"]
-        cur.execute(_SAVINGS_BY_TRIP)
+        cur.execute(savings_sql, scope_params)
         savings_by_trip = cur.fetchall()
 
     money_saved = totals["money_saved"] or 0
@@ -88,7 +134,7 @@ def savings_dashboard(request: Request):
         <div class="max-w-7xl mx-auto space-y-6">
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="flex flex-col lg:flex-row gap-4">
-                {render_sidebar("dashboard")}
+                {render_sidebar("dashboard", user.get('role', 'super_admin'))}
                 <main class="flex-1 space-y-4">
                     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                         <div class="bg-emerald-600 text-white rounded-2xl p-5 shadow-sm">

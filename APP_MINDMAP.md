@@ -26,8 +26,8 @@
 
 ### Core Tables (see [/database/schema.sql](/database/schema.sql))
 - `fleets` (id, owner_name, phone UNIQUE, email, subscription_plan default `STARTER_PACK`, plan_rate default 799.00, is_active, created_at/updated_at).
-- `vehicles` (id, fleet_id FK, vehicle_number UNIQUE, make_model, tank_capacity_liters default 350.00, expected_km_per_liter default 4.00, owner_phone, is_active).
-- `trips` (trip_code UNIQUE, vehicle_id FK, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, end_odo, status CHECK ACTIVE/COMPLETED/SETTLED/CANCELLED, origin, destination, created_at, completed_at, settled_at).
+- `vehicles` (id, fleet_id FK, vehicle_number UNIQUE, make_model, tank_capacity_liters default 350.00, expected_km_per_liter default 4.00, owner_phone, created_by FK→users, is_active). `created_by` scopes vehicles to the Trip Manager / Super Admin who registered them (managers see only theirs).
+- `trips` (trip_code UNIQUE, vehicle_id FK, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, current_odo, end_odo, status CHECK ACTIVE/COMPLETED/SETTLED/CANCELLED, origin, destination, created_by FK→users, driver_user_id FK→users, created_at, completed_at, settled_at). `created_by` is the manager who started the trip; `driver_user_id` links the assigned driver.
 - `expenses` (id, trip_id FK, trip_code FK, exp_type: FUEL/TOLL/REPAIR/CHALLAN/RTO-FINE/DEF/OTHER/MISC/GOODS_BUY/GOODS_SALE, amount, approved_amount, liters, rate, odometer, station_name, is_flagged, flag_reason, manager_status: PENDING/APPROVED/REJECTED, receipt_image_url, raw_receipt_text, created_at/updated_at). Goods buys and sales always start pending; only approved entries affect settlement, with buys reducing and sales increasing cash and trip profit.
 - `fuel_benchmarks` (id, state_code, state_name, benchmark_price_per_liter, tolerance_pct default 0.08, effective_date, updated_at) — per-state fuel price index for the anomaly rules engine (managed via the `/fuel-benchmarks`  CRUD).
 
@@ -38,22 +38,23 @@
 
 ### `backend/app/api/*` (security-hardened, all -guarded unless noted)
 - `GET /login`, `POST /login`, `GET /logout` — `api/auth.py`: TTL sessions via `create_session`, per-IP brute-force lockout, secure cookie (httponly, samesite=lax). Wrong password → `303 /login?error=1`. `GET /login` is public.
-- `POST /create-trip` — `api/trips.py`: inserts `trips` row (requires driver_phone); validates plate regex, `+91` phone, non-negative advance/odo; blocked if another ACTIVE trip exists.
+- `POST /create-trip` — `api/trips.py`: inserts `trips` row (validates plate regex, `+91` phone, non-negative advance/odo; blocked if another ACTIVE trip exists). Captures `created_by` (logged-in manager), `driver_user_id` + `vehicle_id` from the Start-Trip modal dropdowns.
 - `GET /settle-trip?trip_code=` — `api/trips.py`: marks trip `SETTLED` (only when no PENDING expenses remain).
 - `POST /simulate-whatsapp` — `api/expenses.py`: runs `evaluate_expense()` then inserts an `expenses` row (goods stay pending; flagged → pending); upserts `trips.current_odo`.
 - `GET /action-expense?id=&action=APPROVE|REJECT` — `api/expenses.py`: manager decision on a flagged/pending expense or goods transaction.
 - `GET /reset-demo` — `api/demo.py`: clears `expenses`+`trips` rows (no DDL, no reseed).
-- `GET /dashboard` — `api/dashboard.py`: -only savings dashboard (money-saved/claimed/approved/**pending** cards + per-trip Chart.js bar chart); fallback landing page.
+- `GET /dashboard` — `api/dashboard.py`: -only savings dashboard (money-saved/claimed/approved/**pending** cards + per-trip Chart.js bar chart); fallback landing page. **Role-scoped**: trip_manager sees only their own trips' figures, driver only their assigned trips, super_admin sees all.
 - `GET /admin` — `api/dashboards.py`: **Super Admin** macro dashboard (role-gated via `require_role(..., "super_admin")`): Active Fleet, Fuel & Road Spend (MTD), Leakage Prevented (REJECTED sum), Outstanding Cash Float; anomaly heatmap, km/L-efficiency leaderboard vs. `vehicles.expected_km_per_liter`, settlement approval summary + quick actions. Query helpers in `db/queries/dashboards.py`.
-- `GET /manager` — `api/dashboards.py`: **Trip Manager** dashboard (`require_role("trip_manager","super_admin")`): dispatched trips, pending escalations, advances disbursed today, awaiting-settlement count; live escalation feed with 1-click Approve/Deduct (`/action-expense`), active-trip progress table, 1-click settlement queue.
+- `GET /manager` — `api/dashboards.py`: **Trip Manager** dashboard (`require_role("trip_manager","super_admin")`): dispatched trips, pending escalations, advances disbursed today, awaiting-settlement count; live escalation feed with 1-click Approve/Deduct (`/action-expense`), active-trip progress table, 1-click settlement queue. **All figures scoped to trips the logged-in manager created** (`manager_kpis`/`open_escalations`/`active_trip_progress`/`settlement_ready_trips` filter by `created_by`); super_admin sees everything.
 - `GET /driver` — `api/dashboards.py`: **Driver** dashboard (`require_role("driver")`): live status card (active trip, advance, cash-in-hand = advance + approved net, logged-today), quick-log actions, recent expense logs + trip-end summary.
 - `POST /login` now redirects by role: `super_admin → /admin`, `trip_manager → /manager`, `driver → /driver` (fallback `/dashboard`).
-- `GET /` — `api/views.py`: 3-column dual-WhatsApp workspace UI (see UI Layout below); redirects to `/trips` if no `trip_code`/`new_trip` given.
-- `GET /trips` — `api/views.py`: trip listing (active first) with per-trip expense totals / pending counts; "Start New Trip" disabled while a trip is active.
+- `GET /` — `api/views.py`: 3-column dual-WhatsApp workspace UI (see UI Layout below); **scoped** so a manager/driver can only open their own trips. The Start New Trip modal loads **Vehicle Number + Driver dropdowns** populated from the manager's registered vehicles (by `created_by`) and the active driver accounts.
+- `GET /vehicles` + `GET /vehicles/create`, `POST /vehicles/create`, `GET /vehicles/edit/{id}`, `POST /vehicles/edit/{id}`, `GET /vehicles/deactivate/{id}`, `GET /vehicles/activate/{id}` — `api/vehicles.py`: **Vehicle CRUD** (role-gated to `trip_manager`/`super_admin`). Managers see/register only the vehicles they created (`created_by`), and these feed the Vehicle Number dropdown in the Start-Trip modal. Plates validated against the regex.
+- `GET /trips` — `api/views.py`: trip listing (active first) with per-trip expense totals / pending counts; **scoped by role** — a trip_manager only sees trips they created (`created_by`), a driver only their assigned trips, super_admin sees all. "Start New Trip" disabled while a trip is active.
 - `GET /` — `api/views.py`: tabular all-trips overview (legacy  landing page).
 - `GET /fuel-benchmarks` + `POST /fuel-benchmarks/add`, `POST /fuel-benchmarks/edit`, `GET /fuel-benchmarks/delete?id=` — `api/benchmarks.py`:  CRUD for per-state fuel price benchmarks.
 - `GET /rule-engine` — `api/rule_engine.py`: read-only explainer of the anomaly rules per expense type (static `settings` constants only, no DB).
-- `GET /settled-pdfs` — `api/settlement.py`: lists settled trips with links to their settlement PDFs.
+- `GET /settled-pdfs` — `api/settlement.py`: lists settled trips with links to their settlement PDFs (scoped to the caller's own trips).
 - `GET /generate-settlement-pdf?trip_code=` — `api/settlement.py`: builds a reportlab PDF settlement/reconciliation sheet via `services/pdf/settlement.py`.
 
 ## UI Layout — 3-Column Dual-WhatsApp Architecture (`GET /`)

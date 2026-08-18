@@ -35,8 +35,9 @@ def settled_pdf_listing(request: Request):
     if guard is not None:
         return guard
 
+    user = get_current_user(request) or {}
     with get_db() as conn:
-        settled_trips = get_settled_trips(conn)
+        settled_trips = get_settled_trips(conn, role=user.get("role", "super_admin"), user_id=user.get("user_id"))
 
     pdf_rows = "".join(f"""
         <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
@@ -50,14 +51,13 @@ def settled_pdf_listing(request: Request):
             </a>
         </div>""" for trip in settled_trips)
 
-    user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
     <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>VahanKhata Settled PDFs</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-7xl mx-auto space-y-6">
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="flex flex-col lg:flex-row gap-4">
-                {render_sidebar("settled-pdfs")}
+                {render_sidebar("settled-pdfs", user.get('role', 'super_admin'))}
                 <main class="flex-1 space-y-4">
                     <div>
                         <h2 class="text-lg font-extrabold text-slate-900">Settled Trip PDFs</h2>
@@ -77,10 +77,16 @@ def generate_settlement_pdf(request: Request, trip_code: str):
     if guard is not None:
         return guard
 
+    user = get_current_user(request) or {}
     with get_db() as conn:
         trip = get_trip_by_code(conn, trip_code)
         if not trip:
             return Response("Trip not found", status_code=404)
+        # Scope: managers/drivers may only generate PDFs for their own trips.
+        if user.get("role") == "trip_manager" and trip.get("created_by") != user.get("user_id"):
+            return Response("Not authorized", status_code=403)
+        if user.get("role") == "driver" and trip.get("driver_user_id") != user.get("user_id"):
+            return Response("Not authorized", status_code=403)
         expenses = get_expenses_for_trip(conn, trip_code)
 
     pdf_bytes = build_settlement_pdf(trip, expenses)

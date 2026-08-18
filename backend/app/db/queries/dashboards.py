@@ -89,26 +89,42 @@ def admin_kpis(conn) -> dict:
 # ---------------------------------------------------------------------------#
 # Manager (Trip / Fleet Manager) KPIs
 # ---------------------------------------------------------------------------#
-def manager_kpis(conn) -> dict:
-    """Operational shift KPIs for the Trip Manager dashboard."""
-    cur = conn.cursor()
+def manager_kpis(conn, manager_id: int | None = None) -> dict:
+    """Operational shift KPIs for the Trip Manager dashboard.
 
-    cur.execute("SELECT COUNT(*) AS c FROM trips WHERE status = 'ACTIVE'")
+    When *manager_id* is given, every aggregate is scoped to the trips that
+    manager created (created_by = manager_id).
+    """
+    cur = conn.cursor()
+    scope_sql = " AND created_by = %s" if manager_id else ""
+    scope_params = (manager_id,) if manager_id else ()
+
+    cur.execute(
+        f"SELECT COUNT(*) AS c FROM trips WHERE status = 'ACTIVE'{scope_sql}",
+        scope_params,
+    )
     active_dispatched = cur.fetchone()["c"]
 
     cur.execute(
-        "SELECT COUNT(*) AS c FROM expenses "
-        "WHERE is_flagged = TRUE OR manager_status = 'PENDING'"
+        f"""SELECT COUNT(*) AS c FROM expenses e
+            WHERE (e.is_flagged = TRUE OR e.manager_status = 'PENDING')
+              AND EXISTS (SELECT 1 FROM trips t
+                           WHERE t.trip_code = e.trip_code{scope_sql})""",
+        scope_params,
     )
     pending_escalations = cur.fetchone()["c"]
 
     cur.execute(
-        "SELECT COALESCE(SUM(advance_amount), 0) AS total "
-        "FROM trips WHERE created_at >= CURRENT_DATE"
+        f"SELECT COALESCE(SUM(advance_amount), 0) AS total "
+        f"FROM trips WHERE created_at >= CURRENT_DATE{scope_sql}",
+        scope_params,
     )
     advances_today = cur.fetchone()["total"]
 
-    cur.execute("SELECT COUNT(*) AS c FROM trips WHERE status = 'COMPLETED'")
+    cur.execute(
+        f"SELECT COUNT(*) AS c FROM trips WHERE status = 'COMPLETED'{scope_sql}",
+        scope_params,
+    )
     awaiting_settlement = cur.fetchone()["c"]
 
     return {
@@ -119,26 +135,37 @@ def manager_kpis(conn) -> dict:
     }
 
 
-def open_escalations(conn, limit: int = 20) -> list[dict]:
-    """Flagged / pending expenses needing a manager decision, newest first."""
+def open_escalations(conn, limit: int = 20, manager_id: int | None = None) -> list[dict]:
+    """Flagged / pending expenses needing a manager decision, newest first.
+
+    When *manager_id* is given, only expenses on trips that manager created
+    are returned.
+    """
     cur = conn.cursor()
+    scope_sql = " AND EXISTS (SELECT 1 FROM trips t WHERE t.trip_code = e.trip_code AND t.created_by = %s)" if manager_id else ""
+    params = [manager_id, limit] if manager_id else [limit]
     cur.execute(
-        """SELECT e.id, e.trip_code, e.exp_type, e.amount, e.liters, e.rate,
+        f"""SELECT e.id, e.trip_code, e.exp_type, e.amount, e.liters, e.rate,
                   e.odometer, e.station_name, e.is_flagged, e.flag_reason,
                   e.manager_status, e.created_at
              FROM expenses e
-            WHERE e.is_flagged = TRUE OR e.manager_status = 'PENDING'
+            WHERE (e.is_flagged = TRUE OR e.manager_status = 'PENDING'){scope_sql}
             ORDER BY e.id DESC LIMIT %s""",
-        (limit,),
+        params,
     )
     return cur.fetchall()
 
 
-def active_trip_progress(conn) -> list[dict]:
-    """ACTIVE trips with driver, odometer, cumulative claims, and remaining float."""
+def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
+    """ACTIVE trips with driver, odometer, cumulative claims, and remaining float.
+
+    When *manager_id* is given, only trips that manager created are shown.
+    """
     cur = conn.cursor()
+    scope_sql = " AND t.created_by = %s" if manager_id else ""
+    scope_params = (manager_id,) if manager_id else ()
     cur.execute(
-        """SELECT t.trip_code, t.vehicle_no, t.driver_name, t.start_odo,
+        f"""SELECT t.trip_code, t.vehicle_no, t.driver_name, t.start_odo,
                   t.current_odo, t.advance_amount,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status IN ('APPROVED','PENDING')
@@ -155,10 +182,11 @@ def active_trip_progress(conn) -> list[dict]:
                   ), 0) AS approved_net
              FROM trips t
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
-            WHERE t.status = 'ACTIVE'
+            WHERE t.status = 'ACTIVE'{scope_sql}
             GROUP BY t.id, t.trip_code, t.vehicle_no, t.driver_name, t.start_odo,
                      t.current_odo, t.advance_amount
-            ORDER BY t.id"""
+            ORDER BY t.id""",
+        scope_params,
     )
     rows = cur.fetchall()
     for r in rows:
@@ -166,11 +194,16 @@ def active_trip_progress(conn) -> list[dict]:
     return rows
 
 
-def settlement_ready_trips(conn) -> list[dict]:
-    """ACTIVE trips with no PENDING expenses (safe for 1-click settlement)."""
+def settlement_ready_trips(conn, manager_id: int | None = None) -> list[dict]:
+    """ACTIVE trips with no PENDING expenses (safe for 1-click settlement).
+
+    When *manager_id* is given, only trips that manager created are returned.
+    """
     cur = conn.cursor()
+    scope_sql = " AND t.created_by = %s" if manager_id else ""
+    scope_params = (manager_id,) if manager_id else ()
     cur.execute(
-        """SELECT t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount,
+        f"""SELECT t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status = 'APPROVED' THEN
                           (CASE WHEN e.exp_type = 'GOODS_SALE' THEN e.amount
@@ -179,10 +212,11 @@ def settlement_ready_trips(conn) -> list[dict]:
                   ), 0) AS approved_net
              FROM trips t
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
-            WHERE t.status = 'ACTIVE'
+            WHERE t.status = 'ACTIVE'{scope_sql}
             GROUP BY t.id, t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount
            HAVING COALESCE(SUM(CASE WHEN e.manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) = 0
-            ORDER BY t.id"""
+            ORDER BY t.id""",
+        scope_params,
     )
     rows = cur.fetchall()
     for r in rows:

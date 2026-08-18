@@ -14,6 +14,15 @@ from __future__ import annotations
 from backend.app.core.security import esc
 
 
+# Canonical product brand. The app was historically named "FleetFlow" (shown
+# as "FF"); the product was renamed to VahanKhata everywhere (README,
+# render.yaml service name, all page <title> tags, footer). This single
+# constant is the source of truth for the logged-in chrome header, so the
+# header can never silently drift back to the old brand again.
+_BRAND_MARK = "VK"
+_BRAND_NAME = "VahanKhata"
+
+
 _ROLE_LABELS: dict[str, str] = {
     "super_admin": "Super Admin",
     "trip_manager": "Trip Manager",
@@ -46,9 +55,9 @@ def render_header(authenticated: bool = False, username: str = "", role: str = "
     return f'''
         <header class="bg-slate-900 text-white p-5 rounded-2xl flex flex-wrap justify-between items-center shadow-lg gap-4">
             <div class="flex items-center space-x-3">
-                <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">VK</div>
+                <div class="bg-sky-500 p-2 rounded-xl text-white font-black text-xl">{_BRAND_MARK}</div>
                 <div>
-                    <h1 class="text-xl font-extrabold tracking-tight">VahanKhata</h1>
+                    <h1 class="text-xl font-extrabold tracking-tight">{_BRAND_NAME}</h1>
                     <p class="text-xs text-sky-400 font-medium">Real-Time Expense Verification & Settlement Engine</p>
                 </div>
             </div>
@@ -112,7 +121,7 @@ def render_sidebar(active: str, role: str = "super_admin") -> str:
     # ── FLEET & ASSETS (super_admin + trip_manager only) ───────────────
     if role in ("super_admin", "trip_manager"):
         links.append(_nav_section("Fleet & Assets"))
-        links.append(_nav_link("/trips", "Vehicles", "🚛", "vehicle", active == "vehicle"))
+        links.append(_nav_link("/vehicles", "Vehicles", "🚛", "vehicles", active))
         links.append(_nav_link("/drivers", "Drivers", "👤", "drivers", active))
         links.append(_nav_link("/fuel-benchmarks", "Fuel Benchmarks", "⛽", "fuel-benchmarks", active))
 

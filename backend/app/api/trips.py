@@ -15,10 +15,11 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 from backend.app.core.config import settings
-from backend.app.core.security import require_auth
+from backend.app.core.security import get_current_user, require_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.trips import (
     active_trip_exists,
+    get_trip_by_code,
     insert_trip,
     pending_expense_count,
     settle_trip as mark_trip_settled,
@@ -38,6 +39,8 @@ def create_trip(
     driver_phone: str = Form(...),
     advance_amount: float = Form(...),
     start_odo: float = Form(...),
+    vehicle_id: int | None = Form(None),
+    driver_user_id: int | None = Form(None),
 ):
     guard = require_auth(request)
     if guard is not None:
@@ -52,6 +55,7 @@ def create_trip(
     if not (digits.startswith("91") and len(digits) == 12):
         return RedirectResponse(url="/trips?error=phone", status_code=303)
 
+    user = get_current_user(request) or {}
     with get_db() as conn:
         if active_trip_exists(conn):
             return RedirectResponse(url="/trips", status_code=303)
@@ -63,6 +67,9 @@ def create_trip(
             driver_phone.strip(),
             advance_amount,
             start_odo,
+            created_by=user.get("user_id"),
+            driver_user_id=driver_user_id,
+            vehicle_id=vehicle_id,
         )
     return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
 
@@ -73,7 +80,11 @@ def settle_trip(request: Request, trip_code: str):
     if guard is not None:
         return guard
 
+    user = get_current_user(request) or {}
     with get_db() as conn:
+        trip = get_trip_by_code(conn, trip_code)
+        if user.get("role") == "trip_manager" and trip and trip.get("created_by") != user.get("user_id"):
+            return RedirectResponse(url="/trips", status_code=303)
         if pending_expense_count(conn, trip_code):
             return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
         mark_trip_settled(conn, trip_code)

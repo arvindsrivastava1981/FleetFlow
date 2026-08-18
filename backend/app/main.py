@@ -23,6 +23,7 @@ from backend.app.api import (
     settlement,
     trips,
     users,
+    vehicles,
     views,
 )
 from backend.app.db.connection import healthcheck
@@ -37,6 +38,7 @@ app = FastAPI(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(drivers.router)
+app.include_router(vehicles.router)
 app.include_router(trips.router)
 app.include_router(expenses.router)
 app.include_router(demo.router)

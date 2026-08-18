@@ -7,12 +7,29 @@ and return plain dict rows / booleans. None of them commit — the caller's
 from __future__ import annotations
 
 
-def get_settled_trips(conn) -> list[dict]:
-    """Return all trips with status SETTLED."""
+def get_settled_trips(conn, role: str = "super_admin", user_id: int | None = None) -> list[dict]:
+    """Return trips with status SETTLED visible to the caller.
+
+    trip_manager only sees trips they created; driver only their assigned ones;
+    super_admin sees all.
+    """
     cur = conn.cursor()
-    cur.execute(
-        "SELECT * FROM trips WHERE status = 'SETTLED' ORDER BY settled_at DESC"
-    )
+    if role == "trip_manager":
+        cur.execute(
+            "SELECT * FROM trips WHERE status = 'SETTLED' AND created_by = %s "
+            "ORDER BY settled_at DESC",
+            (user_id,),
+        )
+    elif role == "driver":
+        cur.execute(
+            "SELECT * FROM trips WHERE status = 'SETTLED' AND driver_user_id = %s "
+            "ORDER BY settled_at DESC",
+            (user_id,),
+        )
+    else:
+        cur.execute(
+            "SELECT * FROM trips WHERE status = 'SETTLED' ORDER BY settled_at DESC"
+        )
     return cur.fetchall()
 
 

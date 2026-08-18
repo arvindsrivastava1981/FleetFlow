@@ -19,11 +19,13 @@ from backend.app.core.security import esc, get_current_user, require_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.expenses import get_expenses_for_trip
 from backend.app.db.queries.trips import (
-    get_all_trips,
-    get_latest_active_trip,
+    get_latest_active_trip_for_user,
     get_trip_by_code,
     get_trip_stats_by_code,
+    get_trips_for_user,
 )
+from backend.app.db.queries.users import get_users_by_roles
+from backend.app.db.queries.vehicles import get_all_vehicles
 from backend.app.web.chrome import render_footer, render_header, render_sidebar
 
 router = APIRouter()
@@ -33,6 +35,21 @@ GOODS_EXPENSE_TYPES = ("GOODS_BUY", "GOODS_SALE")
 
 def _fmt_dt(dt) -> str:
     return dt.strftime("%d %b %H:%M") if hasattr(dt, "strftime") else str(dt)[:16]
+
+
+def _owns_trip(trip: dict, user: dict) -> bool:
+    """Whether *user* is allowed to view *trip*.
+
+    super_admin sees everything; trip_manager only their own; driver only assigned.
+    """
+    role = user.get("role")
+    if role == "super_admin":
+        return True
+    if role == "trip_manager":
+        return trip.get("created_by") == user.get("user_id")
+    if role == "driver":
+        return trip.get("driver_user_id") == user.get("user_id")
+    return False
 
 
 def _is_approved(expense: dict) -> bool:
@@ -51,8 +68,9 @@ def trip_listing(request: Request):
     if guard is not None:
         return guard
 
+    user = get_current_user(request) or {}
     with get_db() as conn:
-        all_trips = get_all_trips(conn)
+        all_trips = get_trips_for_user(conn, user.get("user_id"), user.get("role", "super_admin"))
         stats_by_trip = get_trip_stats_by_code(conn)
 
     all_trips_settled = not all_trips or all(t["status"] in ("SETTLED", "CANCELLED") for t in all_trips)
@@ -81,12 +99,12 @@ def trip_listing(request: Request):
         if all_trips_settled
         else '<span class="bg-slate-200 text-slate-400 text-xs font-bold px-4 py-2.5 rounded-xl cursor-not-allowed" title="Settle the current trip before starting another">➕ Start New Trip</span>'
     )
-    user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
     <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>VahanKhata Trips</title><script src="https://cdn.tailwindcss.com"></script></head>
     <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
         <div class="max-w-5xl mx-auto space-y-6">
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
+            {render_sidebar("trips", user.get('role', 'super_admin'))}
             <div class="flex items-center justify-between"><div><h2 class="text-lg font-extrabold text-slate-900">All Trips</h2><p class="text-xs text-slate-500">Select a trip to open its complete ledger, audit thread, and settlement details.</p></div>{start_trip_control}<span class="text-xs text-slate-400">{len(all_trips)} total</span></div>
             <div class="space-y-3">{trip_rows if trip_rows else '<div class="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">No trips yet. Start your first trip above.</div>'}</div>
             {render_footer()}
@@ -100,8 +118,9 @@ def dashboard(request: Request):
     if guard is not None:
         return guard
 
+    user = get_current_user(request) or {}
     with get_db() as conn:
-        all_trips = get_all_trips(conn)
+        all_trips = get_trips_for_user(conn, user.get("user_id"), user.get("role", "super_admin"))
         stats_by_trip = get_trip_stats_by_code(conn)
 
     rows_html = "".join([f"""
@@ -122,7 +141,6 @@ def dashboard(request: Request):
         </td>
     </tr>""" for t in all_trips])
 
-    user = get_current_user(request) or {}
     return f"""<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -169,9 +187,18 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
     if not trip_code and not new_trip:
         return RedirectResponse(url="/trips", status_code=303)
 
+    user = get_current_user(request) or {}
     with get_db() as conn:
-        all_trips = get_all_trips(conn)
-        active_trip = get_trip_by_code(conn, trip_code) if trip_code else get_latest_active_trip(conn)
+        all_trips = get_trips_for_user(conn, user.get("user_id"), user.get("role", "super_admin"))
+        active_trip = None
+        if trip_code:
+            candidate = get_trip_by_code(conn, trip_code)
+            # Managers/drivers may only open their own trips.
+            if candidate and _owns_trip(candidate, user):
+                active_trip = candidate
+        else:
+            active_trip = get_latest_active_trip_for_user(
+                conn, user.get("user_id"), user.get("role", "super_admin"))
         if not active_trip and all_trips:
             active_trip = all_trips[0]
 
@@ -207,6 +234,27 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
     )
 
     user = get_current_user(request) or {}
+
+    # Dropdown data for the "Start New Trip" modal: vehicles + active drivers
+    # visible to this user (managers see the ones they registered).
+    vehicle_options = ""
+    driver_options = ""
+    if user.get("role") in ("trip_manager", "super_admin"):
+        with get_db() as conn:
+            vehicles = get_all_vehicles(conn, role=user.get("role", "super_admin"), user_id=user.get("user_id"))
+            drivers = get_users_by_roles(conn, ("driver",))
+        vehicle_options = "".join(
+            f'<option value="{esc(v["vehicle_number"])}" data-id="{v["id"]}">'
+            f'{esc(v["vehicle_number"])}{" (" + esc(v["make_model"]) + ")" if v.get("make_model") else ""}</option>'
+            for v in vehicles
+        )
+        driver_options = "".join(
+            f'<option value="{esc(d["id"])}" data-name="{esc(d["full_name"])}" '
+            f'data-phone="{esc(d["phone"] or "")}">{esc(d["full_name"])}'
+            f'{" (" + esc(d["phone"] or "") + ")" if d.get("phone") else ""}</option>'
+            for d in drivers
+        )
+
     html = f"""<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -221,7 +269,7 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
 
             <div class="flex flex-col lg:flex-row gap-4 items-start">
-                {render_sidebar("trips")}
+                {render_sidebar("trips", user.get('role', 'super_admin'))}
                 <main class="flex-1 min-w-0 w-full">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
 
@@ -523,16 +571,21 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="font-bold text-slate-700 block">Vehicle Number</label>
-                            <input type="text" name="vehicle_no" required value="UP-93-AT-1234" class="w-full border rounded-lg p-2 bg-slate-50">
+                            <select name="vehicle_no" id="vehicle_select" required class="w-full border rounded-lg p-2 bg-slate-50" {'' if vehicle_options else 'disabled'}>
+                                {f'<option value="">Select vehicle</option>' if vehicle_options else '<option value="">No vehicles registered — add one under Vehicles</option>'}
+                                {vehicle_options}
+                            </select>
+                            <input type="hidden" name="vehicle_id" id="vehicle_id_field">
                         </div>
                         <div>
-                            <label class="font-bold text-slate-700 block">Driver Name</label>
-                            <input type="text" name="driver_name" required placeholder="e.g. Ramesh Kumar" class="w-full border rounded-lg p-2 bg-slate-50">
+                            <label class="font-bold text-slate-700 block">Driver</label>
+                            <select name="driver_user_id" id="driver_select" required class="w-full border rounded-lg p-2 bg-slate-50" {'' if driver_options else 'disabled'}>
+                                {f'<option value="">Select driver</option>' if driver_options else '<option value="">No drivers yet — manage under Drivers</option>'}
+                                {driver_options}
+                            </select>
+                            <input type="hidden" name="driver_name" id="driver_name_field">
+                            <input type="hidden" name="driver_phone" id="driver_phone_field">
                         </div>
-                    </div>
-                    <div>
-                        <label class="font-bold text-slate-700 block">Driver Phone</label>
-                        <input type="text" name="driver_phone" required value="+91 90000 00000" class="w-full border rounded-lg p-2 bg-slate-50">
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -547,12 +600,22 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                     <div class="pt-2">
                         <div class="flex gap-2">
                             <a href="/trips" class="flex-1 text-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl transition">Cancel</a>
-                            <button type="submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl transition shadow">
+                            <button type="submit" class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl transition shadow" {'' if (vehicle_options and driver_options) else 'disabled'}>
                                 🚀 Start Trip & Send WhatsApp Alert
                             </button>
                         </div>
                     </div>
                 </form>
+                <script>
+                    document.getElementById('vehicle_select').addEventListener('change', function () {{
+                        document.getElementById('vehicle_id_field').value = this.options[this.selectedIndex].dataset.id || '';
+                    }});
+                    document.getElementById('driver_select').addEventListener('change', function () {{
+                        const opt = this.options[this.selectedIndex];
+                        document.getElementById('driver_name_field').value = opt.dataset.name || '';
+                        document.getElementById('driver_phone_field').value = opt.dataset.phone || '+91 ';
+                    }});
+                </script>
             </div>
         </div>
 

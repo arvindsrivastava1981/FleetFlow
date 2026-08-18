@@ -66,7 +66,7 @@ def rule_engine_page(request: Request):
         <div class="max-w-7xl mx-auto space-y-6">
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="flex flex-col lg:flex-row gap-4">
-                {render_sidebar("rule-engine")}
+                {render_sidebar("rule-engine", user.get('role', 'super_admin'))}
                 <main class="flex-1 space-y-4">
                     <div>
                         <h2 class="text-lg font-extrabold text-slate-900">Rule Engine</h2>

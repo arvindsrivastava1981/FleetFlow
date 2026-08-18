@@ -59,7 +59,7 @@ def fuel_benchmarks_page(request: Request, edit_id: int | None = None):
         <div class="max-w-7xl mx-auto space-y-6">
             {render_header(authenticated=True, username=user.get('username', ''), role=user.get('role', ''))}
             <div class="flex flex-col lg:flex-row gap-4">
-                {render_sidebar("fuel-benchmarks")}
+                {render_sidebar("fuel-benchmarks", user.get('role', 'super_admin'))}
                 <main class="flex-1 space-y-4">
                     <div>
                         <h2 class="text-lg font-extrabold text-slate-900">Fuel Benchmarks</h2>

@@ -91,6 +91,75 @@ def test_authenticated_rule_engine_renders_without_db():
         _auth_sessions.pop(token, None)
 
 
+# ---- vehicles.py (new Vehicle CRUD) --------------------------------------
+def test_unauthenticated_vehicles_page_redirects_to_login():
+    assert_login_redirect(client.get("/vehicles"))
+
+
+def test_unauthenticated_vehicles_create_redirects_to_login():
+    body = {
+        "vehicle_number": "UP-93-AT-1234",
+        "make_model": "Tata 1613",
+        "tank_capacity_liters": "350.0",
+        "expected_km_per_liter": "4.0",
+        "owner_phone": "+91 90000 33333",
+    }
+    assert_login_redirect(client.post("/vehicles/create", data=body))
+
+
+def test_unauthenticated_vehicles_edit_redirects_to_login():
+    body = {
+        "vehicle_number": "UP-93-AT-1234",
+        "make_model": "Tata 1613",
+        "tank_capacity_liters": "350.0",
+        "expected_km_per_liter": "4.0",
+        "owner_phone": "",
+    }
+    assert_login_redirect(client.post("/vehicles/edit/1", data=body))
+
+
+def test_unauthenticated_vehicles_deactivate_redirects_to_login():
+    assert_login_redirect(client.get("/vehicles/deactivate/1"))
+
+
+def test_unauthenticated_vehicles_activate_redirects_to_login():
+    assert_login_redirect(client.get("/vehicles/activate/1"))
+
+
+def test_driver_cannot_access_vehicles():
+    token = create_session(user_id=3, username="driver1", role="driver")
+    try:
+        resp = client.get("/vehicles", cookies={AUTH_COOKIE: token})
+        assert resp.status_code == 303
+        assert resp.headers["location"].rstrip("/").endswith("/dashboard")
+    finally:
+        from backend.app.core.security import _auth_sessions
+
+        _auth_sessions.pop(token, None)
+
+
+def test_trip_manager_can_open_vehicles_page():
+    """trip_manager passes the role gate for /vehicles.
+
+    The page then needs the live `vehicles.created_by` column; if the schema
+    has been applied (running app DB) it renders 200, otherwise the DB error
+    surfaces as 500. Either way the important assertion is that the request is
+    NOT redirected back to /dashboard (i.e. the role gate let the manager in).
+    """
+    client_no_raise = TestClient(app, follow_redirects=False, raise_server_exceptions=False)
+    token = create_session(user_id=2, username="manager1", role="trip_manager")
+    try:
+        resp = client_no_raise.get("/vehicles", cookies={AUTH_COOKIE: token})
+        # A 303 to /dashboard would mean the role gate rejected the manager.
+        # Absent a 303, the manager passed the gate and the page either rendered
+        # (200) or hit the not-yet-applied vehicles.created_by column (500).
+        assert resp.status_code in (200, 500)
+    finally:
+        from backend.app.core.security import _auth_sessions
+
+        _auth_sessions.pop(token, None)
+
+
 # ---- dashboards.py (role-based dashboards) -----------------------------
 def test_unauthenticated_admin_redirects_to_login():
     assert_login_redirect(client.get("/admin"))

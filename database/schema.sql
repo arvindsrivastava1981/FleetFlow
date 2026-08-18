@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
     tank_capacity_liters NUMERIC(8, 2) NOT NULL DEFAULT 350.00,
     expected_km_per_liter NUMERIC(5, 2) NOT NULL DEFAULT 4.00,
     owner_phone VARCHAR(20),
+    created_by BIGINT REFERENCES users(id),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -41,6 +42,7 @@ CREATE TABLE IF NOT EXISTS vehicles (
 
 CREATE INDEX IF NOT EXISTS idx_vehicles_number ON vehicles(vehicle_number);
 CREATE INDEX IF NOT EXISTS idx_vehicles_fleet_id ON vehicles(fleet_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_created_by ON vehicles(created_by);
 
 -- ----------------------------------------------------------------------------
 -- 3. TRIPS TABLE

@@ -195,11 +195,13 @@ def manager_dashboard(request: Request):
     if guard is not None:
         return guard
     user = get_current_user(request) or {}
+    # Scope all calculations to trips this manager created; super_admin sees all.
+    manager_id = user.get("user_id") if user.get("role") == "trip_manager" else None
     with get_db() as conn:
-        kpi = manager_kpis(conn)
-        escalations = open_escalations(conn)
-        progress = active_trip_progress(conn)
-        ready = settlement_ready_trips(conn)
+        kpi = manager_kpis(conn, manager_id=manager_id)
+        escalations = open_escalations(conn, manager_id=manager_id)
+        progress = active_trip_progress(conn, manager_id=manager_id)
+        ready = settlement_ready_trips(conn, manager_id=manager_id)
 
     esc_rows = "".join(f"""
         <div class="flex items-start gap-3 border-b border-slate-100 py-3 last:border-0">

@@ -35,6 +35,30 @@ def get_latest_active_trip(conn) -> dict | None:
     return cur.fetchone()
 
 
+def get_latest_active_trip_for_user(conn, user_id: int | None, role: str) -> dict | None:
+    """Latest ACTIVE trip visible to *user_id* based on their *role*.
+
+    Mirrors `get_trips_for_user` scoping so a trip_manager only resolves their
+    own active trip and a driver only their assigned one.
+    """
+    cur = conn.cursor()
+    if role == "trip_manager":
+        cur.execute(
+            "SELECT * FROM trips WHERE created_by = %s AND status = 'ACTIVE' "
+            "ORDER BY id DESC LIMIT 1",
+            (user_id,),
+        )
+    elif role == "driver":
+        cur.execute(
+            "SELECT * FROM trips WHERE driver_user_id = %s AND status = 'ACTIVE' "
+            "ORDER BY id DESC LIMIT 1",
+            (user_id,),
+        )
+    else:  # super_admin
+        cur.execute("SELECT * FROM trips WHERE status = 'ACTIVE' ORDER BY id DESC LIMIT 1")
+    return cur.fetchone()
+
+
 def get_trip_stats_by_code(conn) -> dict[str, dict]:
     """Per-trip expense aggregates keyed by trip_code, for the trips/ listings."""
     cur = conn.cursor()
@@ -67,19 +91,21 @@ def insert_trip(
     start_odo: float,
     created_by: int | None = None,
     driver_user_id: int | None = None,
+    vehicle_id: int | None = None,
 ) -> None:
     """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first.
     *created_by* is the trip_manager who started the trip; *driver_user_id*
     links the trip to a driver user so drivers can see their own trips.
+    *vehicle_id* links the trip to the vehicle selected from the dropdown.
     """
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO trips
-               (trip_code, vehicle_no, driver_name, driver_phone,
+               (trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
                 advance_amount, start_odo, current_odo, status,
                 created_by, driver_user_id)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
-        (trip_code, vehicle_no, driver_name, driver_phone,
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
+        (trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
          advance_amount, start_odo, start_odo,
          created_by, driver_user_id),
     )
