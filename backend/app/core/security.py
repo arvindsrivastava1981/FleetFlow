@@ -21,7 +21,7 @@ import threading
 import time
 
 from fastapi import Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.core.config import settings
 
@@ -91,12 +91,7 @@ def is_valid_token(token: str | None) -> bool:
 
 
 def is_authorized_user(request: Request) -> bool:
-    return is_valid_token(request.cookies.get(AUTH_COOKIE))
-
-
-def get_current_user(request: Request) -> dict | None:
-    """Return the bound user dict {user_id, username, role} or None."""
-    return _get_session_data(request.cookies.get(AUTH_COOKIE))
+    return get_current_user(request) is not None
 
 
 def require_auth(request: Request, login_url: str = "/login") -> RedirectResponse | None:
@@ -172,8 +167,78 @@ def validate_csrf_token(token: str | None) -> bool:
 
 
 # ---------------------------------------------------------------------------#
-# Output encoding (fixes stored-XSS, §2.3)
+# Mixed auth resolution (cookie OR Authorization Bearer) for /api/v1 JSON routes
 # ---------------------------------------------------------------------------#
+BEARER_PREFIX: str = "Bearer "
+
+
+def _bearer_token_from_request(request: Request) -> str | None:
+    """Extract the session token from an `Authorization: Bearer <token>` header."""
+    authz = request.headers.get("authorization") or ""
+    if authz.casefold().startswith(BEARER_PREFIX.casefold()):
+        return authz[len(BEARER_PREFIX):].strip()
+    return None
+
+
+def get_current_user(request: Request) -> dict | None:
+    """Return the bound user dict {user_id, username, role} or None.
+
+    Accepts auth from either the session cookie (browser) or a Bearer header
+    (React SPA, mobile). This keeps the single in-memory session store shared
+    by both transport paths.
+    """
+    token = request.cookies.get(AUTH_COOKIE) or _bearer_token_from_request(request)
+    return _get_session_data(token)
+
+
+def is_authorized_user(request: Request) -> bool:
+    return get_current_user(request) is not None
+
+
+def require_auth(request: Request, login_url: str = "/login") -> RedirectResponse | None:
+    """Return a 303 redirect if unauthenticated, else None.
+
+    HTML pages keep redirecting to the login page; JSON callers should use
+    `require_json_auth` instead so fetch()/axios get a real 401 status code.
+    Router usage:
+        guard = require_auth(request)
+        if guard:
+            return guard
+    """
+    if not is_authorized_user(request):
+        return RedirectResponse(url=login_url, status_code=303)
+    return None
+
+
+def require_json_auth(request: Request) -> JSONResponse | None:
+    """Return a 401 JSON response if unauthenticated, else None.
+
+    For /api/v1/* endpoints consumed by React / mobile. We never return the
+    browser-style 303 redirect here — a client-side fetch() cannot follow one
+    cleanly and would misreport the response.
+    """
+    if not is_authorized_user(request):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "unauthorized", "code": "UNAUTHORIZED"},
+        )
+    return None
+
+
+def require_json_role(request: Request, *roles: str) -> JSONResponse | None:
+    """Return 401/403 JSON if unknown or role not in *roles* (for /api/v1)."""
+    user = get_current_user(request)
+    if user is None:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "unauthorized", "code": "UNAUTHORIZED"},
+        )
+    if user["role"] not in roles:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "forbidden", "code": "FORBIDDEN"},
+        )
+    return None
 def esc(value) -> str:
     """html.escape a dynamic/DB value for safe interpolation into HTML."""
     if value is None:

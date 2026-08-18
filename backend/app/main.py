@@ -9,9 +9,14 @@ migrated into `backend/app/api/*` routers wired below. The prototype file and
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.app.api import (
+    api_v1,
     auth,
     benchmarks,
     billing,
@@ -36,6 +41,7 @@ app = FastAPI(
 )
 
 # ---- Routers (auth/mutations first, then read-only UI pages) ----------------
+app.include_router(api_v1.router)
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(drivers.router)
@@ -56,3 +62,30 @@ app.include_router(views.router)
 def healthz() -> dict:
     """Liveness + DB reachability probe for Render/Docker health checks."""
     return {"status": "ok", **healthcheck()}
+
+
+# ---- Static SPA mount (Phase 1) ---------------------------------------------
+# Serve the compiled Vite/React frontend from `frontend/dist/` at "/" when it
+# exists. Client-side routes (e.g. /trips/TRIP-101, /dashboard) fall back to
+# index.html so React Router can resolve them without 404s.
+#
+# Note: define this AFTER all API/HTML routers so those explicit paths always win
+# over the catch-all SPA fallback. Legacy HTML pages (server-rendered f-strings)
+# remain fully intact and reachable.
+_FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_STATIC_INDEX = _FRONTEND_DIST / "index.html"
+
+if _FRONTEND_DIST.is_dir() and _STATIC_INDEX.is_file():
+    # Serve hashed assets (files that genuinely exist) directly.
+    app.mount(
+        "/assets",
+        StaticFiles(directory=str(_FRONTEND_DIST / "assets")),
+        name="spa-assets",
+    )
+
+    @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False, response_model=None)
+    def spa_fallback(request: Request, path: str):
+        """Serve real static files, else fall back to the SPA index.html."""
+        if path and (_FRONTEND_DIST / path).is_file():
+            return FileResponse(_FRONTEND_DIST / path)
+        return HTMLResponse(_STATIC_INDEX.read_text(encoding="utf-8"), status_code=200)

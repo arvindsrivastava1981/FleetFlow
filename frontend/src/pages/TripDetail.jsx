@@ -1,0 +1,174 @@
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { api } from "../lib/api.js";
+
+const EXPENSE_TYPES = [
+  "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
+];
+
+export default function TripDetailPage() {
+  const { tripCode } = useParams();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const [expType, setExpType] = useState("FUEL");
+  const [amount, setAmount] = useState("");
+  const [liters, setLiters] = useState("");
+  const [rate, setRate] = useState("");
+  const [odometer, setOdometer] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  function load() {
+    setError("");
+    api
+      .get(`/api/v1/trips/${tripCode}`)
+      .then(setData)
+      .catch((e) => setError(e.message));
+  }
+
+  useEffect(load, [tripCode]);
+
+  async function addExpense(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.post("/api/v1/expenses", {
+        trip_code: tripCode,
+        exp_type: expType,
+        amount: Number(amount),
+        liters: Number(liters || 0),
+        rate: Number(rate || 0),
+        odometer: Number(odometer || 0),
+      });
+      setAmount("");
+      setLiters("");
+      setRate("");
+      setOdometer("");
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const trip = data?.trip;
+  const expenses = data?.expenses || [];
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-extrabold text-slate-900">
+        Trip {tripCode}
+        {trip && (
+          <span className="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 align-middle">
+            {trip.status}
+          </span>
+        )}
+      </h2>
+      {error && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
+          {error}
+        </div>
+      )}
+
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-sm font-extrabold text-slate-800 mb-3">Log Expense</h3>
+        <form onSubmit={addExpense} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <select
+            value={expType}
+            onChange={(e) => setExpType(e.target.value)}
+            className="border rounded-lg p-2 bg-slate-50 text-sm"
+            required
+          >
+            {EXPENSE_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            step="any"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="Amount ₹"
+            required
+            className="border rounded-lg p-2 bg-slate-50 text-sm"
+          />
+          <input
+            type="number"
+            step="0.1"
+            value={liters}
+            onChange={(e) => setLiters(e.target.value)}
+            placeholder="Liters"
+            className="border rounded-lg p-2 bg-slate-50 text-sm"
+          />
+          <input
+            type="number"
+            step="0.1"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            placeholder="Rate ₹/L"
+            className="border rounded-lg p-2 bg-slate-50 text-sm"
+          />
+          <input
+            type="number"
+            step="any"
+            value={odometer}
+            onChange={(e) => setOdometer(e.target.value)}
+            placeholder="Odometer (KM)"
+            className="border rounded-lg p-2 bg-slate-50 text-sm col-span-2"
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="col-span-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-xl transition shadow disabled:opacity-50"
+          >
+            {busy ? "Saving…" : "Log Expense"}
+          </button>
+        </form>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Type</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Amount</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Odometer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {expenses.map((e) => (
+              <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
+                <td className="p-3 text-xs font-bold text-slate-800">{e.exp_type}</td>
+                <td className="p-3 text-xs text-slate-600">₹{e.amount}</td>
+                <td className="p-3 text-xs">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      e.manager_status === "APPROVED"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : e.manager_status === "REJECTED"
+                        ? "bg-rose-100 text-rose-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {e.manager_status}
+                  </span>
+                </td>
+                <td className="p-3 text-xs text-slate-500">{e.odometer}</td>
+              </tr>
+            ))}
+            {!expenses.length && (
+              <tr>
+                <td colSpan="4" className="p-6 text-center text-xs text-slate-400">
+                  No expenses logged yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

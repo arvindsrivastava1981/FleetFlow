@@ -7,7 +7,7 @@ and 72h session TTL are preserved from the security layer.
 from __future__ import annotations
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from backend.app.core.config import settings
 from backend.app.core.security import (
@@ -18,6 +18,7 @@ from backend.app.core.security import (
     get_current_user,
     login_allowed,
     register_login_failure,
+    require_json_auth,
 )
 from backend.app.db.connection import get_db
 from backend.app.db.queries.users import get_user_by_username
@@ -125,3 +126,86 @@ def logout(request: Request):
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(AUTH_COOKIE)
     return response
+
+
+# ---------------------------------------------------------------------------#
+# JSON API (Phase 0) — transport-agnostic auth for React / mobile
+# ---------------------------------------------------------------------------#
+@router.post("/api/v1/auth/login")
+def api_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+):
+    """Login that returns a Bearer token (and optional set-cookie) as JSON.
+
+    Enables the stateless-token path on api.vahankhata.in for the React SPA and
+    mobile, independent of SameSite cookie restrictions. We keep the per-IP
+    brute-force lockout identical to the HTML login.
+
+    Returns:
+        200 {"token", "user": {id, username, role}, "landing"}
+        401 {"error", "code": "invalid_credentials"}
+        423 {"error", "code": "locked"}   -- temporarily locked out
+    """
+    ip = _client_ip(request)
+    allowed, lock_remaining = login_allowed(ip)
+    if not allowed:
+        return JSONResponse(
+            status_code=423,
+            content={"error": "locked", "code": "LOCKED", "retry_after_seconds": lock_remaining},
+        )
+
+    with get_db() as conn:
+        user = get_user_by_username(conn, username.strip())
+
+    if user is None or not verify_password(password, user["password_hash"]):
+        remaining = register_login_failure(ip)
+        return JSONResponse(
+            status_code=401,
+            content={"error": "invalid_credentials", "code": "INVALID_CREDENTIALS", "attempts_remaining": remaining},
+        )
+
+    if not user["is_active"]:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "inactive", "code": "INACTIVE_ACCOUNT"},
+        )
+
+    clear_login_failures(ip)
+    token = create_session(user["id"], user["username"], user["role"])
+    landing = {
+        "super_admin": "/admin",
+        "trip_manager": "/manager",
+        "driver": "/driver",
+    }.get(user["role"], "/dashboard")
+
+    response = JSONResponse(
+        status_code=200,
+        content={
+            "token": token,
+            "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
+            "landing": landing,
+        },
+    )
+    # Set the cookie as a convenience fallback for browser same-origin requests.
+    response.set_cookie(
+        key=AUTH_COOKIE,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=settings.session_ttl_hours * 3600,
+    )
+    return response
+
+
+@router.get("/api/v1/auth/me")
+def api_me(request: Request):
+    """Return the current session user (cookie or Bearer) as JSON, or 401."""
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    user = get_current_user(request)
+    return {
+        "user": {"id": user["user_id"], "username": user["username"], "role": user["role"]},
+    }

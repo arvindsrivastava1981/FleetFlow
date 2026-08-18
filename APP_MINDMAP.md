@@ -5,12 +5,26 @@
 ## Stack
 - Backend: Python 3.12, FastAPI, uvicorn, reportlab (PDF), psycopg2-binary, python-dotenv.
 - Database: Managed PostgreSQL (Neon DB). No ORM, no Alembic. Schema lives only in `/database/schema.sql` (+ `/database/incremental.sql`). The app never runs DDL.
-- Frontend: Server-rendered HTML strings (f-strings) styled with Tailwind CDN (`grid grid-cols-1 lg:grid-cols-12 gap-4`). No separate JS build.
+- Frontend (legacy): Server-rendered HTML strings (f-strings) styled with Tailwind CDN. No separate JS build. **Still works unchanged.**
+- **Frontend (new, Phase 1):** `frontend/` — **Vite + React 18 SPA** (React Router v6, Tailwind v3 pre-built via PostCSS). Builds to `frontend/dist/`. Consumes only `/api/v1/*` JSON endpoints.
+  - Build: `cd frontend && npm install && npm run build` → outputs `dist/`.
+  - Dev: `npm run dev` (proxies `/api` → `http://localhost:10000`).
+  - **Deploy:** `backend/app/main.py` mounts `frontend/dist/` at `/` (see Entry Point below) — single-origin, no separate CDN, no CORS. The SPA uses **relative** `/api/v1/*` paths.
+  - Routing note: it is a **pure client-side SPA** (Vite) — dynamic routes like `/trips/:tripCode` resolve client-side via React Router, NOT server-side. The FastAPI catch-all returns `index.html` for any non-API path.
+  - **Pages:** `/login`, `/dashboard`, `/trips`, `/trips/:tripCode`, `/expenses` (all roles), plus **Super Admin** `/fleets`, `/users`, `/vehicles`, `/benchmarks` (role-guarded via `<ProtectedRoute>`). CRUD pages call the `/api/v1/*` create/update/toggle endpoints directly.
+- **Phase 0 JSON API (new):** `/api/v1/*` transport-agnostic endpoints in `backend/app/api/api_v1.py` (auth, dashboard, trips, expenses, settle, PDF, vehicles, users, fleets, benchmarks). Reuses `db/queries/*` — no business-logic duplication. Serves the React SPA + hybrid/mobile app; the legacy HTML pages still work unchanged.
+
+## Route Guards — two auth paths (do not confuse them)
+- **HTML pages** (`/login`, `/trips`, `/admin`, `/manager`, `/driver`, `/`, …): use `security.require_auth` / `require_role` → they return **303 → /login** (browser redirect; correct for page navigation).
+- **`/api/v1/*` JSON endpoints**: use `security.require_json_auth` / `require_json_role` → they return **401/403 with a JSON body** (`{"error", "code"}`). Never a 303 — client fetch()/axios cannot consume redirects.
+- **Auth sources:** a request is authenticated by the `ff_auth_session` cookie **OR** an `Authorization: Bearer <token>` header (both resolve through the same in-memory session store). `get_current_user()` checks both. This is how web + mobile share one backend.
+- **CSRF:** single-use `validate_csrf_token()` is only consumed on HTML form POSTs. `/api/v1/*` JSON mutations do **NOT** consume a single-use token (React parallel requests would race); they rely on Bearer-in-header + JSON content-type. Do not add CSRF consumption to api_v1 endpoints.
 
 ## Entry Point
 - **[backend/app/main.py](/backend/app/main.py)** — the modular FastAPI factory; the **only entry point** (migration complete).
   - Run: `uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}` (see `Dockerfile` / `render.yaml`, which point here).
   - Wires every router in `backend/app/api/{auth,trips,expenses,demo,dashboard,benchmarks,rule_engine,settlement,views}.py` (see Routes below) + exposes `/healthz` (DB liveness probe).
+  - **Static SPA mount (Phase 1):** after all routers, if `frontend/dist/` exists, `main.py` mounts `/assets` statically and registers a **catch-all `GET /{path:path}`** that serves real files from `dist/` or falls back to `index.html` (SPA routing). It only activates when `frontend/dist/index.html` is present — otherwise the server is pure-API/HTML. Explicit API/HTML routes always win because they register before the catch-all.
   - Config/security live in `backend/app/core/{config,security}.py` (env-driven, fail-fast; prod refuses).
   - **Auth hardening (all routers):** every mutation and page guards via `security.require_auth` → 303 to `/login` when unauthenticated; sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); state-changing requests use single-use CSRF tokens; all DB-sourced values are escaped via `security.esc()` (stored-XSS fix). Sessions/attempts are process-local in-memory (single-worker); swap `__sessions`/`_login_attempts`/`_csrf_tokens` for a shared store in multi-worker deploys.
 - **Legacy `fleetflow_interactive_demo.py` + `utils.py` have been deleted** — every route and helper they contained (rules engine, HTML chrome, DB access,  auth) now lives in the `backend/app/` package (see Routes below and `PROJECT_STRUCTURE.md` §4). Do not reintroduce either file.
@@ -61,6 +75,20 @@
 - `GET /settled-pdfs` — `api/settlement.py`: lists settled trips with links to their settlement PDFs (scoped to the caller's own trips).
 - `GET /generate-settlement-pdf?trip_code=` — `api/settlement.py`: builds a reportlab PDF settlement/reconciliation sheet via `services/pdf/settlement.py`.
 - `GET /users` + `GET /users/create`, `POST /users/create`, `GET /users/edit/{id}`, `POST /users/edit/{id}`, `GET /users/deactivate/{id}`, `GET /users/activate/{id}` — `api/users.py`: **User CRUD** (Super Admin only) for Trip Managers and Drivers. `GET /users/change-password` — Super Admin (and any role) shows the logged-in user's password change form (no DB); `POST /users/change-password` handles its submission.
+- `GET /api/v1/auth/login` (*POST*) — `api/api_v1.py` + `api/auth.py`: JSON login returning `{"token", "user", "landing"}` + optional `ff_auth_session` cookie. 401 invalid creds, 423 locked, 403 inactive. **Transport-agnostic (Bearer or cookie) — for React SPA + mobile.**
+- `GET /api/v1/auth/me` — `api/auth.py`: returns current session user JSON, or **401 JSON** (never 303). Cookie or Bearer.
+- `GET /api/v1/dashboard/overview` — `api/api_v1.py`: role-aware dashboard payload (admin_kpis / manager_kpis+active_trips+escalations / driver trip+balances). 401 JSON when unauthenticated.
+- `GET /api/v1/trips`, `GET /api/v1/trips/{trip_code}` — `api/api_v1.py`: role-scoped trip list (+ per-trip stats) and a trip detail with its expenses. Ownership-guarded (403 for cross-scope). 401 JSON when unauthenticated.
+- `POST /api/v1/trips` — `api/api_v1.py`: create/start a trip (trip_manager/super_admin). Validates plate regex, +91 phone, non-negative advance/odo; resolves tenant fleet; blocks if an active trip exists (409). 201 on success.
+- `POST /api/v1/trips/{trip_code}/settle` — `api/api_v1.py`: settle a trip (manager/super_admin). 409 if pending expenses remain; 403 for cross-scope managers.
+- `GET /api/v1/settlements` — `api/api_v1.py`: role-scoped list of SETTLED trips for the PDF listing.
+- `GET /api/v1/settlements/{trip_code}/pdf` — `api/api_v1.py`: streams the settlement PDF (`application/pdf`, inline) via `services/pdf/settlement.py`. Ownership-guarded 403.
+- `POST /api/v1/expenses` — `api/api_v1.py`: JSON expense log (runs `evaluate_expense`, sets manager_status, upserts odometer). **No single-use CSRF** (React parallel-safe). 201 on success, 400 invalid type, 404 trip not active.
+- `POST /api/v1/expenses/{id}/action` — `api/api_v1.py`: JSON approve/reject.
+- `GET/POST /api/v1/vehicles`, `PUT /api/v1/vehicles/{vid}`, `POST /api/v1/vehicles/{vid}/toggle` — `api/api_v1.py`: Vehicle CRUD (trip_manager/super_admin). Create enforces the fleet subscription vehicle limit (402) + plate regex + duplicate check; 403/404 for cross-scope.
+- `GET/POST /api/v1/users`, `PUT /api/v1/users/{uid}`, `POST /api/v1/users/{uid}/toggle` — `api/api_v1.py`: User CRUD (Super Admin). Password hashed on create/update; `password_hash` always stripped from responses; 403/404 guards.
+- `GET/POST /api/v1/benchmarks`, `PUT/DELETE /api/v1/benchmarks/{bid}` — `api/api_v1.py`: Fuel-benchmark CRUD (writes Super-Admin only; reads any authenticated user).
+- `GET/POST /api/v1/fleets`, `GET /api/v1/fleets/plans`, `PUT /api/v1/fleets/{fid}`, `POST /api/v1/fleets/{fid}/toggle` — `api/api_v1.py`: Fleet CRUD + activate/deactivate (Super Admin). 409 on duplicate phone.
 
 ## UI Layout — 3-Column Dual-WhatsApp Architecture (`GET /`)
 `grid grid-cols-1 lg:grid-cols-12 gap-4`, 3 equal `lg:col-span-4` columns:
