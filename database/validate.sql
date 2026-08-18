@@ -1,10 +1,10 @@
 -- =============================================================================
--- VahanKhata Validation: Financial Netting for TRIP-TEST-101
+-- VahanKhata Validation: Financial Netting for Trip 4191-1
 -- -----------------------------------------------------------------------------
 -- Run after `seed_test_trip.sql`. Recomputes the settlement from the seeded
 -- rows and FAILS (RAISE EXCEPTION) on any mismatch with the expected figures.
 --
--- Reference settlement for TRIP-TEST-101:
+-- Reference settlement for trip 4191-1:
 --   Total Cr  = Advance ₹30,000.00 + Goods Sale ₹14,000.00 = ₹44,000.00
 --   Total Dr  = Fuel ₹20,240 + DEF ₹1,200 + Toll ₹1,800 + Repair ₹600
 --             + Challan ₹1,000 + Misc ₹500 + Goods Buy ₹8,000
@@ -48,21 +48,21 @@ DECLARE
     c_precision      CONSTANT NUMERIC := 0.01;
 BEGIN
     -- ------------------------------------------------------------------
-    -- Pull reality from the seeded rows for TRIP-TEST-101
+    -- Pull reality from the seeded rows for trip 4191-1
     -- ------------------------------------------------------------------
     SELECT advance_amount, driver_batta_amount, start_odo, current_odo
       INTO v_advance, v_batta, v_start_odo, v_current_odo
       FROM trips
-     WHERE trip_code = 'TRIP-TEST-101';
+     WHERE trip_code = '4191-1';
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Validation FAILED: trip TRIP-TEST-101 not found. Run seed_test_trip.sql first.';
+        RAISE EXCEPTION 'Validation FAILED: trip 4191-1 not found. Run seed_test_trip.sql first.';
     END IF;
 
     -- Approved Goods Sale (income, credit side)
     SELECT COALESCE(SUM(approved_amount), 0.00) INTO v_goods_sale
       FROM expenses
-     WHERE trip_code = 'TRIP-TEST-101'
+     WHERE trip_code = '4191-1'
        AND exp_type = 'GOODS_SALE'
        AND manager_status = 'APPROVED'
        AND approved_amount IS NOT NULL;
@@ -71,7 +71,7 @@ BEGIN
     -- flagged/unapproved anomaly (approved_amount NULL => excluded too).
     SELECT COALESCE(SUM(approved_amount), 0.00) INTO v_expense_debit
       FROM expenses
-     WHERE trip_code = 'TRIP-TEST-101'
+     WHERE trip_code = '4191-1'
        AND exp_type <> 'GOODS_SALE'
        AND manager_status = 'APPROVED'
        AND approved_amount IS NOT NULL;
@@ -79,11 +79,10 @@ BEGIN
     -- Approved fuel litres for mileage
     SELECT COALESCE(SUM(liters), 0.00) INTO v_fuel_liters
       FROM expenses
-     WHERE trip_code = 'TRIP-TEST-101'
+     WHERE trip_code = '4191-1'
        AND exp_type = 'FUEL'
        AND manager_status = 'APPROVED';
-
-    -- ------------------------------------------------------------------
+-- ------------------------------------------------------------------
     -- Compose the ledger
     -- ------------------------------------------------------------------
     v_total_cr := v_advance + v_goods_sale;
@@ -139,7 +138,7 @@ BEGIN
     -- ------------------------------------------------------------------
     -- All good
     -- ------------------------------------------------------------------
-    RAISE NOTICE 'VALIDATION PASSED for TRIP-TEST-101';
+    RAISE NOTICE 'VALIDATION PASSED for trip 4191-1';
     RAISE NOTICE '  Total Cr (Advance + Goods Sale): %', v_total_cr;
     RAISE NOTICE '  Total Dr (Expenses + Batta):      %', v_total_dr;
     RAISE NOTICE '  Net Balance:                      %  => REFUNDABLE TO FLEET', v_net;
