@@ -132,7 +132,7 @@ def _user_form(user: dict, action: str, editing: dict | None = None) -> str:
     batta_rate = ((editing.get("default_batta_rate") if editing else "") or "2500.00") if sel == "driver" else ""
     batta_opts = "".join(
         f'<option value="{t}"{" selected" if t == batta_type else ""}>{t}</option>'
-        for t in ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
+        for t in ("FIXED_TRIP")
     )
     batta_fields = (
         f"""<div class="grid grid-cols-2 gap-3">

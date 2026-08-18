@@ -7,7 +7,7 @@ and return plain dict rows / booleans. None of them commit — the caller's
 from __future__ import annotations
 
 # Valid driver remuneration modes (aligned with the users.batta_type CHECK).
-BATTA_TYPES: tuple[str, ...] = ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
+BATTA_TYPES: tuple[str, ...] = ("FIXED_TRIP")
 DEFAULT_BATTA_TYPE = "FIXED_TRIP"
 DEFAULT_BATTA_RATE = 2500.00
 

@@ -48,6 +48,7 @@ app = FastAPI(
 # leaked to arbitrary origins.
 CORS_ALLOWED_ORIGINS = [
     "https://vahankhata-app.onrender.com",
+    "https://vahankhata-api.onrender.com",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]

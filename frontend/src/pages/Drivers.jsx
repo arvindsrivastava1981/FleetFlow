@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 
-const BATTA_TYPES = ["FIXED_TRIP", "PER_KM", "DAILY", "NONE"];
+const BATTA_TYPES = ["FIXED_TRIP"];
 const emptyForm = {
   username: "",
   full_name: "",

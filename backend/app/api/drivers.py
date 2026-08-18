@@ -100,7 +100,7 @@ def _driver_form(user: dict, action: str, editing: dict | None = None) -> str:
     batta_rate = (editing.get("default_batta_rate") if editing else "") or "2500.00"
     batta_opts = "".join(
         f'<option value="{t}"{" selected" if t == batta_type else ""}>{t}</option>'
-        for t in ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
+        for t in ("FIXED_TRIP")
     )
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Driver Form</title><script src="https://cdn.tailwindcss.com"></script></head>
@@ -124,7 +124,7 @@ def _driver_form(user: dict, action: str, editing: dict | None = None) -> str:
 <div><label class="text-xs font-bold text-slate-700">Batta Rate (₹ / trip)</label>
 <input type="number" step="0.01" min="0" name="default_batta_rate" value="{batta_rate}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
 </div>
-<p class="text-[10px] text-slate-400">FIXED_TRIP = flat ₹ per trip · PER_KM / DAILY reserved for future calculation · NONE = driver receives no batta.</p>
+<p class="text-[10px] text-slate-400">FIXED_TRIP = flat ₹ per trip only for  now.</p>
 <div><label class="text-xs font-bold text-slate-700">Password (blank = keep current)</label>
 <input type="password" name="password" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
 <div class="flex gap-3"><a href="/drivers" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl">Cancel</a>
