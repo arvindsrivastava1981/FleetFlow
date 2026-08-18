@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -38,6 +39,25 @@ app = FastAPI(
     title="VahanKhata",
     description="Real-Time Fleet Expense Verification & Settlement Engine",
     version="0.1.0",
+)
+
+# ---- CORS -------------------------------------------------------------------
+# Allow browser requests from the hosted frontend (VahanKhata on Render) so the
+# SPA can call these APIs cross-origin. Local dev origins are included for
+# convenience; wildcard is intentionally NOT used so credentials are never
+# leaked to arbitrary origins.
+CORS_ALLOWED_ORIGINS = [
+    "https://vahankhata-app.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---- Routers (auth/mutations first, then read-only UI pages) ----------------
