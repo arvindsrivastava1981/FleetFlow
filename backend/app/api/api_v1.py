@@ -24,7 +24,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
 from backend.app.core.config import settings
-from backend.app.core.password import hash_password
+from backend.app.core.password import hash_password, verify_password
 from backend.app.core.security import get_current_user, require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.dashboards import (
@@ -838,3 +838,68 @@ async def api_toggle_user(request: Request, uid: int):
         else:
             deactivate_user(conn, uid)
     return _ok({"id": uid, "is_active": should_activate})
+
+
+# ---------------------------------------------------------------------------#
+# Change Password (JSON) — logged-in user, any role
+# ---------------------------------------------------------------------------#
+@router.post("/auth/change-password")
+async def api_change_password(request: Request):
+    """Verify the current password and set a new one for the logged-in user.
+
+    Transport-agnostic JSON mirror of the HTML `POST /users/change-password`
+    flow. Bearer-token (or cookie) auth; no single-use CSRF consumed so React
+    form submits behave like any other `/api/v1` mutation.
+    """
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    if not user:
+        return _bad("not authenticated", "UNAUTHENTICATED")
+
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _bad("invalid JSON body")
+    if not isinstance(body, dict):
+        return _bad("body must be a JSON object")
+
+    current_password = str(body.get("current_password", ""))
+    new_password = str(body.get("new_password", ""))
+    confirm_password = str(body.get("confirm_password", ""))
+
+    if not new_password or len(new_password) < 4:
+        return _bad("new password must be at least 4 characters", "WEAK_PASSWORD")
+    if new_password != confirm_password:
+        return _bad("new password and confirm password do not match", "PASSWORD_MISMATCH")
+
+    with get_db() as conn:
+        db_user = get_user_by_id(conn, user.get("user_id"))
+    if not db_user:
+        return _not_found("user not found")
+    if not verify_password(current_password, db_user["password_hash"]):
+        return _bad("current password is incorrect", "WRONG_PASSWORD")
+
+    new_hash = hash_password(new_password)
+    with get_db() as conn:
+        update_user(
+            conn, user["user_id"], db_user["full_name"], db_user["role"],
+            db_user["phone"], db_user["email"], password_hash=new_hash,
+        )
+    return _ok({"id": user["user_id"], "password_changed": True})
+
+
+# ---------------------------------------------------------------------------#
+# Drivers (JSON) — list driver users for Trip Manager / Super Admin
+# ---------------------------------------------------------------------------#
+@router.get("/drivers")
+def api_drivers(request: Request):
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    with get_db() as conn:
+        drivers = get_all_users(conn, role_filter="driver")
+    for d in drivers:
+        d.pop("password_hash", None)
+    return _ok(drivers)

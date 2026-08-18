@@ -8,12 +8,14 @@ const SECTIONS = [
       { to: "/dashboard", label: "My Dashboard", icon: "📊" },
       { to: "/trips", label: "Active Trips", icon: "🚚", roles: ["trip_manager", "super_admin"] },
       { to: "/expenses", label: "Expense Ledger", icon: "🧾" },
+      { to: "/settlements", label: "Settled Trips", icon: "📑" },
     ],
   },
   {
     title: "Fleet & Assets",
     links: [
       { to: "/vehicles", label: "Vehicles", icon: "🚛", roles: ["trip_manager", "super_admin"] },
+      { to: "/drivers", label: "Drivers", icon: "👤", roles: ["trip_manager", "super_admin"] },
     ],
   },
   {
@@ -62,6 +64,19 @@ function Sidebar({ role }) {
         <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
           Account
         </p>
+        <NavLink
+          to="/change-password"
+          className={({ isActive }) =>
+            `flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-semibold transition ${
+              isActive
+                ? "bg-sky-600 text-white"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`
+          }
+        >
+          <span className="w-5 text-center">🔒</span>
+          <span>Change Password</span>
+        </NavLink>
         <button
           onClick={logout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition"

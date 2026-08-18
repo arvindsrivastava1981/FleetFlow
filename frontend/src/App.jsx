@@ -9,6 +9,9 @@ import FleetsPage from "./pages/admin/Fleets.jsx";
 import UsersPage from "./pages/admin/Users.jsx";
 import VehiclesPage from "./pages/admin/Vehicles.jsx";
 import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
+import SettledTripsPage from "./pages/SettledTrips.jsx";
+import ChangePasswordPage from "./pages/ChangePassword.jsx";
+import DriversPage from "./pages/Drivers.jsx";
 import Layout from "./components/Layout.jsx";
 
 function ProtectedRoute({ children, roles }) {
@@ -60,6 +63,36 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <ExpensesPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settlements"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <SettledTripsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/drivers"
+        element={
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
+            <Layout>
+              <DriversPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <ChangePasswordPage />
             </Layout>
           </ProtectedRoute>
         }

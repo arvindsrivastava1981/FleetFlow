@@ -166,3 +166,18 @@ def test_api_toggle_user_requires_super_admin_json():
     resp = client.post("/api/v1/users/1/toggle", json={"activate": False})
     assert resp.status_code == 401
     assert resp.json()["code"] == "UNAUTHORIZED"
+
+
+# ---- JSON change-password + drivers (added for the React SPA sidebar) -------#
+def test_api_change_password_unauth_401():
+    """Change-password JSON mutation is gated; anonymous must get 401 JSON."""
+    resp = client.post("/api/v1/auth/change-password", json={})
+    assert resp.status_code == 401
+    assert resp.json()["code"] == "UNAUTHORIZED"
+
+
+def test_api_drivers_requires_role_json():
+    """Driver list is role-gated; anonymous gets 401 JSON, never 303."""
+    resp = client.get("/api/v1/drivers")
+    assert resp.status_code == 401
+    assert resp.json()["code"] == "UNAUTHORIZED"

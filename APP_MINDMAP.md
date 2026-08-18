@@ -11,7 +11,7 @@
   - Dev: `npm run dev` (proxies `/api` → `http://localhost:10000`).
   - **Deploy:** `backend/app/main.py` mounts `frontend/dist/` at `/` (see Entry Point below) — single-origin, no separate CDN, no CORS. The SPA uses **relative** `/api/v1/*` paths.
   - Routing note: it is a **pure client-side SPA** (Vite) — dynamic routes like `/trips/:tripCode` resolve client-side via React Router, NOT server-side. The FastAPI catch-all returns `index.html` for any non-API path.
-  - **Pages:** `/login`, `/dashboard`, `/trips`, `/trips/:tripCode`, `/expenses` (all roles), plus **Super Admin** `/fleets`, `/users`, `/vehicles`, `/benchmarks` (role-guarded via `<ProtectedRoute>`). CRUD pages call the `/api/v1/*` create/update/toggle endpoints directly.
+  - **Pages:** `/login`, `/dashboard`, `/trips`, `/trips/:tripCode`, `/expenses`, `/settlements` (Settled Trips PDF listing), `/change-password` (all roles), `/drivers` (trip_manager/super_admin), plus **Super Admin** `/fleets`, `/users`, `/vehicles`, `/benchmarks` (role-guarded via `<ProtectedRoute>`). CRUD pages call the `/api/v1/*` create/update/toggle endpoints directly.
 - **Phase 0 JSON API (new):** `/api/v1/*` transport-agnostic endpoints in `backend/app/api/api_v1.py` (auth, dashboard, trips, expenses, settle, PDF, vehicles, users, fleets, benchmarks). Reuses `db/queries/*` — no business-logic duplication. Serves the React SPA + hybrid/mobile app; the legacy HTML pages still work unchanged.
 
 ## Route Guards — two auth paths (do not confuse them)
@@ -89,6 +89,8 @@
 - `POST /api/v1/expenses/{id}/action` — `api/api_v1.py`: JSON approve/reject.
 - `GET/POST /api/v1/vehicles`, `PUT /api/v1/vehicles/{vid}`, `POST /api/v1/vehicles/{vid}/toggle` — `api/api_v1.py`: Vehicle CRUD (trip_manager/super_admin). Create enforces the fleet subscription vehicle limit (402) + plate regex + duplicate check; 403/404 for cross-scope.
 - `GET/POST /api/v1/users`, `PUT /api/v1/users/{uid}`, `POST /api/v1/users/{uid}/toggle` — `api/api_v1.py`: User CRUD (Super Admin). Password hashed on create/update; `password_hash` always stripped from responses; 403/404 guards.
+- `POST /api/v1/auth/change-password` — `api/api_v1.py`: JSON mirror of the HTML change-password flow (any authenticated role, self-service). Verifies current password, enforces min 4 chars + confirm-match, hashes + updates the logged-in user. 401 unauthenticated, 400 `WRONG_PASSWORD`/`WEAK_PASSWORD`/`PASSWORD_MISMATCH`.
+- `GET /api/v1/drivers` — `api/api_v1.py`: role-scoped list of `driver`-role users (trip_manager/super_admin); `password_hash` stripped.
 - `GET/POST /api/v1/benchmarks`, `PUT/DELETE /api/v1/benchmarks/{bid}` — `api/api_v1.py`: Fuel-benchmark CRUD (writes Super-Admin only; reads any authenticated user).
 - `GET/POST /api/v1/fleets`, `GET /api/v1/fleets/plans`, `PUT /api/v1/fleets/{fid}`, `POST /api/v1/fleets/{fid}/toggle` — `api/api_v1.py`: Fleet CRUD + activate/deactivate (Super Admin). 409 on duplicate phone.
 
