@@ -9,6 +9,8 @@ import FleetsPage from "./pages/admin/Fleets.jsx";
 import UsersPage from "./pages/admin/Users.jsx";
 import VehiclesPage from "./pages/admin/Vehicles.jsx";
 import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
+import BillingPage from "./pages/Billing.jsx";
+import RuleEnginePage from "./pages/RuleEngine.jsx";
 import SettledTripsPage from "./pages/SettledTrips.jsx";
 import ChangePasswordPage from "./pages/ChangePassword.jsx";
 import DriversPage from "./pages/Drivers.jsx";
@@ -140,6 +142,26 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <ChangePasswordPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/billing"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <BillingPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/rule-engine"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <RuleEnginePage />
             </Layout>
           </ProtectedRoute>
         }

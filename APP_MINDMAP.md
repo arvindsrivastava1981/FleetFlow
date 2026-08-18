@@ -5,7 +5,7 @@
 ## Stack
 - Backend: Python 3.12, FastAPI, uvicorn, reportlab (PDF), psycopg2-binary, python-dotenv.
 - Database: Managed PostgreSQL (Neon DB). No ORM, no Alembic. Schema lives only in `/database/schema.sql` (+ `/database/incremental.sql`). The app never runs DDL.
-- Frontend (legacy): Server-rendered HTML strings (f-strings) styled with Tailwind CDN. No separate JS build. **Still works unchanged.**
+- Frontend (legacy): The server-rendered HTML f-string pages (Tailwind CDN) were **removed from the served app** (`main.py` no longer mounts them). All UI now lives in the React SPA; the backend is a **pure JSON API + React bundle server**. See `MIGRATION_JSON.md`.
 - **Frontend (new, Phase 1):** `frontend/` — **Vite + React 18 SPA** (React Router v6, Tailwind v3 pre-built via PostCSS). Builds to `frontend/dist/`. Consumes only `/api/v1/*` JSON endpoints.
   - Build: `cd frontend && npm install && npm run build` → outputs `dist/`.
   - Dev: `npm run dev` (proxies `/api` → `http://localhost:10000`).
@@ -23,10 +23,10 @@
 ## Entry Point
 - **[backend/app/main.py](/backend/app/main.py)** — the modular FastAPI factory; the **only entry point** (migration complete).
   - Run: `uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}` (see `Dockerfile` / `render.yaml`, which point here).
-  - Wires every router in `backend/app/api/{auth,trips,expenses,demo,dashboard,benchmarks,rule_engine,settlement,views}.py` (see Routes below) + exposes `/healthz` (DB liveness probe).
+  - Wires the **`/api/v1` JSON API** (`backend/app/api/api_v1.py`) + the Razorpay webhook callback (`backend/app/api/webhook.py`) + exposes `/healthz` (DB liveness probe). The legacy server-rendered HTML routers (`auth`, `users`, `drivers`, `vehicles`, `fleets`, `billing`, `trips`, `expenses`, `dashboard`, `dashboards`, `benchmarks`, `rule_engine`, `settlement`, `views`) are **no longer registered** — all UI lives in the React SPA. See `MIGRATION_JSON.md`.
   - **Static SPA mount (Phase 1):** after all routers, if `frontend/dist/` exists, `main.py` mounts `/assets` statically and registers a **catch-all `GET /{path:path}`** that serves real files from `dist/` or falls back to `index.html` (SPA routing). It only activates when `frontend/dist/index.html` is present — otherwise the server is pure-API/HTML. Explicit API/HTML routes always win because they register before the catch-all.
   - Config/security live in `backend/app/core/{config,security}.py` (env-driven, fail-fast; prod refuses).
-  - **Auth hardening (all routers):** every mutation and page guards via `security.require_auth` → 303 to `/login` when unauthenticated; sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); state-changing requests use single-use CSRF tokens; all DB-sourced values are escaped via `security.esc()` (stored-XSS fix). Sessions/attempts are process-local in-memory (single-worker); swap `__sessions`/`_login_attempts`/`_csrf_tokens` for a shared store in multi-worker deploys.
+  - **Auth (JSON API):** every `/api/v1` endpoint guards via `security.require_json_auth` / `require_json_role` → **401/403 JSON**, never a browser 303. Sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); `POST /api/v1/auth/login` sets `ff_auth_session` cookie and returns a Bearer token (SPA auth). Sessions/attempts are process-local in-memory (single-worker); swap for a shared store in multi-worker deploys.
 - **Legacy `fleetflow_interactive_demo.py` + `utils.py` have been deleted** — every route and helper they contained (rules engine, HTML chrome, DB access,  auth) now lives in the `backend/app/` package (see Routes below and `PROJECT_STRUCTURE.md` §4). Do not reintroduce either file.
 - [/start.ps1](/start.ps1) — Windows/PowerShell launcher (validate-then-run, non-mutating until start). Validates Python 3.12+, deps, `.env` (`DATABASE_URL`/`_PASSWORD`), `database/schema.sql`, and the modular entry point against `Installation.md` §§1-6; if all required checks pass, starts the deploy target `uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}` (Installation.md §5). Pass `-CheckOnly` to run validation without launching the server; optional items (`.venv`, `incremental.sql`, legacy-file absence) are reported but do not fail. Pure status snapshot: see `/stat.ps` (`powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\stat.ps"`).
 - Legacy SQLite prototypes (`init_db.py`, `fleetflow_backend_core.py`) have been removed; do not reintroduce SQLite.
@@ -95,6 +95,10 @@
 - `GET/POST /api/v1/benchmarks`, `PUT/DELETE /api/v1/benchmarks/{bid}` — `api/api_v1.py`: Fuel-benchmark CRUD (writes Super-Admin only; reads any authenticated user).
 - `GET/POST /api/v1/fleets`, `GET /api/v1/fleets/plans`, `PUT /api/v1/fleets/{fid}`, `POST /api/v1/fleets/{fid}/toggle` — `api/api_v1.py`: Fleet CRUD + activate/deactivate (Super Admin). 409 on duplicate phone.
 
+- `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout` — `api/api_v1.py`: JSON auth (login returns `{token,user,landing}`; me/logout return JSON). `POST /api/v1/auth/login` accepts a browser-JSON or form-encoded body.
+- `GET /api/v1/billing/overview`, `POST /api/v1/billing/subscribe`, `POST /api/v1/billing/vehicle-slot` — `api/api_v1.py`: plan/entitlement view + Razorpay payment-link creation (returns `{redirect_url}`). Powers the **Billing** SPA page. (The SPA redirects the browser to the returned Razorpay URL.)
+- `GET /api/v1/rules` — `api/api_v1.py`: read-only anomaly-rule explainer data (from `settings` constants). Powers the **Rule Engine** SPA page.
+- `POST /billing/webhook` — `api/webhook.py`: Razorpay server→server callback (HMAC-SHA256 verified, `payment_link.paid` → activate plan / bump vehicle limit; idempotent via `webhook_logs`). This is intentionally **not** JSON (Razorpay verifies the raw body).
 ## UI Layout — 3-Column Dual-WhatsApp Architecture (`GET /`)
 `grid grid-cols-1 lg:grid-cols-12 gap-4`, 3 equal `lg:col-span-4` columns:
 1. **Driver WhatsApp** — chat-style simulator where the driver "sends" expense receipts (form posts to `/simulate-whatsapp`).

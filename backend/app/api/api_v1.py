@@ -25,6 +25,14 @@ from fastapi.responses import JSONResponse, Response
 
 from backend.app.core.config import settings
 from backend.app.core.password import hash_password, verify_password
+from backend.app.core.security import (
+    AUTH_COOKIE,
+    clear_login_failures,
+    create_session,
+    destroy_session,
+    login_allowed,
+    register_login_failure,
+)
 from backend.app.core.security import get_current_user, require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.dashboards import (
@@ -74,6 +82,10 @@ from backend.app.db.queries.users import (
     reactivate_user,
     update_user,
 )
+from backend.app.db.queries.billing import (
+    mark_webhook_processed,
+    webhook_already_processed,
+)
 from backend.app.db.queries.vehicles import (
     deactivate_vehicle,
     get_all_vehicles,
@@ -99,11 +111,49 @@ from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
 
 router = APIRouter(prefix="/api/v1")
 
+from backend.app.schemas.api_v1 import (  # noqa: E402  (response models)
+    AuthMe,
+    BillingOverview,
+    BillingSubscribeResult,
+    BillingVehicleSlotResult,
+    ChangePasswordResult,
+    CreateTripResult,
+    DashboardOverview,
+    Data,
+    DriverSalary,
+    EscalationRow,
+    ExpenseAccepted,
+    ExpenseActionResult,
+    FleetBilling,
+    LoginResult,
+    LogoutResult,
+    Plan,
+    ResourceAck,
+    RulesData,
+    SettleTripResult,
+    ToggleAck,
+    TripDetailData,
+    TripListItem,
+)
+
 JSON_EXPENSE_TYPES: tuple[str, ...] = (
     "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
 )
 
 PLATE_RE = re.compile(settings.plate_regex)
+from backend.app.db.queries.users import get_user_by_username
+from backend.app.db.queries.fleets import (
+    bump_vehicle_limit,
+    set_plan_subscription,
+    set_yearly_subscription,
+    start_trial_subscription,
+)
+from backend.app.services.billing.razorpay import (
+    MONTHLY_PRICE,
+    YEARLY_PRICE,
+    VEHICLE_SLOT_PRICE,
+    create_payment_link,
+)
 
 
 # ---------------------------------------------------------------------------#
@@ -113,6 +163,7 @@ def _jsonable(value: Any) -> Any:
     """Recursively coerce psycopg2 rows into JSON-safe primitives."""
     if isinstance(value, _dt.datetime):
         return value.isoformat(sep=" ", timespec="minutes")
+
     if isinstance(value, _dt.date):
         return value.isoformat()
     if isinstance(value, dict):
@@ -122,12 +173,18 @@ def _jsonable(value: Any) -> Any:
     return value
 
 
-def _ok(payload: Any) -> JSONResponse:
-    return JSONResponse(status_code=200, content={"data": _jsonable(payload)})
+def _ok(payload: Any) -> dict:
+    """Return a `{ "data": <payload> }` envelope for a success response.
+
+    Returns a plain dict (not a JSONResponse) so FastAPI's `response_model` is
+    applied — every endpoint is decorated with a typed Pydantic response model.
+    """
+    return {"data": _jsonable(payload)}
 
 
-def _created(payload: Any) -> JSONResponse:
-    return JSONResponse(status_code=201, content={"data": _jsonable(payload)})
+def _created(payload: Any) -> dict:
+    """Return a `{ "data": <payload> }` envelope for a 201 Created response."""
+    return {"data": _jsonable(payload)}
 
 
 def _bad(msg: str, code: str = "BAD_REQUEST") -> JSONResponse:
@@ -143,7 +200,7 @@ def _identity(request: Request) -> dict:
 # ---------------------------------------------------------------------------#
 # Dashboard overview — one endpoint, role-aware
 # ---------------------------------------------------------------------------#
-@router.get("/dashboard/overview")
+@router.get("/dashboard/overview", response_model=Data[DashboardOverview])
 def api_dashboard_overview(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
@@ -184,7 +241,7 @@ def api_dashboard_overview(request: Request):
 # ---------------------------------------------------------------------------#
 # Trips
 # ---------------------------------------------------------------------------#
-@router.get("/trips")
+@router.get("/trips", response_model=Data[list[TripListItem]])
 def api_trips(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
@@ -201,7 +258,7 @@ def api_trips(request: Request):
     return _ok(trips)
 
 
-@router.get("/trips/{trip_code}")
+@router.get("/trips/{trip_code}", response_model=Data[TripDetailData])
 def api_trip_detail(request: Request, trip_code: str):
     guard = require_json_auth(request)
     if guard is not None:
@@ -240,7 +297,7 @@ def api_trip_detail(request: Request, trip_code: str):
 # ---------------------------------------------------------------------------#
 # WhatsApp escalation feed (JSON) — manager & super_admin quick-reply actions
 # ---------------------------------------------------------------------------#
-@router.get("/whatsapp/escalations")
+@router.get("/whatsapp/escalations", response_model=Data[list[EscalationRow]])
 def api_whatsapp_escalations(request: Request):
     """Flagged / pending expenses as a chat-thread feed for manager quick-reply.
 
@@ -261,7 +318,7 @@ def api_whatsapp_escalations(request: Request):
 # ---------------------------------------------------------------------------#
 # Expenses — mutations (JSON body, no single-use CSRF)
 # ---------------------------------------------------------------------------#
-@router.post("/expenses")
+@router.post("/expenses", response_model=Data[ExpenseAccepted])
 async def api_create_expense(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
@@ -320,7 +377,7 @@ async def api_create_expense(request: Request):
     )
 
 
-@router.post("/expenses/{expense_id}/action")
+@router.post("/expenses/{expense_id}/action", response_model=Data[ExpenseActionResult])
 async def api_action_expense(request: Request, expense_id: int):
     guard = require_json_auth(request)
     if guard is not None:
@@ -354,7 +411,7 @@ def _resolve_trip_fleet(conn, user: dict) -> int | None:
     return fleet_id
 
 
-@router.post("/trips")
+@router.post("/trips", response_model=Data[CreateTripResult])
 async def api_create_trip(request: Request):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
@@ -412,7 +469,7 @@ async def api_create_trip(request: Request):
     return _created({"trip_code": trip_code, "status": "ACTIVE"})
 
 
-@router.post("/trips/{trip_code}/settle")
+@router.post("/trips/{trip_code}/settle", response_model=Data[SettleTripResult])
 def api_settle_trip(request: Request, trip_code: str):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
@@ -435,7 +492,7 @@ def api_settle_trip(request: Request, trip_code: str):
     return _ok({"trip_code": trip_code, "status": "SETTLED"})
 
 
-@router.get("/settlements")
+@router.get("/settlements", response_model=Data[list[dict[str, Any]]])
 def api_settled_trips(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
@@ -448,7 +505,7 @@ def api_settled_trips(request: Request):
     return _ok(trips)
 
 
-@router.get("/settlements/{trip_code}/pdf")
+@router.get("/settlements/{trip_code}/pdf", response_class=Response, response_model=None)
 def api_settlement_pdf(request: Request, trip_code: str):
     """Stream the settlement PDF (application/pdf) for a settled/completed trip."""
     guard = require_json_auth(request)
@@ -473,7 +530,7 @@ def api_settlement_pdf(request: Request, trip_code: str):
         media_type="application/pdf",
         headers={"Content-Disposition": f"inline; filename={trip_code}_Settlement.pdf"},
     )
-@router.get("/driver/salary")
+@router.get("/driver/salary", response_model=Data[DriverSalary])
 def api_driver_salary(request: Request):
     """Read-only salary/batta summary for the logged-in driver.
 
@@ -529,7 +586,7 @@ def api_driver_salary(request: Request):
 # ---------------------------------------------------------------------------#
 # Fuel benchmarks CRUD (JSON)
 # ---------------------------------------------------------------------------#
-@router.get("/benchmarks")
+@router.get("/benchmarks", response_model=Data[list[dict[str, Any]]])
 def api_get_benchmarks(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
@@ -539,7 +596,7 @@ def api_get_benchmarks(request: Request):
     return _ok(benchmarks)
 
 
-@router.post("/benchmarks")
+@router.post("/benchmarks", response_model=Data[ResourceAck])
 async def api_create_benchmark(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -562,7 +619,7 @@ async def api_create_benchmark(request: Request):
     return _created({"id": new_id})
 
 
-@router.put("/benchmarks/{bid}")
+@router.put("/benchmarks/{bid}", response_model=Data[ResourceAck])
 async def api_update_benchmark(request: Request, bid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -587,7 +644,7 @@ async def api_update_benchmark(request: Request, bid: int):
     return _ok({"id": bid})
 
 
-@router.delete("/benchmarks/{bid}")
+@router.delete("/benchmarks/{bid}", status_code=204, response_model=None)
 def api_delete_benchmark(request: Request, bid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -600,7 +657,7 @@ def api_delete_benchmark(request: Request, bid: int):
 # ---------------------------------------------------------------------------#
 # Fleet CRUD (JSON) — Super Admin
 # ---------------------------------------------------------------------------#
-@router.get("/fleets")
+@router.get("/fleets", response_model=Data[list[dict[str, Any]]])
 def api_get_fleets(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -610,7 +667,7 @@ def api_get_fleets(request: Request):
     return _ok(fleets)
 
 
-@router.get("/fleets/plans")
+@router.get("/fleets/plans", response_model=Data[list[dict[str, Any]]])
 def api_get_plans(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
@@ -620,7 +677,7 @@ def api_get_plans(request: Request):
     return _ok(plans)
 
 
-@router.post("/fleets")
+@router.post("/fleets", response_model=Data[ResourceAck])
 async def api_create_fleet(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -644,7 +701,7 @@ async def api_create_fleet(request: Request):
     return _created({"id": new_id})
 
 
-@router.put("/fleets/{fid}")
+@router.put("/fleets/{fid}", response_model=Data[ResourceAck])
 async def api_update_fleet(request: Request, fid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -669,7 +726,7 @@ async def api_update_fleet(request: Request, fid: int):
     return _ok({"id": fid})
 
 
-@router.post("/fleets/{fid}/toggle")
+@router.post("/fleets/{fid}/toggle", response_model=Data[ToggleAck])
 async def api_toggle_fleet(request: Request, fid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -691,7 +748,7 @@ async def api_toggle_fleet(request: Request, fid: int):
 # ---------------------------------------------------------------------------#
 # Vehicles CRUD (JSON) — trip_manager / super_admin
 # ---------------------------------------------------------------------------#
-@router.get("/vehicles")
+@router.get("/vehicles", response_model=Data[list[dict[str, Any]]])
 def api_vehicles(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
@@ -725,7 +782,7 @@ def _vehicle_limit_ok(conn, fleet_id: int) -> bool:
     return count_active_vehicles(conn, fleet_id) < entitlement["vehicle_limit"]
 
 
-@router.post("/vehicles")
+@router.post("/vehicles", response_model=Data[ResourceAck])
 async def api_create_vehicle(request: Request):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
@@ -761,7 +818,7 @@ async def api_create_vehicle(request: Request):
             owner_phone, created_by=user.get("user_id"), fleet_id=fleet_id,
         )
     return _created({"id": new_id})
-@router.put("/vehicles/{vid}")
+@router.put("/vehicles/{vid}", response_model=Data[ResourceAck])
 async def api_update_vehicle(request: Request, vid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
@@ -792,7 +849,7 @@ async def api_update_vehicle(request: Request, vid: int):
     return _ok({"id": vid})
 
 
-@router.post("/vehicles/{vid}/toggle")
+@router.post("/vehicles/{vid}/toggle", response_model=Data[ToggleAck])
 async def api_toggle_vehicle(request: Request, vid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
@@ -810,7 +867,7 @@ async def api_toggle_vehicle(request: Request, vid: int):
     return _ok({"id": vid, "is_active": should_activate})
 
 
-@router.get("/users")
+@router.get("/users", response_model=Data[list[dict[str, Any]]])
 def api_users(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -873,7 +930,7 @@ def _manager_onboarding_payload(
     return ctx
 
 
-@router.post("/users")
+@router.post("/users", response_model=Data[ResourceAck])
 async def api_create_user(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -914,7 +971,7 @@ async def api_create_user(request: Request):
     return _created({"id": new_id})
 
 
-@router.put("/users/{uid}")
+@router.put("/users/{uid}", response_model=Data[ResourceAck])
 async def api_update_user(request: Request, uid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -948,7 +1005,7 @@ async def api_update_user(request: Request, uid: int):
     return _ok({"id": uid})
 
 
-@router.post("/users/{uid}/toggle")
+@router.post("/users/{uid}/toggle", response_model=Data[ToggleAck])
 async def api_toggle_user(request: Request, uid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
@@ -972,7 +1029,7 @@ async def api_toggle_user(request: Request, uid: int):
 # ---------------------------------------------------------------------------#
 # Change Password (JSON) — logged-in user, any role
 # ---------------------------------------------------------------------------#
-@router.post("/auth/change-password")
+@router.post("/auth/change-password", response_model=Data[ChangePasswordResult])
 async def api_change_password(request: Request):
     """Verify the current password and set a new one for the logged-in user.
 
@@ -1022,7 +1079,7 @@ async def api_change_password(request: Request):
 # ---------------------------------------------------------------------------#
 # Drivers (JSON) — list driver users for Trip Manager / Super Admin
 # ---------------------------------------------------------------------------#
-@router.get("/drivers")
+@router.get("/drivers", response_model=Data[list[dict[str, Any]]])
 def api_drivers(request: Request):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
@@ -1034,7 +1091,7 @@ def api_drivers(request: Request):
     return _ok(drivers)
 
 
-@router.post("/drivers")
+@router.post("/drivers", response_model=Data[ResourceAck])
 async def api_create_driver(request: Request):
     """Create a driver user (Trip Manager / Super Admin), with batta profile."""
     guard = require_json_role(request, "trip_manager", "super_admin")
@@ -1066,7 +1123,7 @@ async def api_create_driver(request: Request):
     return _created({"id": new_id})
 
 
-@router.put("/drivers/{uid}")
+@router.put("/drivers/{uid}", response_model=Data[ResourceAck])
 async def api_update_driver(request: Request, uid: int):
     """Update a driver's profile / batta (Trip Manager / Super Admin)."""
     guard = require_json_role(request, "trip_manager", "super_admin")
@@ -1100,7 +1157,7 @@ async def api_update_driver(request: Request, uid: int):
     return _ok({"id": uid})
 
 
-@router.post("/drivers/{uid}/toggle")
+@router.post("/drivers/{uid}/toggle", response_model=Data[ToggleAck])
 async def api_toggle_driver(request: Request, uid: int):
     """Activate / deactivate a driver (Trip Manager / Super Admin)."""
     guard = require_json_role(request, "trip_manager", "super_admin")
@@ -1120,3 +1177,251 @@ async def api_toggle_driver(request: Request, uid: int):
         else:
             deactivate_user(conn, uid)
     return _ok({"id": uid, "is_active": should_activate})
+# ---------------------------------------------------------------------------#
+# Auth (JSON) — login / me / logout
+# ---------------------------------------------------------------------------#
+# These moved here from `api/auth.py`; the HTML login/logout pages were removed
+# from the backend and the React SPA (`frontend/`) is the only UI. The legacy
+# `auth` router is no longer mounted by `main.py`.
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = getattr(request, "headers", {}).get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if getattr(request, "client", None):
+        return request.client.host
+    return "unknown"
+
+
+@router.post("/auth/login", response_model=LoginResult)
+async def api_auth_login(request: Request, response: Response):
+    """Authenticate and return a Bearer token + user as JSON.
+
+    Accepts an `application/json` body OR a form-encoded body so both the SPA
+    (JSON) and legacy/mobile clients keep working. Always returns JSON.
+    """
+    ip = _client_ip(request)
+    body = {}
+    if "application/json" in request.headers.get("content-type", ""):
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            body = {}
+    else:
+        try:
+            form = await request.form()
+            body = {k: v for k, v in form.items()}
+        except Exception:  # noqa: BLE001
+            body = {}
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+
+    allowed, lock_remaining = login_allowed(ip)
+    if not allowed:
+        return JSONResponse(
+            status_code=423,
+            content={"error": "locked", "code": "LOCKED", "retry_after_seconds": lock_remaining},
+        )
+    with get_db() as conn:
+        user = get_user_by_username(conn, username)
+    if user is None or not verify_password(password, user["password_hash"]):
+        remaining = register_login_failure(ip)
+        return JSONResponse(
+            status_code=401,
+            content={"error": "invalid_credentials", "code": "INVALID_CREDENTIALS", "attempts_remaining": remaining},
+        )
+    if not user["is_active"]:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "inactive", "code": "INACTIVE_ACCOUNT"},
+        )
+    clear_login_failures(ip)
+    token = create_session(user["id"], user["username"], user["role"])
+    landing = {
+        "super_admin": "/dashboard",
+        "trip_manager": "/dashboard",
+        "driver": "/dashboard",
+    }.get(user["role"], "/dashboard")
+    response.set_cookie(
+        key=AUTH_COOKIE,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        max_age=settings.session_ttl_hours * 3600,
+    )
+    return {
+        "token": token,
+        "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
+        "landing": landing,
+    }
+# --------------------------------------------------------------------------- #
+# Billing (JSON) — plan upgrade / vehicle-slot purchases
+# --------------------------------------------------------------------------- #
+def _billing_fleet(conn, user_id: int):
+    fid = get_user_fleet_id(conn, user_id)
+    if not fid:
+        default = get_default_fleet(conn)
+        fid = default["id"] if default else None
+    if not fid:
+        return None
+    return get_fleet_by_id(conn, fid)
+
+
+@router.get("/billing/overview", response_model=Data[BillingOverview])
+def api_billing_overview(request: Request):
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    user = get_current_user(request)
+    with get_db() as conn:
+        fleet = _billing_fleet(conn, user.get("user_id"))
+        ent = get_fleet_entitlement(conn, fleet["id"]) if fleet else None
+    plans = [
+        {
+            "code": "TRIAL", "name": "Trial Pack", "price": 0,
+            "period": "15 days", "vehicle_limit": 1,
+            "description": "15 days for free, 1 vehicle",
+        },
+        {
+            "code": "MONTHLY", "name": "Monthly",
+            "price": int(MONTHLY_PRICE), "period": "month",
+            "vehicle_limit": 1, "description": "1 vehicle \u00b7 monthly",
+        },
+        {
+            "code": "YEARLY", "name": "Yearly",
+            "price": int(YEARLY_PRICE), "period": "year",
+            "vehicle_limit": 1, "description": "1 vehicle \u00b7 yearly (25% off)",
+        },
+    ]
+    return _ok({
+        "fleet": {
+            "name": (fleet or {}).get("owner_name", "Your Fleet"),
+            "id": (fleet or {}).get("id"),
+            "subscription_status": (ent or {}).get("subscription_status", "?"),
+            "vehicle_count": (ent or {}).get("vehicle_count", 0),
+            "vehicle_limit": (ent or {}).get("vehicle_limit", 1),
+            "vehicle_slot_price": int(VEHICLE_SLOT_PRICE),
+        },
+        "plans": plans,
+    })
+
+
+async def _read_json_body(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    return body if isinstance(body, dict) else {}
+
+
+@router.get("/auth/me", response_model=AuthMe)
+def api_auth_me(request: Request):
+    """Return the current session user (cookie or Bearer) as JSON, or 401."""
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    user = get_current_user(request)
+    return {
+        "user": {"id": user["user_id"], "username": user["username"], "role": user["role"]},
+    }
+
+
+@router.post("/auth/logout", response_model=Data[LogoutResult])
+def api_auth_logout(request: Request):
+    destroy_session(request)
+    return _ok({"logged_out": True})
+@router.post("/billing/subscribe", response_model=Data[BillingSubscribeResult])
+async def api_billing_subscribe(request: Request):
+    """Subscribe to a plan; returns a JSON `redirect_url` to Razorpay."""
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    body = await _read_json_body(request)
+    plan_code = str(body.get("plan_code", "")).upper()
+
+    with get_db() as conn:
+        fleet = _billing_fleet(conn, user.get("user_id"))
+        if fleet is None:
+            return _bad("no fleet associated with this account")
+        if plan_code == "TRIAL":
+            start_trial_subscription(conn, fleet["id"])
+            return _ok({"redirect_url": "/fleets", "activated": True, "trial": True})
+        if plan_code not in ("MONTHLY", "YEARLY"):
+            return _bad("unknown plan_code", "INVALID_PLAN")
+        cust = {
+            "name": fleet.get("owner_name", ""),
+            "contact": fleet.get("phone", ""),
+            "email": fleet.get("email", ""),
+        }
+        if plan_code == "MONTHLY":
+            ref, price, desc = f"fleet_{fleet['id']}_monthly", MONTHLY_PRICE, "VK Monthly Plan"
+        else:
+            ref, price, desc = f"fleet_{fleet['id']}_yearly", YEARLY_PRICE, "VK Yearly Plan"
+    try:
+        link = create_payment_link(price, cust, desc, reference_id=ref)
+    except Exception as exc:  # noqa: BLE001
+        return _bad(f"payment link failed: {exc}", "PAYMENT_LINK_FAILED")
+    url = link.get("short_url") or link.get("long_url")
+    return _ok({"redirect_url": url, "payment_link": link})
+
+
+@router.post("/billing/vehicle-slot", response_model=Data[BillingVehicleSlotResult])
+async def api_billing_vehicle_slot(request: Request):
+    """Purchase an extra vehicle slot; returns JSON `redirect_url`."""
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    with get_db() as conn:
+        fleet = _billing_fleet(conn, user.get("user_id"))
+        if fleet is None:
+            return _bad("no fleet associated with this account")
+        cust = {
+            "name": fleet.get("owner_name", ""),
+            "contact": fleet.get("phone", ""),
+            "email": fleet.get("email", ""),
+        }
+    try:
+        link = create_payment_link(
+            VEHICLE_SLOT_PRICE,
+            cust,
+            "VK Extra Vehicle Slot",
+            reference_id=f"fleet_{fleet['id']}_vehicle_slot",
+        )
+    except Exception as exc:  # noqa: BLE001
+        return _bad(f"payment link failed: {exc}", "PAYMENT_LINK_FAILED")
+    url = link.get("short_url") or link.get("long_url")
+    return _ok({"redirect_url": url, "payment_link": link})
+# --------------------------------------------------------------------------- #
+# Rules engine (JSON) — read-only anomaly-rule explainer data
+# --------------------------------------------------------------------------- #
+@router.get("/rules", response_model=Data[RulesData])
+def api_rules(request: Request):
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    rules = {
+        "FUEL": [
+            "Math integrity: flags if Amount differs from Liters x Rate by more than Rs 10.",
+            f"Price benchmark: rate must be inside base Rs {settings.benchmark_price}/L band.",
+            f"Tank capacity: claimed liters can not exceed {settings.tank_capacity_liters:.0f}L.",
+            "Odometer rollback: flags if new reading is lower than the previous fuel reading.",
+            f"Mileage check: km/L below {settings.expected_kml:.1f} x 70% is flagged.",
+        ],
+        "TOLL": [
+            "Always flagged", "Cash toll claims disallowed on FASTag corridors.",
+        ],
+        "REPAIR": [
+            "Any repair claim above Rs 3,000 requires owner pre-approval.",
+        ],
+        "CHALLAN": [
+            "Always flagged; verified against the e-challan portal.",
+        ],
+        "DEF": [
+            f"Price benchmark: rate above Rs {settings.def_rate_max:.0f}/l ceiling is flagged.",
+            f"Consumption ratio: DEF outside {settings.def_min_ratio_pct:.0f}%-{settings.def_max_ratio_pct:.0f}% of diesel is flagged.",
+        ],
+    }
+    return _ok(rules)

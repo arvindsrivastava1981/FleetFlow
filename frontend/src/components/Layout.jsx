@@ -13,6 +13,8 @@ const SECTIONS = [
       { to: "/reports", label: "Final Reports", icon: "📄", roles: ["driver"] },
       { to: "/whatsapp-manager", label: "WhatsApp Escalations", icon: "🔔", roles: ["trip_manager", "super_admin"] },
       { to: "/settlements", label: "Settled Trips", icon: "📑" },
+      { to: "/billing", label: "Billing", icon: "💳" },
+      { to: "/rule-engine", label: "Rule Engine", icon: "⚙️" },
     ],
   },
   {

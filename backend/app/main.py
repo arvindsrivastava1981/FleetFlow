@@ -18,20 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.app.api import (
     api_v1,
-    auth,
-    benchmarks,
-    billing,
-    dashboard,
-    dashboards,
-    drivers,
-    expenses,
-    fleets,
-    rule_engine,
-    settlement,
-    trips,
-    users,
-    vehicles,
-    views,
+    webhook,
 )
 from backend.app.db.connection import healthcheck
 
@@ -61,22 +48,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---- Routers (auth/mutations first, then read-only UI pages) ----------------
+# ---- Routers (JSON API only) ------------------------------------------------
+# All UI is served by the React SPA (`frontend/dist` mounted below). The backend
+# exposes only the `/api/v1` JSON API and the Razorpay webhook callback. The
+# legacy server-rendered HTML routers were removed; their JSON equivalents live
+# in `api_v1.py`.
 app.include_router(api_v1.router)
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(drivers.router)
-app.include_router(vehicles.router)
-app.include_router(fleets.router)
-app.include_router(billing.router)
-app.include_router(trips.router)
-app.include_router(expenses.router)
-app.include_router(dashboard.router)
-app.include_router(dashboards.router)
-app.include_router(benchmarks.router)
-app.include_router(rule_engine.router)
-app.include_router(settlement.router)
-app.include_router(views.router)
+app.include_router(webhook.router)
 
 
 @app.get("/healthz")
@@ -90,9 +68,8 @@ def healthz() -> dict:
 # exists. Client-side routes (e.g. /trips/TRIP-101, /dashboard) fall back to
 # index.html so React Router can resolve them without 404s.
 #
-# Note: define this AFTER all API/HTML routers so those explicit paths always win
-# over the catch-all SPA fallback. Legacy HTML pages (server-rendered f-strings)
-# remain fully intact and reachable.
+# Note: define this AFTER all API routes so explicit API paths (incl. the
+# `/billing/webhook` callback) always win over the catch-all SPA fallback.
 _FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 _STATIC_INDEX = _FRONTEND_DIST / "index.html"
 
