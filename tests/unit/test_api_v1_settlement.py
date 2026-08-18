@@ -189,3 +189,35 @@ def test_trip_detail_returns_404_for_unknown_trip(client, resolve_db):
     resp = client.get("/api/v1/trips/NOPE")
 
     assert resp.status_code == 404
+
+
+def test_json_mutation_parses_dict_not_coroutine(client, resolve_db):
+    """JSON mutations must await request.json(); otherwise the body is a
+    coroutine and every save returns 'body must be a JSON object'.
+
+    Regression for the Starlette >= 0.20 change where `Request.json` became
+    async: sync handlers calling `request.json()` without `await` produce a
+    coroutine object, so `isinstance(body, dict)` is always False and the
+    update/create endpoints reject valid payloads.
+    """
+    cur = mock.MagicMock()
+    # update_user -> fetchone (existence) / execute; settle unaffected here.
+    cur.fetchone.return_value = {"id": 1}
+    cur.fetchall.return_value = []
+    cur.rowcount = 1
+    conn = mock.MagicMock()
+    conn.cursor.return_value = cur
+    db_obj = mock.MagicMock()
+    db_obj.__enter__ = mock.MagicMock(return_value=conn)
+    db_obj.__exit__ = mock.MagicMock(return_value=False)
+
+    resolve_db(db_obj, user={"user_id": 1, "username": "admin", "role": "super_admin"})
+
+    resp = client.put(
+        "/api/v1/users/1",
+        json={"username": "x", "full_name": "X", "role": "trip_manager"},
+    )
+
+    # The body must be read as a dict — not rejected as "body must be a JSON object".
+    assert resp.status_code == 200
+    assert "body must be a JSON object" not in resp.text

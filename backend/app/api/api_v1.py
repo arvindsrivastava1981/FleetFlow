@@ -235,12 +235,12 @@ def api_trip_detail(request: Request, trip_code: str):
 # Expenses — mutations (JSON body, no single-use CSRF)
 # ---------------------------------------------------------------------------#
 @router.post("/expenses")
-def api_create_expense(request: Request):
+async def api_create_expense(request: Request):
     guard = require_json_auth(request)
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001 - malformed body
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -294,12 +294,12 @@ def api_create_expense(request: Request):
 
 
 @router.post("/expenses/{expense_id}/action")
-def api_action_expense(request: Request, expense_id: int):
+async def api_action_expense(request: Request, expense_id: int):
     guard = require_json_auth(request)
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     action = str((body or {}).get("action", "")).upper()
@@ -328,13 +328,13 @@ def _resolve_trip_fleet(conn, user: dict) -> int | None:
 
 
 @router.post("/trips")
-def api_create_trip(request: Request):
+async def api_create_trip(request: Request):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
     user = _identity(request)
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -461,12 +461,12 @@ def api_get_benchmarks(request: Request):
 
 
 @router.post("/benchmarks")
-def api_create_benchmark(request: Request):
+async def api_create_benchmark(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -484,12 +484,12 @@ def api_create_benchmark(request: Request):
 
 
 @router.put("/benchmarks/{bid}")
-def api_update_benchmark(request: Request, bid: int):
+async def api_update_benchmark(request: Request, bid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -542,12 +542,12 @@ def api_get_plans(request: Request):
 
 
 @router.post("/fleets")
-def api_create_fleet(request: Request):
+async def api_create_fleet(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -566,12 +566,12 @@ def api_create_fleet(request: Request):
 
 
 @router.put("/fleets/{fid}")
-def api_update_fleet(request: Request, fid: int):
+async def api_update_fleet(request: Request, fid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -591,12 +591,12 @@ def api_update_fleet(request: Request, fid: int):
 
 
 @router.post("/fleets/{fid}/toggle")
-def api_toggle_fleet(request: Request, fid: int):
+async def api_toggle_fleet(request: Request, fid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     should_activate = bool((body or {}).get("activate", False))
@@ -647,13 +647,13 @@ def _vehicle_limit_ok(conn, fleet_id: int) -> bool:
 
 
 @router.post("/vehicles")
-def api_create_vehicle(request: Request):
+async def api_create_vehicle(request: Request):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
     user = _identity(request)
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -683,13 +683,13 @@ def api_create_vehicle(request: Request):
         )
     return _created({"id": new_id})
 @router.put("/vehicles/{vid}")
-def api_update_vehicle(request: Request, vid: int):
+async def api_update_vehicle(request: Request, vid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
     user = _identity(request)
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -714,12 +714,12 @@ def api_update_vehicle(request: Request, vid: int):
 
 
 @router.post("/vehicles/{vid}/toggle")
-def api_toggle_vehicle(request: Request, vid: int):
+async def api_toggle_vehicle(request: Request, vid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     should_activate = bool((body or {}).get("activate", False))
@@ -751,13 +751,13 @@ VALID_ROLES: tuple[str, ...] = ("super_admin", "trip_manager", "driver")
 
 
 @router.post("/users")
-def api_create_user(request: Request):
+async def api_create_user(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     user = _identity(request)
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -786,12 +786,12 @@ def api_create_user(request: Request):
 
 
 @router.put("/users/{uid}")
-def api_update_user(request: Request, uid: int):
+async def api_update_user(request: Request, uid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
@@ -820,12 +820,12 @@ def api_update_user(request: Request, uid: int):
 
 
 @router.post("/users/{uid}/toggle")
-def api_toggle_user(request: Request, uid: int):
+async def api_toggle_user(request: Request, uid: int):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
     try:
-        body = request.json()
+        body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     should_activate = bool((body or {}).get("activate", False))
