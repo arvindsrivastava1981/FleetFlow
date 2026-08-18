@@ -8,6 +8,8 @@ const SECTIONS = [
       { to: "/dashboard", label: "My Dashboard", icon: "📊" },
       { to: "/trips", label: "Active Trips", icon: "🚚", roles: ["trip_manager", "super_admin"] },
       { to: "/expenses", label: "Expense Ledger", icon: "🧾" },
+      { to: "/whatsapp-driver", label: "WhatsApp Simulator", icon: "💬", roles: ["driver"] },
+      { to: "/whatsapp-manager", label: "WhatsApp Escalations", icon: "🔔", roles: ["trip_manager", "super_admin"] },
       { to: "/settlements", label: "Settled Trips", icon: "📑" },
     ],
   },

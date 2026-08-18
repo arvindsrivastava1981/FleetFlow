@@ -157,6 +157,39 @@ def open_escalations(conn, limit: int = 20, manager_id: int | None = None) -> li
     return cur.fetchall()
 
 
+def open_escalations_detail(
+    conn, limit: int = 50, manager_id: int | None = None
+) -> list[dict]:
+    """Flagged / pending expenses joined with their trip's driver + vehicle.
+
+    Used by the Manager WhatsApp escalation view so each escalation message can
+    label who logged it and on which vehicle. When *manager_id* is given, only
+    expenses on trips that manager created are returned; omit to see everything
+    (used for super_admin).
+    """
+    cur = conn.cursor()
+    scope_sql = (
+        " AND EXISTS (SELECT 1 FROM trips t WHERE t.trip_code = e.trip_code AND t.created_by = %s)"
+        if manager_id
+        else ""
+    )
+    params: list[object] = [limit]
+    if manager_id:
+        params.insert(0, manager_id)
+    cur.execute(
+        f"""SELECT e.id, e.trip_code, e.exp_type, e.amount, e.liters, e.rate,
+                  e.odometer, e.station_name, e.is_flagged, e.flag_reason,
+                  e.manager_status, e.created_at,
+                  t.driver_name, t.vehicle_no
+             FROM expenses e
+             LEFT JOIN trips t ON t.trip_code = e.trip_code
+            WHERE (e.is_flagged = TRUE OR e.manager_status = 'PENDING'){scope_sql}
+            ORDER BY e.id DESC LIMIT %s""",
+        params,
+    )
+    return cur.fetchall()
+
+
 def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
     """ACTIVE trips with driver, odometer, cumulative claims, and remaining float.
 

@@ -191,6 +191,58 @@ def test_trip_detail_returns_404_for_unknown_trip(client, resolve_db):
     assert resp.status_code == 404
 
 
+def test_whatsapp_escalations_returns_flag_feed(client, resolve_db):
+    """`GET /api/v1/whatsapp/escalations` returns the flagged/pending feed.
+
+    Super_admin (no manager scope) sees the full feed; each row carries the
+    joined driver + vehicle for the escalation chat UI.
+    """
+    feed = [
+        {
+            "id": 1,
+            "trip_code": "TRIP-101",
+            "exp_type": "FUEL",
+            "amount": 6000.0,
+            "liters": 60.0,
+            "rate": 100.0,
+            "odometer": 100500.0,
+            "station_name": "HPCL",
+            "is_flagged": True,
+            "flag_reason": "Fuel rate above benchmark",
+            "manager_status": "PENDING",
+            "created_at": None,
+            "driver_name": "Ramesh",
+            "vehicle_no": "MH12AB1234",
+        }
+    ]
+    # Build the db context manager with a cursor that returns the feed from
+    # fetchall (mirrors open_escalations_detail -> SELECT ... ORDER BY id DESC LIMIT).
+    cur = mock.MagicMock()
+    cur.fetchall.return_value = feed
+    conn = mock.MagicMock()
+    conn.cursor.return_value = cur
+    db_obj = mock.MagicMock()
+    db_obj.__enter__ = mock.MagicMock(return_value=conn)
+    db_obj.__exit__ = mock.MagicMock(return_value=False)
+
+    # super_admin => no manager scoping, limit=50
+    resolve_db(db_obj)
+
+    resp = client.get("/api/v1/whatsapp/escalations")
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["is_flagged"] is True
+    assert data[0]["driver_name"] == "Ramesh"
+    assert data[0]["vehicle_no"] == "MH12AB1234"
+    # Confirm the SQL query binds only the LIMIT (no manager scope) for super_admin.
+    call = cur.execute.call_args
+    assert call[0][1][-1] == 50
+    assert len(call[0][1]) == 1
+
+
 def test_json_mutation_parses_dict_not_coroutine(client, resolve_db):
     """JSON mutations must await request.json(); otherwise the body is a
     coroutine and every save returns 'body must be a JSON object'.

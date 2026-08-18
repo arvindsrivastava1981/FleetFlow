@@ -34,6 +34,7 @@ from backend.app.db.queries.dashboards import (
     driver_today_logged,
     manager_kpis,
     open_escalations,
+    open_escalations_detail,
 )
 from backend.app.db.queries.expenses import action_expense_status, get_expenses_for_trip, insert_expense
 from backend.app.db.queries.fleets import (
@@ -231,6 +232,27 @@ def api_trip_detail(request: Request, trip_code: str):
         }
 
     return _ok({"trip": trip, "expenses": expenses})
+# ---------------------------------------------------------------------------#
+# WhatsApp escalation feed (JSON) — manager & super_admin quick-reply actions
+# ---------------------------------------------------------------------------#
+@router.get("/whatsapp/escalations")
+def api_whatsapp_escalations(request: Request):
+    """Flagged / pending expenses as a chat-thread feed for manager quick-reply.
+
+    Manager sees only the expenses on trips they created; super_admin sees all.
+    Each item carries trip driver + vehicle so the escalation UI can label who
+    logged the anomaly.
+    """
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    manager_id = (
+        user.get("user_id") if user.get("role") == "trip_manager" else None
+    )
+    with get_db() as conn:
+        rows = open_escalations_detail(conn, limit=50, manager_id=manager_id)
+    return _ok(rows)
 # ---------------------------------------------------------------------------#
 # Expenses — mutations (JSON body, no single-use CSRF)
 # ---------------------------------------------------------------------------#

@@ -12,6 +12,8 @@ import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
 import SettledTripsPage from "./pages/SettledTrips.jsx";
 import ChangePasswordPage from "./pages/ChangePassword.jsx";
 import DriversPage from "./pages/Drivers.jsx";
+import DriverWhatsAppPage from "./pages/DriverWhatsApp.jsx";
+import ManagerWhatsAppPage from "./pages/ManagerWhatsApp.jsx";
 import Layout from "./components/Layout.jsx";
 
 function ProtectedRoute({ children, roles }) {
@@ -63,6 +65,26 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <ExpensesPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/whatsapp-driver"
+        element={
+          <ProtectedRoute roles={["driver"]}>
+            <Layout>
+              <DriverWhatsAppPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/whatsapp-manager"
+        element={
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
+            <Layout>
+              <ManagerWhatsAppPage />
             </Layout>
           </ProtectedRoute>
         }
@@ -140,6 +162,7 @@ export default function App() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
       <Route path="/manager" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/driver" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
