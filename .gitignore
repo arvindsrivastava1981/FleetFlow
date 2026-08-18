@@ -14,8 +14,11 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
+# ...but keep the frontend's src/lib (Vite client helpers, e.g. api.js) tracked
+!frontend/src/lib/
+!frontend/src/lib/**
 parts/
 sdist/
 var/
