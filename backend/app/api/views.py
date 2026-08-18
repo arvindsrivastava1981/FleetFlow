@@ -206,21 +206,23 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
         if active_trip:
             expenses = get_expenses_for_trip(conn, active_trip["trip_code"])
 
-    total_claimed = 0.0
-    total_approved = 0.0
-    total_income = 0.0
-    total_flagged = 0.0
-    for e in expenses:
-        total_claimed += e["amount"]
-        if _is_approved(e) and e["exp_type"] != "GOODS_SALE":
-            total_approved += e["amount"]
-        if _is_approved(e) and e["exp_type"] == "GOODS_SALE":
-            total_income += e["amount"]
-        if e["is_flagged"]:
-            total_flagged += e["amount"]
+    # Amount sums are derived from NUMERIC(10,2) columns cast to float via the
+    # global DEC2FLOAT caster. `round` at each accumulation boundary keeps the
+    # rupee totals exact to paise and prevents float precision drift from
+    # cascading into `remaining_advance` / settlement math.
+    total_claimed = round(sum(round(e["amount"], 2) for e in expenses), 2)
+    total_approved = round(
+        sum(round(e["amount"], 2) for e in expenses
+            if _is_approved(e) and e["exp_type"] != "GOODS_SALE"), 2)
+    total_income = round(
+        sum(round(e["amount"], 2) for e in expenses
+            if _is_approved(e) and e["exp_type"] == "GOODS_SALE"), 2)
+    total_flagged = round(
+        sum(round(e["amount"], 2) for e in expenses if e["is_flagged"]), 2)
 
-    trip_profit = sum(_approved_cash_impact(e) for e in expenses)
-    remaining_advance = (active_trip["advance_amount"] + trip_profit) if active_trip else 0.0
+    trip_profit = round(sum(_approved_cash_impact(e) for e in expenses), 2)
+    remaining_advance = round(
+        (active_trip["advance_amount"] + trip_profit) if active_trip else 0.0, 2)
     is_trip_settled = bool(active_trip and active_trip["status"] == "SETTLED")
     settled_at_text = (
         esc(_fmt_dt(active_trip["settled_at"]))

@@ -3,9 +3,9 @@
 --
 -- database/schema.sql now defines every table natively (users, vehicles, trips,
 -- expenses with the new exp_type whitelist, subscription_plans, fleet billing
--- columns, fuel_benchmarks), so this script only loads REFERENCE/MASTER data and
--- the single privileged bootstrap account. There are no structural migrations
--- here.
+-- columns, fuel_benchmarks, webhook_logs), so this script only loads
+-- REFERENCE/MASTER data and the single privileged bootstrap account. There are
+-- no structural migrations here (see database/migrations/ for those).
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------

@@ -17,6 +17,9 @@ from backend.app.core.security import (
     esc, get_current_user, require_auth, verify_razorpay_webhook,
 )
 from backend.app.db.connection import get_db
+from backend.app.db.queries.billing import (
+    mark_webhook_processed, webhook_already_processed,
+)
 from backend.app.db.queries.fleets import (
     bump_vehicle_limit, get_fleet_by_id, get_fleet_entitlement,
     set_plan_subscription, set_yearly_subscription,
@@ -174,6 +177,9 @@ async def billing_webhook(request: Request):
     event = payload.get("event", "")
     if event != "payment_link.paid":
         return HTMLResponse("ok", status_code=200)
+    # Razorpay stable event id — used to dedupe retried deliveries.
+    event_id = (payload.get("payload", {}).get("payment_link", {})
+                .get("entity", {}).get("id", ""))
     link = payload.get("payload", {}).get("payment_link", {}).get("entity", {})
     ref = link.get("reference_id", "")
     parts = ref.split("_")  # fleet_<id>_<action>
@@ -185,11 +191,17 @@ async def billing_webhook(request: Request):
     except (ValueError, IndexError):
         return HTMLResponse("ok", status_code=200)
     with get_db() as conn:
+        # Idempotency guard: if this event was already applied, skip it so a
+        # retried delivery cannot activate/bump the fleet twice.
+        if not event_id or webhook_already_processed(conn, event_id):
+            return HTMLResponse("ok", status_code=200)
         if action == "monthly":
             set_plan_subscription(conn, fid, "MONTHLY")
         elif action == "yearly":
             set_yearly_subscription(conn, fid)
         elif action == "vehicle_slot":
             bump_vehicle_limit(conn, fid)
+        # Log inside the same transaction as the side effect: commit is atomic.
+        mark_webhook_processed(conn, event_id, event, payload)
     return HTMLResponse("ok", status_code=200)
 

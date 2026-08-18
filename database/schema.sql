@@ -183,6 +183,27 @@ CREATE TABLE IF NOT EXISTS fuel_benchmarks (
 );
 
 -- ----------------------------------------------------------------------------
+-- 8. WEBHOOK LOGS — Razorpay webhook deduplication ledger.
+--    `event_id` is the Razorpay event id, UNIQUE so a retried delivery of the
+--    same `payment_link.paid` (or any future event) cannot apply its side
+--    effect (activate plan / bump limit) more than once. The webhook route
+--    writes a row here *inside the same transaction* that applies the effect;
+--    a second delivery hits the unique constraint / a pre-check and is a no-op.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS webhook_logs (
+    id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(64) UNIQUE NOT NULL,     -- Razorpay event.id (stable across retries)
+    event_type VARCHAR(64) NOT NULL,          -- e.g. payment_link.paid / subscription.activated
+    payload JSONB NOT NULL,                   -- raw event body for audit/replay
+    status VARCHAR(20) NOT NULL DEFAULT 'PROCESSED'
+        CHECK (status IN ('PROCESSED', 'SKIPPED', 'FAILED')),
+    processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_event_id ON webhook_logs(event_id);
+
+-- ----------------------------------------------------------------------------
 -- AUTOMATED UPDATED_AT TIMESTAMP TRIGGER
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION update_timestamp_column()
