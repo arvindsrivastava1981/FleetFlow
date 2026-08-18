@@ -77,15 +77,21 @@ def upgrade_page(request: Request):
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Upgrade</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
-<div class="max-w-2xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto space-y-6">
 {render_header(authenticated=True, username=uname, role=role)}
+<div class="flex flex-col lg:flex-row gap-4 items-start">
 {render_sidebar("billing", role)}
+<main class="flex-1 min-w-0 w-full space-y-4">
 <h2 class="text-lg font-extrabold">Upgrade Subscription</h2>
-<div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+<div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm max-w-2xl">
 <p class="text-sm mb-4">Fleet: <strong>{fname}</strong> &middot; Status: <strong>{status}</strong></p>
 <p class="text-xs text-slate-500 mb-6">Trial ended. Pick a plan.</p>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">{plans}</div>
-</div>{render_footer()}</div></body></html>"""
+</div>
+</main>
+</div>
+{render_footer()}
+</div></body></html>"""
 @router.post("/billing/subscribe")
 def subscribe(request: Request, plan_code: str = Form(...)):
     guard = require_auth(request)
@@ -128,18 +134,25 @@ def vehicle_slot_page(request: Request):
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Buy Slot</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
-<div class="max-w-2xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto space-y-6">
 {render_header(authenticated=True, username=uname, role=role)}
+<div class="flex flex-col lg:flex-row gap-4 items-start">
 {render_sidebar("billing", role)}
+<main class="flex-1 min-w-0 w-full space-y-4">
 <h2 class="text-lg font-extrabold">Vehicle Limit Reached</h2>
-<div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+<div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4 max-w-2xl">
 <p class="text-sm">Fleet <strong>{fname}</strong> limit: <strong>{limit}</strong>.</p>
 <p class="text-xs text-slate-500">Purchase an additional vehicle slot.</p>
 <div class="bg-sky-50 border border-sky-200 rounded-xl p-4 text-center">
 <p class="text-2xl font-extrabold text-sky-800">\u20b9{p:,}</p>
 <form method="post" action="/billing/vehicle-slot" class="mt-3">
 <button class="bg-sky-600 hover:bg-sky-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm">Buy Slot</button></form>
-</div></div>{render_footer()}</div></body></html>"""
+</div>
+</div>
+</main>
+</div>
+{render_footer()}
+</div></body></html>"""
 
 
 @router.post("/billing/vehicle-slot")

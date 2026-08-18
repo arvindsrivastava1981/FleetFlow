@@ -105,10 +105,16 @@ def _driver_form(user: dict, action: str, editing: dict | None = None) -> str:
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Driver Form</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
-<div class="max-w-2xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto space-y-6">
 {render_header(authenticated=True, username=user["username"], role=user["role"])}
+<div class="flex flex-col lg:flex-row gap-4">
+{render_sidebar("drivers", user["role"])}
+<main class="flex-1 space-y-4">
+<div>
 <h2 class="text-lg font-extrabold">{"Edit Driver" if editing else "Create New Driver"}</h2>
-<div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+<p class="text-xs text-slate-500">Set up the driver account and batta profile.</p>
+</div>
+<div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm max-w-2xl">
 <form action="{action}" method="post" class="space-y-4">
 <div><label class="text-xs font-bold text-slate-700">Username</label>
 <input type="text" name="username" required value="{uname}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
@@ -129,7 +135,11 @@ def _driver_form(user: dict, action: str, editing: dict | None = None) -> str:
 <input type="password" name="password" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
 <div class="flex gap-3"><a href="/drivers" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl">Cancel</a>
 <button class="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl">Save</button></div>
-</form></div></div>
+</form></div>
+</main>
+</div>
+{render_footer()}
+</div>
 </body></html>"""
 
 
