@@ -3,13 +3,13 @@ import { api } from "../lib/api.js";
 
 const EXPENSE_TYPES = [
   { value: "FUEL", label: "Diesel (डीजल)" },
-  { value: "DEF", label: "DEF / AdBlue" },
+  { value: "DEF", label: "DEF (यूरिया)" },
   { value: "TOLL", label: "Toll (टोल)" },
   { value: "REPAIR", label: "Repair (मरम्मत)" },
   { value: "CHALLAN", label: "Challan (चालान)" },
   { value: "MISC", label: "Misc (विविध)" },
-  { value: "GOODS_BUY", label: "Goods Buy" },
-  { value: "GOODS_SALE", label: "Goods Sale" },
+  { value: "GOODS_BUY", label: "Buy (खरीद)" },
+  { value: "GOODS_SALE", label: "Sell (बिक्री)" },
 ];
 
 function fmtRs(n) {
@@ -120,8 +120,8 @@ async function sendReceipt(e) {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div className="bg-emerald-800 text-white p-3.5 flex items-center justify-between">
+          <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[560px]">
+            <div className="bg-emerald-800 text-white p-3.5 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center space-x-2.5">
                 <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-sm">🤖</div>
                 <div>
@@ -136,7 +136,7 @@ async function sendReceipt(e) {
 
             <div
               ref={threadRef}
-              className="flex-1 p-4 bg-[#efeae2] overflow-y-auto space-y-3 text-xs h-[420px]"
+              className="flex-1 min-h-0 p-4 bg-[#efeae2] overflow-y-auto space-y-3 text-xs wa-scroll"
             >
               <div className="bg-white p-3 rounded-lg rounded-tl-none shadow-sm max-w-[85%] space-y-1">
                 <p className="font-bold text-slate-800 text-[11px]">
@@ -207,7 +207,7 @@ async function sendReceipt(e) {
             </div>
 <form
               onSubmit={sendReceipt}
-              className="p-3 bg-white border-t border-slate-200 space-y-2.5"
+              className="p-3 bg-white border-t border-slate-200 space-y-2.5 flex-shrink-0"
             >
               <div className="grid grid-cols-2 gap-2">
                 <div>

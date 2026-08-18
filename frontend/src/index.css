@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* WhatsApp chat thread — always show a styled vertical scrollbar so the user
+   sees the message list is scrollable within the fixed-height card. */
+.wa-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.wa-scroll::-webkit-scrollbar-track {
+  background: #d6ccc2;
+  border-radius: 9999px;
+}
+.wa-scroll::-webkit-scrollbar-thumb {
+  background: #8a8580;
+  border-radius: 9999px;
+}
+.wa-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6f6a65;
+}
+.wa-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #8a8580 #d6ccc2;
+}
