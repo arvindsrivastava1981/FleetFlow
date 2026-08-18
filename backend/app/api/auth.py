@@ -51,10 +51,10 @@ def login_form(request: Request, error: str | None = None) -> str:
         <title>VahanKhata Login</title>
         <script src="https://cdn.tailwindcss.com"></script>
     </head>
-    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
-        <div class="max-w-5xl mx-auto space-y-6">
+    <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans flex flex-col">
+        <div class="max-w-5xl mx-auto w-full flex flex-col flex-1 space-y-6">
             {render_header(authenticated=False)}
-            <main class="min-h-[60vh] flex items-center justify-center">
+            <main class="flex-1 flex items-center justify-center py-2">
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full max-w-sm space-y-5">
             <div class="text-center space-y-1">
                 <div class="bg-sky-500 inline-block p-2 rounded-xl text-white font-black text-xl">VK</div>
