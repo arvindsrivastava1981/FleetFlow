@@ -1,23 +1,30 @@
---- DRop Tables 
-------------------------------------------------
-drop table fleets if exists cascade;
-drop table subscription_plans if exists cascade;       
-drop table subscription_plans if exists cascade;
-drop table vehicles if exists cascade;
-drop table trips if exists cascade;
-drop table expenses if exists cascade;
-drop table fuel_benchmarks if exists cascade;
-drop table users if exists cascade;
-
-
-
+-- ============================================================================
+-- VahanKhata: Database Cleanup / Reset
+--   Drops every table (FK-safe, dependency order) then truncates remaining data.
+--   Meant for local dev reset before re-applying schema.sql + seed/incremental.
+--   The app never runs this file (zero DDL in-app invariant).
+-- ============================================================================
 
 -- ----------------------------------------------------------------------------
--- VahanKhata Demo Data Cleanup
-truncate table fleets cascade;
-truncate table subscription_plans cascade;
-truncate table vehicles cascade;
-truncate table trips cascade;
-truncate table expenses cascade;
-truncate table fuel_benchmarks cascade;
-truncate table users cascade;
+-- DROP TABLES (dependency order — children before parents)
+-- ----------------------------------------------------------------------------
+DROP TABLE IF EXISTS webhook_logs CASCADE;
+DROP TABLE IF EXISTS expenses CASCADE;
+DROP TABLE IF EXISTS trips CASCADE;
+DROP TABLE IF EXISTS vehicles CASCADE;
+DROP TABLE IF EXISTS fuel_benchmarks CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS fleets CASCADE;
+DROP TABLE IF EXISTS subscription_plans CASCADE;
+
+-- ----------------------------------------------------------------------------
+-- DEMO DATA CLEANUP (for schemas kept intact — only sinks seeding re-run)
+-- ----------------------------------------------------------------------------
+TRUNCATE TABLE webhook_logs CASCADE;
+TRUNCATE TABLE expenses CASCADE;
+TRUNCATE TABLE trips CASCADE;
+TRUNCATE TABLE vehicles CASCADE;
+TRUNCATE TABLE fuel_benchmarks CASCADE;
+TRUNCATE TABLE users CASCADE;
+TRUNCATE TABLE fleets CASCADE;
+TRUNCATE TABLE subscription_plans CASCADE;

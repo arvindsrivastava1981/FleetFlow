@@ -1,12 +1,36 @@
 -- ============================================================================
--- Incremental script for databases already created from the new schema.sql.
+-- Incremental script for databases already created from an older schema.sql.
 --
--- database/schema.sql now defines every table natively (users, vehicles, trips,
+-- database/schema.sql defines every table natively (users, vehicles, trips,
 -- expenses with the new exp_type whitelist, subscription_plans, fleet billing
--- columns, fuel_benchmarks, webhook_logs), so this script only loads
--- REFERENCE/MASTER data and the single privileged bootstrap account. There are
--- no structural migrations here (see database/migrations/ for those).
+-- columns, fuel_benchmarks, webhook_logs). This file is the SINGLE changelog
+-- for databases that predate a table: any structural additions that were once
+-- shipped as migrations are re-applied here as idempotent DDL at the top, then
+-- REFERENCE/MASTER data and the single privileged bootstrap account are loaded.
+--
+-- No migration ever runs from the app. Schema is applied manually from
+-- database/schema.sql, and database/incremental.sql is the only reconciliation
+-- step for already-provisioned databases.
 -- ============================================================================
+
+-- ----------------------------------------------------------------------------
+-- STRUCTURAL RECONCILIATION (1) — webhook_logs.
+--   Defined natively in schema.sql (table #8). Re-applied as idempotent DDL so
+--   databases created before this table existed can catch up. Previously this
+--   lived in database/migrations/002_webhook_logs.sql (now removed).
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS webhook_logs (
+    id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(64) UNIQUE NOT NULL,     -- Razorpay event.id (stable across retries)
+    event_type VARCHAR(64) NOT NULL,          -- e.g. payment_link.paid / subscription.activated
+    payload JSONB NOT NULL,                   -- raw event body for audit/replay
+    status VARCHAR(20) NOT NULL DEFAULT 'PROCESSED'
+        CHECK (status IN ('PROCESSED', 'SKIPPED', 'FAILED')),
+    processed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_event_id ON webhook_logs(event_id);
 
 -- ----------------------------------------------------------------------------
 -- MASTER DATA (1) — Subscription plan catalogue (billable product objects),

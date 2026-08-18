@@ -64,10 +64,9 @@ FleetFlow/
 │           └── static/               # reusable JS fragments (future)
 ├── database/                         # schema + seed (manual DDL only)
 │   ├── schema.sql                    # master DDL
-│   ├── incremental.sql               # changelog statements
+│   ├── incremental.sql               # single changelog (only reconciliation step)
 │   ├── seed.sql                      # demo seed
 │   ├── cleanup.sql
-│   ├── migrations/                   # named migration files
 │   └── seed/                         # production-reference seed
 ├── tests/
 │   ├── conftest.py                   # repo-root on path + shared fixtures
@@ -116,7 +115,7 @@ FleetFlow/
 | A2 corridor toll (G5) | `services/rules/toll.py`, `models/TollCorridor`, `database/seed` |
 | A3 dual-photo / odometer (G10) | `services/rules/evidence.py`, `schemas/expenses`, `db/queries` |
 | A4 EXIF check (G3) | `services/rules/evidence.py` |
-| B schema | `database/migrations/` |
+| B schema | `database/schema.sql` + `database/incremental.sql` (no migration runner) |
 | C WhatsApp (G1/G6/G9) | `services/whatsapp/` + `api/whatsapp/webhook.py` |
 | D OCR (G2/G7) | `services/ocr/` + `api/ocr/callback.py` |
 | E bilingual/audio (G8) | `services/notify/` |
