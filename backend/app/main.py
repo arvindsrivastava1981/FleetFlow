@@ -105,7 +105,25 @@ if _FRONTEND_DIST.is_dir() and _STATIC_INDEX.is_file():
 
     @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False, response_model=None)
     def spa_fallback(request: Request, path: str):
-        """Serve real static files, else fall back to the SPA index.html."""
+        """Serve real static files, else fall back to the SPA index.html.
+
+        Cache strategy:
+        - `index.html` (and every HTML document) returns `Cache-Control:
+          no-cache` so the browser must revalidate on every reload and always
+          picks up the newest bundle references (fresh UI). Hash-named assets
+          are immutable, so they can be cached long-term.
+        - For non-HTML static files (hashed JS/CSS/fonts) we send
+          `Cache-Control: no-cache` too and rely on Vite's content-hashed
+          filenames for cache-busting: a changed build produces a new filename,
+          so revalidation yields the new immutable asset with no stale-UI risk.
+        """
         if path and (_FRONTEND_DIST / path).is_file():
-            return FileResponse(_FRONTEND_DIST / path)
-        return HTMLResponse(_STATIC_INDEX.read_text(encoding="utf-8"), status_code=200)
+            return FileResponse(
+                _FRONTEND_DIST / path,
+                headers={"Cache-Control": "no-cache"},
+            )
+        return HTMLResponse(
+            _STATIC_INDEX.read_text(encoding="utf-8"),
+            status_code=200,
+            headers={"Cache-Control": "no-cache"},
+        )
