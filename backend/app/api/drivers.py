@@ -32,7 +32,7 @@ def list_drivers(request: Request):
     with get_db() as conn:
         drivers = get_all_users(conn, role_filter="driver")
     rows = "".join([_driver_row(d) for d in drivers])
-    empty = '<tr><td colspan="6" class="p-6 text-center text-xs text-slate-400">No drivers yet.</td></tr>'
+    empty = '<tr><td colspan="7" class="p-6 text-center text-xs text-slate-400">No drivers yet.</td></tr>'
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Manage Drivers</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -52,6 +52,7 @@ def list_drivers(request: Request):
 <th class="p-3 text-[10px] font-bold text-slate-500">Full Name</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Phone</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Email</th>
+<th class="p-3 text-[10px] font-bold text-slate-500">Batta</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Status</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Action</th>
 </tr></thead>
@@ -71,12 +72,20 @@ def _driver_row(d: dict) -> str:
         status_cls = "bg-rose-100 text-rose-800"
         status_txt = "Inactive"
         act_link = f'<a href="/drivers/activate/{uid}" class="text-emerald-600 hover:text-emerald-800">Activate</a>'
+    batta_type = d.get("batta_type") or "FIXED_TRIP"
+    batta_rate = d.get("default_batta_rate")
+    batta_display = (
+        "NONE" if batta_type == "NONE"
+        else f"{batta_type} · ₹{batta_rate:,.2f}" if batta_rate is not None
+        else batta_type
+    )
     return f"""
         <tr class="border-b border-slate-100 hover:bg-slate-50">
             <td class="p-3 text-xs font-bold text-slate-800">{esc(d["username"])}</td>
             <td class="p-3 text-xs text-slate-600">{esc(d["full_name"])}</td>
             <td class="p-3 text-xs text-slate-600">{esc(d["phone"] or "")}</td>
             <td class="p-3 text-xs text-slate-600">{esc(d["email"] or "")}</td>
+            <td class="p-3 text-xs text-slate-600">{esc(batta_display)}</td>
             <td class="p-3 text-xs"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold {status_cls}">{esc(status_txt)}</span></td>
             <td class="p-3 text-xs flex gap-3">{edit_link}{act_link}</td>
         </tr>"""
@@ -87,6 +96,12 @@ def _driver_form(user: dict, action: str, editing: dict | None = None) -> str:
     fname = esc(editing["full_name"]) if editing else ""
     phone = esc(editing["phone"] or "") if editing else ""
     email = esc(editing["email"] or "") if editing else ""
+    batta_type = (editing.get("batta_type") if editing else "") or "FIXED_TRIP"
+    batta_rate = (editing.get("default_batta_rate") if editing else "") or "2500.00"
+    batta_opts = "".join(
+        f'<option value="{t}"{" selected" if t == batta_type else ""}>{t}</option>'
+        for t in ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
+    )
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Driver Form</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -103,6 +118,13 @@ def _driver_form(user: dict, action: str, editing: dict | None = None) -> str:
 <input type="text" name="phone" value="{phone}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
 <div><label class="text-xs font-bold text-slate-700">Email</label>
 <input type="email" name="email" value="{email}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
+<div class="grid grid-cols-2 gap-3">
+<div><label class="text-xs font-bold text-slate-700">Batta Type</label>
+<select name="batta_type" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm">{batta_opts}</select></div>
+<div><label class="text-xs font-bold text-slate-700">Batta Rate (₹ / trip)</label>
+<input type="number" step="0.01" min="0" name="default_batta_rate" value="{batta_rate}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
+</div>
+<p class="text-[10px] text-slate-400">FIXED_TRIP = flat ₹ per trip · PER_KM / DAILY reserved for future calculation · NONE = driver receives no batta.</p>
 <div><label class="text-xs font-bold text-slate-700">Password (blank = keep current)</label>
 <input type="password" name="password" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
 <div class="flex gap-3"><a href="/drivers" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl">Cancel</a>
@@ -124,6 +146,8 @@ def create_driver_submit(
     request: Request,
     username: str = Form(...), full_name: str = Form(...),
     phone: str = Form(None), email: str = Form(None), password: str = Form(...),
+    batta_type: str = Form("FIXED_TRIP"),
+    default_batta_rate: float | str = Form("2500.00"),
 ):
     guard = require_role(request, "trip_manager", "super_admin")
     if guard:
@@ -135,7 +159,9 @@ def create_driver_submit(
         create_user(conn, username.strip(), hash_password(password), full_name.strip(),
                     "driver", phone.strip() if phone else None,
                     email.strip() if email else None,
-                    created_by=user["user_id"])
+                    created_by=user["user_id"],
+                    batta_type=batta_type,
+                    default_batta_rate=default_batta_rate)
     return RedirectResponse(url="/drivers", status_code=303)
 
 
@@ -157,6 +183,8 @@ def edit_driver_submit(
     request: Request, id: int,
     username: str = Form(...), full_name: str = Form(...),
     phone: str = Form(None), email: str = Form(None), password: str = Form(None),
+    batta_type: str = Form("FIXED_TRIP"),
+    default_batta_rate: float | str = Form("2500.00"),
 ):
     guard = require_role(request, "trip_manager", "super_admin")
     if guard:
@@ -166,7 +194,9 @@ def edit_driver_submit(
         update_user(conn, id, full_name.strip(), "driver",
                     phone.strip() if phone else None,
                     email.strip() if email else None,
-                    password_hash=pw_hash)
+                    password_hash=pw_hash,
+                    batta_type=batta_type,
+                    default_batta_rate=default_batta_rate)
     return RedirectResponse(url="/drivers", status_code=303)
 
 

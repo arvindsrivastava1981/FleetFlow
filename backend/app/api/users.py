@@ -59,6 +59,14 @@ def _user_row(u: dict) -> str:
     role_cls = _ROLE_COLORS.get(u["role"], "bg-slate-100 text-slate-800")
     status_cls = "bg-emerald-100 text-emerald-800" if u["is_active"] else "bg-rose-100 text-rose-800"
     status_txt = "Active" if u["is_active"] else "Inactive"
+    batta_display = ""
+    if u["role"] == "driver":
+        bt = u.get("batta_type") or "FIXED_TRIP"
+        rate = u.get("default_batta_rate")
+        batta_display = (
+            "NONE" if bt == "NONE"
+            else f"{bt} · ₹{rate:,.2f}" if rate is not None else bt
+        )
     return f"""
         <tr class="border-b border-slate-100 hover:bg-slate-50">
             <td class="p-3 text-xs font-bold text-slate-800">{esc(u['username'])}</td>
@@ -68,6 +76,7 @@ def _user_row(u: dict) -> str:
             </td>
             <td class="p-3 text-xs text-slate-600">{esc(u['phone'] or '')}</td>
             <td class="p-3 text-xs text-slate-600">{esc(u['email'] or '')}</td>
+            <td class="p-3 text-xs text-slate-600">{esc(batta_display)}</td>
             <td class="p-3 text-xs flex gap-3">{_action_links(u)}</td>
         </tr>"""
 
@@ -82,6 +91,23 @@ def _user_form(user: dict, action: str, editing: dict | None = None) -> str:
     email = esc(editing["email"] or "") if editing else ""
     sel = editing["role"] if editing else ""
     title = "Edit User" if editing else "Create New User"
+    batta_type = ((editing.get("batta_type") if editing else "") or "FIXED_TRIP") if sel == "driver" else ""
+    batta_rate = ((editing.get("default_batta_rate") if editing else "") or "2500.00") if sel == "driver" else ""
+    batta_opts = "".join(
+        f'<option value="{t}"{" selected" if t == batta_type else ""}>{t}</option>'
+        for t in ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
+    )
+    batta_fields = (
+        f"""<div class="grid grid-cols-2 gap-3">
+<div><label class="text-xs font-bold text-slate-700">Batta Type</label>
+<select name="batta_type" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm">{batta_opts}</select></div>
+<div><label class="text-xs font-bold text-slate-700">Batta Rate (₹ / trip)</label>
+<input type="number" step="0.01" min="0" name="default_batta_rate" value="{batta_rate}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
+</div>
+<p class="text-[10px] text-slate-400">FIXED_TRIP = flat ₹ per trip · PER_KM / DAILY reserved · NONE = no batta.</p>"""
+        if sel == "driver"
+        else ""
+    )
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>{title}</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -100,6 +126,7 @@ def _user_form(user: dict, action: str, editing: dict | None = None) -> str:
 <input type="text" name="phone" value="{phone}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
 <div><label class="text-xs font-bold text-slate-700">Email</label>
 <input type="email" name="email" value="{email}" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
+{batta_fields}
 <div><label class="text-xs font-bold text-slate-700">Password (blank = keep current)</label>
 <input type="password" name="password" class="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"></div>
 <div class="flex gap-3"><a href="/users" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2.5 rounded-xl">Cancel</a>
@@ -117,7 +144,7 @@ def list_users(request: Request):
     with get_db() as conn:
         users = get_all_users(conn)
     rows = "".join([_user_row(u) for u in users])
-    empty = '<tr><td colspan="6" class="p-6 text-center text-xs text-slate-400">No users yet.</td></tr>'
+    empty = '<tr><td colspan="7" class="p-6 text-center text-xs text-slate-400">No users yet.</td></tr>'
     return f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Manage Users</title><script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-slate-100 min-h-screen p-4 md:p-6 font-sans">
@@ -138,6 +165,7 @@ def list_users(request: Request):
 <th class="p-3 text-[10px] font-bold text-slate-500">Role</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Phone</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Email</th>
+<th class="p-3 text-[10px] font-bold text-slate-500">Batta</th>
 <th class="p-3 text-[10px] font-bold text-slate-500">Action</th>
 </tr></thead>
 <tbody>{rows if users else empty}</tbody>
@@ -158,6 +186,8 @@ def create_user_submit(
     request: Request,
     username: str = Form(...), full_name: str = Form(...), role: str = Form(...),
     phone: str = Form(None), email: str = Form(None), password: str = Form(...),
+    batta_type: str = Form("FIXED_TRIP"),
+    default_batta_rate: float | str = Form("2500.00"),
 ):
     guard = require_role(request, "super_admin")
     if guard:
@@ -168,7 +198,9 @@ def create_user_submit(
         create_user(conn, username.strip(), hash_password(password), full_name.strip(),
                     role, phone.strip() if phone else None,
                     email.strip() if email else None,
-                    created_by=get_current_user(request)["user_id"])
+                    created_by=get_current_user(request)["user_id"],
+                    batta_type=(batta_type if role == "driver" else None),
+                    default_batta_rate=(default_batta_rate if role == "driver" else None))
     return RedirectResponse(url="/users", status_code=303)
 
 
@@ -190,6 +222,8 @@ def edit_user_submit(
     request: Request, id: int,
     username: str = Form(...), full_name: str = Form(...), role: str = Form(...),
     phone: str = Form(None), email: str = Form(None), password: str = Form(None),
+    batta_type: str = Form("FIXED_TRIP"),
+    default_batta_rate: float | str = Form("2500.00"),
 ):
     guard = require_role(request, "super_admin")
     if guard:
@@ -198,10 +232,14 @@ def edit_user_submit(
         return RedirectResponse(url=f"/users/edit/{id}", status_code=303)
     pw_hash = hash_password(password) if password else None
     with get_db() as conn:
-        update_user(conn, id, full_name.strip(), role,
-                    phone.strip() if phone else None,
-                    email.strip() if email else None,
-                    password_hash=pw_hash)
+        update_user(
+            conn, id, full_name.strip(), role,
+            phone.strip() if phone else None,
+            email.strip() if email else None,
+            password_hash=pw_hash,
+            batta_type=(batta_type if role == "driver" else None),
+            default_batta_rate=(default_batta_rate if role == "driver" else None),
+        )
     return RedirectResponse(url="/users", status_code=303)
 
 

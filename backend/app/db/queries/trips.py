@@ -6,6 +6,8 @@ and return plain dict rows / booleans. None of them commit — the caller's
 """
 from __future__ import annotations
 
+from backend.app.services.audit.cash import compute_settlement
+
 
 def active_trip_exists(conn, fleet_id: int | None = None) -> bool:
     """True when an ACTIVE trip exists, scoped to *fleet_id* when provided.
@@ -103,24 +105,26 @@ def insert_trip(
     created_by: int | None = None,
     driver_user_id: int | None = None,
     vehicle_id: int | None = None,
+    driver_batta_amount: float | None = None,
 ) -> None:
     """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first.
     *fleet_id* is REQUIRED (schema: trips.fleet_id NOT NULL) and binds the trip
     to its owning tenant. *created_by* is the trip_manager who started the trip;
     *driver_user_id* links the trip to a driver user so drivers can see their
     own trips. *vehicle_id* links the trip to the vehicle selected from the
-    dropdown.
+    dropdown. *driver_batta_amount* is the resolved batta snapshotted from the
+    driver's profile at creation (None -> DB default ₹2,500).
     """
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO trips
                (fleet_id, trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
                 advance_amount, start_odo, current_odo, status,
-                created_by, driver_user_id)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
+                created_by, driver_user_id, driver_batta_amount)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s, %s)""",
         (fleet_id, trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
          advance_amount, start_odo, start_odo,
-         created_by, driver_user_id),
+         created_by, driver_user_id, driver_batta_amount),
     )
 
 
@@ -177,15 +181,36 @@ def get_active_trip_for_manager(conn, user_id: int) -> dict | None:
 
 
 def settle_trip(conn, trip_code: str) -> None:
-    """Mark a trip SETTLED (only called after confirming no PENDING expenses)."""
+    """Mark a trip SETTLED and persist the settlement verification fingerprint.
+
+    Only called after confirming no PENDING expenses. Uses the single-source
+    netting engine to compute the deterministic verification hash + resolved
+    batta, and writes them in the same transaction that flips status so a
+    historical print's voucher code is stable and verifiable.
+    """
     cur = conn.cursor()
+    cur.execute("SELECT * FROM trips WHERE trip_code = %s AND status = 'ACTIVE'", (trip_code,))
+    trip = cur.fetchone()
+    if trip is None:
+        return
+
+    cur.execute(
+        "SELECT * FROM expenses WHERE trip_code = %s AND manager_status = 'APPROVED'",
+        (trip_code,),
+    )
+    approved_expenses = cur.fetchall()
+
+    settlement = compute_settlement(trip, approved_expenses)
+
     cur.execute(
         """UPDATE trips
             SET status = 'SETTLED', end_odo = current_odo,
                 completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
-                settled_at = CURRENT_TIMESTAMP
+                settled_at = CURRENT_TIMESTAMP,
+                verification_hash = %s,
+                driver_batta_amount = %s
           WHERE trip_code = %s AND status = 'ACTIVE'""",
-        (trip_code,),
+        (settlement.verification_hash, settlement.driver_batta, trip_code),
     )
 
 

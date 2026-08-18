@@ -6,6 +6,33 @@ and return plain dict rows / booleans. None of them commit — the caller's
 """
 from __future__ import annotations
 
+# Valid driver remuneration modes (aligned with the users.batta_type CHECK).
+BATTA_TYPES: tuple[str, ...] = ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
+DEFAULT_BATTA_TYPE = "FIXED_TRIP"
+DEFAULT_BATTA_RATE = 2500.00
+
+
+def _normalise_batta(
+    batta_type: str | None,
+    default_batta_rate: float | str | None,
+) -> tuple[str, float]:
+    """Return a validated (batta_type, default_batta_rate) pair.
+
+    Falls back to the schema defaults (FIXED_TRIP / ₹2,500.00) when a value is
+    missing or outside the allowed whitelist, so DB-level CHECK/DEFAULT invariants
+    are preserved from the application layer too.
+    """
+    bt = (batta_type or "").strip().upper() or DEFAULT_BATTA_TYPE
+    if bt not in BATTA_TYPES:
+        bt = DEFAULT_BATTA_TYPE
+    rate = default_batta_rate
+    if rate is None or rate == "":
+        return bt, DEFAULT_BATTA_RATE
+    try:
+        return bt, round(float(rate), 2)
+    except (TypeError, ValueError):
+        return bt, DEFAULT_BATTA_RATE
+
 
 def get_user_by_username(conn, username: str) -> dict | None:
     cur = conn.cursor()
@@ -42,6 +69,22 @@ def get_users_by_roles(conn, roles: tuple[str, ...]) -> list[dict]:
     return cur.fetchall()
 
 
+def get_driver_batta_profile(conn, user_id: int | None) -> dict | None:
+    """Return the batta-relevant subset of a driver user's profile (or None).
+
+    Lightweight lookup used at trip creation to resolve the batta to snapshot.
+    """
+    if not user_id:
+        return None
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, batta_type, default_batta_rate "
+        "FROM users WHERE id = %s AND role = 'driver'",
+        (user_id,),
+    )
+    return cur.fetchone()
+
+
 def create_user(
     conn,
     username: str,
@@ -52,19 +95,26 @@ def create_user(
     email: str | None = None,
     created_by: int | None = None,
     fleet_id: int | None = None,
+    batta_type: str | None = None,
+    default_batta_rate: float | str | None = None,
 ) -> int:
     """Insert a new user and return the new ID.
 
     *fleet_id* binds a trip_manager/driver to the fleet they belong to
-    (the fleet they create vehicles under).
+    (the fleet they create vehicles under). For drivers, *batta_type* and
+    *default_batta_rate* set the remuneration profile (defaults to FIXED_TRIP
+    / ₹2,500.00); NONE disables batta for that driver.
     """
+    bt, rate = _normalise_batta(batta_type, default_batta_rate)
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO users
-               (username, password_hash, full_name, role, phone, email, is_active, created_by, fleet_id)
-           VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s)
+               (username, password_hash, full_name, role, phone, email, is_active,
+                created_by, fleet_id, batta_type, default_batta_rate)
+           VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s)
            RETURNING id""",
-        (username, password_hash, full_name, role, phone, email, created_by, fleet_id),
+        (username, password_hash, full_name, role, phone, email,
+         created_by, fleet_id, bt, rate),
     )
     return cur.fetchone()["id"]
 
@@ -79,8 +129,15 @@ def update_user(
     is_active: bool | None = None,
     password_hash: str | None = None,
     fleet_id: int | None = None,
+    batta_type: str | None = None,
+    default_batta_rate: float | str | None = None,
 ) -> bool:
-    """Update a user. Returns True if a row was updated."""
+    """Update a user. Returns True if a row was updated.
+
+    *batta_type* / *default_batta_rate* update the driver remuneration profile
+    when provided (None leaves the existing values untouched). Pass an empty
+    string sentinel to explicitly reset `default_batta_rate` back to the default.
+    """
     cur = conn.cursor()
     fields = []
     values = []
@@ -105,6 +162,12 @@ def update_user(
     if fleet_id is not None:
         fields.append("fleet_id = %s")
         values.append(fleet_id)
+    if batta_type is not None:
+        bt, rate = _normalise_batta(batta_type, default_batta_rate)
+        fields.append("batta_type = %s")
+        values.append(bt)
+        fields.append("default_batta_rate = %s")
+        values.append(rate)
     if not fields:
         return False
     values.append(user_id)

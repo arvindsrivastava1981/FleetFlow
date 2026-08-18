@@ -312,7 +312,11 @@ def driver_dashboard(request: Request):
         today_logged = driver_today_logged(conn, trip_code) if trip_code else 0.0
         cash_net = approved_cash_net(conn, trip_code) if trip_code else 0.0
         expenses = get_expenses_for_trip(conn, trip_code) if trip_code else []
-    cash_in_hand = (trip["advance_amount"] or 0) + cash_net if trip else 0.0
+    cash_in_hand = (
+        (trip["advance_amount"] or 0) + cash_net
+        - float(trip.get("driver_batta_amount") or 2500.00)
+        if trip else 0.0
+    )
     if trip:
         status_block = f"""<div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
             <p class="text-xs font-semibold text-slate-400 uppercase">Active Trip Assigned</p>

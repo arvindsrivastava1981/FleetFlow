@@ -66,6 +66,7 @@ from backend.app.db.queries.users import (
     create_user,
     deactivate_user,
     get_all_users,
+    get_driver_batta_profile,
     get_user_by_id,
     get_user_fleet_id,
     reactivate_user,
@@ -85,6 +86,7 @@ from backend.app.db.queries.benchmarks import (
     insert_benchmark,
     update_benchmark,
 )
+from backend.app.services.audit.cash import compute_settlement, resolve_trip_batta
 from backend.app.services.pdf.settlement import build_settlement_pdf
 from backend.app.services.rules.constants import GOODS_TYPES
 from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
@@ -162,6 +164,7 @@ def api_dashboard_overview(request: Request):
                 "trip": _jsonable(trip),
                 "today_logged": driver_today_logged(conn, trip_code) if trip_code else 0.0,
                 "cash_in_hand": (trip["advance_amount"] or 0.0) + approved_cash_net(conn, trip_code)
+                - float(trip.get("driver_batta_amount") or 2500.00)
                 if trip_code else 0.0,
             }
         else:
@@ -210,6 +213,22 @@ def api_trip_detail(request: Request, trip_code: str):
         if role == "driver" and trip["driver_user_id"] != user.get("user_id"):
             return JSONResponse(status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"})
         expenses = get_expenses_for_trip(conn, trip_code)
+        res = compute_settlement(trip, expenses)
+        trip["settlement"] = {
+            "advance_amount": res.advance_amount,
+            "goods_income": res.goods_income,
+            "total_cr": res.total_cr,
+            "expense_buckets": res.expense_buckets,
+            "total_road_expenses": res.total_road_expenses,
+            "driver_batta": res.driver_batta,
+            "total_driver_credits": res.total_driver_credits,
+            "net_balance": res.net_balance,
+            "is_driver_refund": res.is_driver_refund,
+            "status_label_en": res.status_label_en,
+            "status_label_hi": res.status_label_hi,
+            "avg_kml": res.avg_kml,
+            "verification_hash": res.verification_hash,
+        }
 
     return _ok({"trip": trip, "expenses": expenses})
 # ---------------------------------------------------------------------------#
@@ -349,6 +368,8 @@ def api_create_trip(request: Request):
                 status_code=409,
                 content={"error": "an active trip already exists for this fleet", "code": "ACTIVE_TRIP_EXISTS"},
             )
+        driver = get_driver_batta_profile(conn, driver_user_id)
+        driver_batta_amount = resolve_trip_batta(driver)
         insert_trip(
             conn,
             fleet_id,
@@ -361,6 +382,7 @@ def api_create_trip(request: Request):
             created_by=user.get("user_id"),
             driver_user_id=driver_user_id,
             vehicle_id=vehicle_id,
+            driver_batta_amount=driver_batta_amount,
         )
     return _created({"trip_code": trip_code, "status": "ACTIVE"})
 
@@ -750,10 +772,17 @@ def api_create_user(request: Request):
         return _bad("invalid role or missing password", "VALIDATION")
     phone = (body.get("phone") or "").strip() or None
     email = (body.get("email") or "").strip() or None
+    batta_type = (body.get("batta_type") or "").strip() or None
+    default_batta_rate = body.get("default_batta_rate")
+    if role != "driver":
+        batta_type = None
+        default_batta_rate = None
     with get_db() as conn:
         new_id = create_user(
             conn, username, hash_password(password), full_name, role,
             phone, email, created_by=user.get("user_id"),
+            batta_type=batta_type,
+            default_batta_rate=default_batta_rate,
         )
     return _created({"id": new_id})
 
@@ -777,8 +806,16 @@ def api_update_user(request: Request, uid: int):
     email = (body.get("email") or "").strip() or None
     password = body.get("password") or None
     pw_hash = hash_password(password) if password else None
+    batta_type = (body.get("batta_type") or "").strip() or None
+    default_batta_rate = body.get("default_batta_rate")
+    if role != "driver":
+        batta_type = None
+        default_batta_rate = None
     with get_db() as conn:
-        ok = update_user(conn, uid, full_name, role, phone, email, password_hash=pw_hash)
+        ok = update_user(
+            conn, uid, full_name, role, phone, email, password_hash=pw_hash,
+            batta_type=batta_type, default_batta_rate=default_batta_rate,
+        )
     if not ok:
         return _not_found("user not found")
     return _ok({"id": uid})

@@ -25,7 +25,8 @@ from backend.app.db.queries.trips import (
     pending_expense_count,
     settle_trip as mark_trip_settled,
 )
-from backend.app.db.queries.users import get_user_fleet_id
+from backend.app.db.queries.users import get_driver_batta_profile, get_user_fleet_id
+from backend.app.services.audit.cash import resolve_trip_batta
 
 router = APIRouter()
 
@@ -71,6 +72,8 @@ def create_trip(
 
         if active_trip_exists(conn, fleet_id=fleet_id):
             return RedirectResponse(url="/trips", status_code=303)
+        driver = get_driver_batta_profile(conn, driver_user_id)
+        driver_batta_amount = resolve_trip_batta(driver)
         insert_trip(
             conn,
             fleet_id,
@@ -83,6 +86,7 @@ def create_trip(
             created_by=user.get("user_id"),
             driver_user_id=driver_user_id,
             vehicle_id=vehicle_id,
+            driver_batta_amount=driver_batta_amount,
         )
     return RedirectResponse(url=f"/?trip_code={trip_code}", status_code=303)
 

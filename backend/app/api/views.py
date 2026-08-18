@@ -26,6 +26,7 @@ from backend.app.db.queries.trips import (
 )
 from backend.app.db.queries.users import get_users_by_roles
 from backend.app.db.queries.vehicles import get_all_vehicles
+from backend.app.services.audit.cash import compute_settlement
 from backend.app.web.chrome import render_footer, render_header, render_sidebar
 
 router = APIRouter()
@@ -56,10 +57,12 @@ def _is_approved(expense: dict) -> bool:
     return expense["manager_status"] == "APPROVED"
 
 
-def _approved_cash_impact(expense: dict) -> float:
-    if not _is_approved(expense):
-        return 0.0
-    return expense["amount"] if expense["exp_type"] == "GOODS_SALE" else -expense["amount"]
+def _expense_effective_amount(expense: dict) -> float:
+    """COALESCE(approved_amount, amount) — mirrors the netting engine."""
+    val = expense.get("approved_amount")
+    if val is None or val == "":
+        val = expense.get("amount")
+    return round(float(val or 0.0), 2)
 
 
 @router.get("/trips", response_class=HTMLResponse)
@@ -206,23 +209,26 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
         if active_trip:
             expenses = get_expenses_for_trip(conn, active_trip["trip_code"])
 
-    # Amount sums are derived from NUMERIC(10,2) columns cast to float via the
-    # global DEC2FLOAT caster. `round` at each accumulation boundary keeps the
-    # rupee totals exact to paise and prevents float precision drift from
-    # cascading into `remaining_advance` / settlement math.
-    total_claimed = round(sum(round(e["amount"], 2) for e in expenses), 2)
+    # Amount sums come from the single-source netting engine (services/audit/cash.py)
+    # so the dashboard, PDF voucher and settle transaction always agree. `settlement`
+    # uses COALESCE(approved_amount, amount), the strict APPROVED filter, and now
+    # credits the driver's resolved trip batta toward the net settlement.
+    settlement = compute_settlement(active_trip, expenses) if active_trip else None
+    total_claimed = round(sum(_expense_effective_amount(e) for e in expenses), 2)
     total_approved = round(
-        sum(round(e["amount"], 2) for e in expenses
+        sum(_expense_effective_amount(e) for e in expenses
             if _is_approved(e) and e["exp_type"] != "GOODS_SALE"), 2)
-    total_income = round(
-        sum(round(e["amount"], 2) for e in expenses
-            if _is_approved(e) and e["exp_type"] == "GOODS_SALE"), 2)
+    total_income = settlement.goods_income if settlement else 0.0
     total_flagged = round(
-        sum(round(e["amount"], 2) for e in expenses if e["is_flagged"]), 2)
+        sum(_expense_effective_amount(e) for e in expenses if e["is_flagged"]), 2)
 
-    trip_profit = round(sum(_approved_cash_impact(e) for e in expenses), 2)
-    remaining_advance = round(
-        (active_trip["advance_amount"] + trip_profit) if active_trip else 0.0, 2)
+    # Goods margin (GOODS_SALE proceeds minus approved road outflows) — the old
+    # "Net Trip Profit / Loss" semantics, but sourced from engine buckets.
+    goods_margin = round(
+        (settlement.goods_income - settlement.total_road_expenses)
+        if settlement else 0.0, 2)
+    # Final settlement = advance + goods − (road expenses + driver batta).
+    remaining_advance = settlement.net_balance if settlement else 0.0
     is_trip_settled = bool(active_trip and active_trip["status"] == "SETTLED")
     settled_at_text = (
         esc(_fmt_dt(active_trip["settled_at"]))
@@ -496,9 +502,9 @@ def index(request: Request, trip_code: str | None = None, new_trip: bool = False
                                     <span class="text-[9px] uppercase font-bold block">Approved Goods Income</span>
                                     <span class="text-xs font-bold">₹{total_income:,.0f}</span>
                                 </div>
-                                <div class="{'bg-emerald-50 border-emerald-200 text-emerald-800' if trip_profit >= 0 else 'bg-rose-50 border-rose-200 text-rose-800'} border p-2.5 rounded-xl col-span-2">
-                                    <span class="text-[9px] uppercase font-bold block">Net Trip Profit / Loss</span>
-                                    <span class="text-xs font-bold">₹{trip_profit:,.2f}</span>
+                                <div class="{'bg-emerald-50 border-emerald-200 text-emerald-800' if goods_margin >= 0 else 'bg-rose-50 border-rose-200 text-rose-800'} border p-2.5 rounded-xl col-span-2">
+                                    <span class="text-[9px] uppercase font-bold block">Net Goods Margin</span>
+                                    <span class="text-xs font-bold">₹{goods_margin:,.2f}</span>
                                 </div>
                             </div>
                         </div>

@@ -57,3 +57,21 @@ VALUES (
     NULL
 )
 ON CONFLICT (username) DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+-- DRIVER REMUNERATION PROFILE ON USERS (settlement batta snapshots)
+--   Idempotent reconciliation for databases created from an older schema.sql.
+-- ----------------------------------------------------------------------------
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS batta_type VARCHAR(20) DEFAULT 'FIXED_TRIP'
+        CHECK (batta_type IN ('FIXED_TRIP', 'PER_KM', 'DAILY', 'NONE')),
+    ADD COLUMN IF NOT EXISTS default_batta_rate NUMERIC(10, 2) DEFAULT 2500.00;
+
+-- ----------------------------------------------------------------------------
+-- SETTLEMENT SNAPSHOT & VERIFICATION FINGERPRINT ON TRIPS
+--   driver_batta_amount is snapshotted from the users profile at trip creation;
+--   verification_hash is written when the trip is settled (settle transaction).
+-- ----------------------------------------------------------------------------
+ALTER TABLE trips
+    ADD COLUMN IF NOT EXISTS driver_batta_amount NUMERIC(10, 2) DEFAULT 2500.00,
+    ADD COLUMN IF NOT EXISTS verification_hash VARCHAR(32);

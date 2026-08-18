@@ -3,6 +3,9 @@
 Extracted from `fleetflow_interactive_demo.py`'s `/generate-settlement-pdf` route
 so the router stays a thin HTTP wrapper. Pure function: takes the trip row +
 its expenses, returns the PDF bytes.
+
+All netting math is delegated to `services/audit/cash.compute_settlement` so the
+PDF, the settle transaction and (future) dashboards read the *same* numbers.
 """
 from __future__ import annotations
 
@@ -13,30 +16,32 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-GOODS_EXPENSE_TYPES = ("GOODS_BUY", "GOODS_SALE")
+from backend.app.services.audit.cash import compute_settlement
+
+# Bucket -> bilingual label (dr side). Debit rows follow ROAD_EXPENSE_BUCKETS order.
+BUCKET_LABELS: dict[str, tuple[str, str]] = {
+    "FUEL": ("Diesel Refills", "स्वीकृत डीजल खर्च"),
+    "DEF": ("DEF (AdBlue)", "यूरिया खर्च"),
+    "TOLL": ("Tolls & FASTag", "टोल पर्ची खर्च"),
+    "REPAIR": ("Maintenance & Repairs", "मरम्मत खर्च"),
+    "CHALLAN": ("Challans", "चालान खर्च"),
+    "MISC": ("Misc & Loading", "अन्य खर्चे"),
+    "GOODS_BUY": ("Goods Purchased", "माल खरीद"),
+}
 
 
-def _is_approved(expense: dict) -> bool:
-    return expense["manager_status"] == "APPROVED"
-
-
-def _approved_cash_impact(expense: dict) -> float:
-    if not _is_approved(expense):
-        return 0.0
-    return expense["amount"] if expense["exp_type"] == "GOODS_SALE" else -expense["amount"]
+def _rs(value: float) -> str:
+    return f"₹{value:,.2f}"
 
 
 def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
-    """Render the settlement/reconciliation PDF for a settled (or active) trip."""
-    total_approved = sum(
-        e["amount"] for e in expenses if _is_approved(e) and e["exp_type"] != "GOODS_SALE"
-    )
-    total_income = sum(
-        e["amount"] for e in expenses if _is_approved(e) and e["exp_type"] == "GOODS_SALE"
-    )
-    total_flagged = sum(e["amount"] for e in expenses if e["is_flagged"])
-    trip_profit = sum(_approved_cash_impact(e) for e in expenses)
-    net_returnable = trip["advance_amount"] + trip_profit
+    """Render the bilingual Dr/Cr settlement voucher PDF.
+
+    Delegates all arithmetic to `compute_settlement` (single source). Emits a
+    double-entry ledger (Goods Sale + Advance on Cr; expense buckets + Driver
+    Batta on Dr), a net-settlement card, and a verification fingerprint footer.
+    """
+    s = compute_settlement(trip, expenses)
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
@@ -47,84 +52,122 @@ def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
     sub_style = ParagraphStyle("SubStyle", parent=styles["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
     meta_style = ParagraphStyle("MetaStyle", parent=styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
     cell_style = ParagraphStyle("CellStyle", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
-    flag_style = ParagraphStyle("FlagStyle", parent=styles["Normal"], fontSize=8, leading=10, textColor=colors.HexColor("#dc2626"))
+    hi_style = ParagraphStyle("HiStyle", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#64748b"))
 
     story.append(Paragraph("<b>VahanKhata</b>", title_style))
     story.append(Paragraph("Official Trip Settlement & Advance Reconciliation Ledger", sub_style))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph("TRIP SETTLEMENT VOUCHER / यात्रा हिसाब पर्ची", meta_style))
     story.append(Spacer(1, 10))
 
-    odo_dist = trip["current_odo"] - trip["start_odo"]
+    odo_dist = (trip.get("end_odo") or trip.get("current_odo") or 0) - (trip.get("start_odo") or 0)
+    km_text = f"{odo_dist:,.0f} KM"
+    km_avg = f"Avg: {s.avg_kml:.2f} km/L" if s.avg_kml is not None else "Avg: N/A"
     meta_text = (
-        f"<b>Trip Code:</b> {trip['trip_code']} &nbsp;|&nbsp; <b>Vehicle No:</b> {trip['vehicle_no']} "
-        f"&nbsp;|&nbsp; <b>Driver:</b> {trip['driver_name']} &nbsp;|&nbsp; <b>Distance Run:</b> {odo_dist:,.0f} KM"
+        f"<b>Trip Code:</b> {trip.get('trip_code')} &nbsp;|&nbsp; <b>Vehicle No:</b> {trip.get('vehicle_no')}"
+        f" &nbsp;|&nbsp; <b>Driver:</b> {trip.get('driver_name')} ({trip.get('driver_phone')})"
     )
     story.append(Paragraph(meta_text, meta_style))
+    route_text = (
+        f"{trip.get('origin') or 'Origin'} ➔ {trip.get('destination') or 'Destination'}"
+        f" &nbsp;|&nbsp; <b>Distance:</b> {km_text} &nbsp;|&nbsp; {km_avg}"
+    )
+    story.append(Paragraph(route_text, meta_style))
     story.append(Spacer(1, 12))
 
-    summary_data = [
-        [
-            Paragraph("<b>Advance Issued</b>", cell_style),
-            Paragraph("<b>Approved Expenses</b>", cell_style),
-            Paragraph("<b>Approved Goods Income</b>", cell_style),
-            Paragraph("<b>Flagged Deductions</b>", cell_style),
-            Paragraph("<b>Cash Settlement</b>", cell_style),
-        ],
-        [
-            Paragraph(f"<b>Rs. {trip['advance_amount']:,.2f}</b>", cell_style),
-            Paragraph(f"<b>Rs. {total_approved:,.2f}</b>", cell_style),
-            Paragraph(f"<b>Rs. {total_income:,.2f}</b>", cell_style),
-            Paragraph(f"<font color='#dc2626'><b>Rs. {total_flagged:,.2f}</b></font>", cell_style),
-            Paragraph(f"<font color='#16a34a'><b>Rs. {net_returnable:,.2f}</b></font>", cell_style),
-        ],
-    ]
-    t_summary = Table(summary_data, colWidths=[104, 104, 104, 104, 104])
-    t_summary.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8fafc")),
-        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
-        ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-    ]))
-    story.append(t_summary)
-    story.append(Spacer(1, 15))
+    return _render_pdf(doc, buffer, story, styles, s)
 
-    story.append(Paragraph("<b>Itemized Expense Audit Trail</b>", styles["Heading3"]))
+
+def _render_pdf(doc, buffer, story, styles, s) -> bytes:
+    """Build the body flowables for a `SettlementResult` ledger + footer."""
+    cell_style = ParagraphStyle("CellStyle2", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
+
+    # ---- Double-entry Dr/Cr ledger ---------------------------------------
+    story.append(Paragraph("<b>Bilingual Double-Entry Ledger / दोहरी प्रविष्टि हिसाब</b>", styles["Heading3"]))
     story.append(Spacer(1, 6))
 
-    table_data = [["Expense", "Claim Amount", "Operational Metrics", "Audit Verification", "Status"]]
-    for e in expenses:
-        details = (
-            f"{e['liters']}L @ Rs. {e['rate']}/L (Odo: {e['odometer']} KM)"
-            if e["exp_type"] in ("FUEL", "DEF")
-            else f"Odo: {e['odometer']} KM"
-        )
-        audit_para = (
-            Paragraph(f"<font color='#dc2626'><b>[FLAG]</b> {e['flag_reason']}</font>", flag_style)
-            if e["is_flagged"]
-            else Paragraph("<font color='#16a34a'><b>[VERIFIED]</b></font>", cell_style)
-        )
-        table_data.append([
-            Paragraph(f"<b>{e['exp_type']}</b>", cell_style),
-            Paragraph(f"Rs. {e['amount']:,.2f}", cell_style),
-            Paragraph(details, cell_style),
-            audit_para,
-            Paragraph(f"<b>{e['manager_status']}</b>", cell_style),
+    ledger_rows = [[
+        Paragraph("<b>Particulars / विवरण</b>", cell_style),
+        Paragraph("<b>Debit Dr / खर्चे</b>", cell_style),
+        Paragraph("<b>Credit Cr / प्राप्ति</b>", cell_style),
+    ]]
+
+    # Credit side: Advance + Goods Sale.
+    ledger_rows.append([
+        Paragraph("Trip Cash Advance Issued / प्रारंभिक अग्रिम राशि", cell_style),
+        Paragraph("—", cell_style),
+        Paragraph(f"<b>{_rs(s.advance_amount)}</b>", cell_style),
+    ])
+    ledger_rows.append([
+        Paragraph("Goods Sales Income / माल विक्री आय", cell_style),
+        Paragraph("—", cell_style),
+        Paragraph(_rs(s.goods_income), cell_style),
+    ])
+
+    # Debit side: itemize every non-zero expense bucket, then Driver Batta.
+    for bucket in ("FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY"):
+        amount = s.expense_buckets.get(bucket, 0.0)
+        if amount == 0.0:
+            continue
+        en, hi = BUCKET_LABELS[bucket]
+        ledger_rows.append([
+            Paragraph(f"{en} / {hi}", cell_style),
+            Paragraph(f"<b>{_rs(amount)}</b>", cell_style),
+            Paragraph("—", cell_style),
         ])
+    ledger_rows.append([
+        Paragraph("<b>Driver Trip Batta / चालक ट्रिप भत्ता</b>", cell_style),
+        Paragraph(f"<b>{_rs(s.driver_batta)}</b>", cell_style),
+        Paragraph("—", cell_style),
+    ])
 
-    t_expenses = Table(table_data, colWidths=[60, 75, 170, 150, 65])
-    t_expenses.setStyle(TableStyle([
+    # Subtotal row.
+    ledger_rows.append([
+        Paragraph("<b>Subtotal / कुल योग</b>", cell_style),
+        Paragraph(f"<b>{_rs(s.total_driver_credits)}</b>", cell_style),
+        Paragraph(f"<b>{_rs(s.total_cr)}</b>", cell_style),
+    ])
+
+    t_ledger = Table(ledger_rows, colWidths=[300, 90, 90])
+    t_ledger.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-        ("TOPPADDING", (0, 0), (-1, -1), 5),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
     ]))
-    story.append(t_expenses)
-    story.append(Paragraph(f"<b>Net trip profit / loss after approved expenses:</b> Rs. {trip_profit:,.2f}", meta_style))
+    story.append(t_ledger)
+    story.append(Spacer(1, 15))
 
+    # ---- Net settlement card ---------------------------------------------
+    net_color = colors.HexColor("#16a34a") if s.net_balance >= 0 else colors.HexColor("#dc2626")
+    net_box = Table(
+        [[Paragraph(
+            f"<b>NET SETTLEMENT / अंतिम शेष राशि:</b> {_rs(abs(s.net_balance))}",
+            cell_style,
+        ),
+          Paragraph(f"[ {s.status_label_en} / {s.status_label_hi} ]", cell_style)]],
+        colWidths=[200, 200],
+    )
+    net_box.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 1.5, net_color),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    story.append(net_box)
+    story.append(Spacer(1, 12))
+
+    # ---- Verification fingerprint -----------------------------------------
+    story.append(Paragraph(
+        f"<b>Verification Code:</b> VHK-{s.verification_hash}",
+        cell_style,
+    ))
     story.append(Spacer(1, 35))
-    sign_data = [["Driver Signature: ___________________", "Fleet Manager Sign-off: ___________________"]]
-    story.append(Table(sign_data, colWidths=[260, 260]))
+
+    story.append(Paragraph(
+        "Driver Signature: ___________________     Fleet Manager Sign-off: ___________________",
+        cell_style,
+    ))
 
     doc.build(story)
     pdf_bytes = buffer.getvalue()
