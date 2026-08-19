@@ -101,7 +101,7 @@ updates `vehicle_limit` and `next_billing_date` (+1 / +12 months).
    - `vehicle_no` required + matches plate regex → else `400 INVALID_PLATE`
    - `driver_name` required
    - `advance_amount >= 0`, `start_odo >= 0`
-   - `driver_phone` valid **+91** (digits start "91", length 12) → `400 INVALID_PHONE`
+   - `driver_phone` valid **10-digit** (starts `6`-`9`, length 10) → `400 INVALID_PHONE`
 3. Resolve tenant: `_resolve_trip_fleet(user)` = `users.fleet_id`, fallback default fleet → none = `400 NO_FLEET`.
 4. **One active trip per fleet:** `active_trip_exists(conn, fleet_id)` → `409 ACTIVE_TRIP_EXISTS`.
 5. `get_driver_batta_profile(driver_user_id)` → `driver_batta_amount = resolve_trip_batta(...)`.

@@ -29,8 +29,8 @@ function validate(form) {
     errs.vehicle_no = "Invalid plate — expected format like UP32MA1234";
   }
   const phone = (form.driver_phone || "").trim();
-  if (phone && !/^\+91[6-9][0-9]{9}$/.test(phone)) {
-    errs.driver_phone = "Phone must match +91 6-9 9-digit (e.g. +919876543210)";
+  if (phone && !/^[6-9][0-9]{9}$/.test(phone)) {
+    errs.driver_phone = "Phone must be a 10-digit number (e.g. 9876543210)";
   }
   const advance = Number(form.advance_amount || 0);
   if (Number.isNaN(advance)) {
@@ -190,7 +190,7 @@ export default function NewTripPage() {
           <input
             value={form.driver_phone}
             onChange={(e) => set("driver_phone", e.target.value)}
-            placeholder="Driver Phone (+91...)"
+            placeholder="Driver Phone"
             required
             className={fieldClass(!!fieldErrors.driver_phone)}
           />

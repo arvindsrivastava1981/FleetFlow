@@ -59,7 +59,7 @@ def _trip(**kw) -> dict:
         "vehicle_no": "MH12AB1234",
         "vehicle_id": None,
         "driver_name": "Ramesh",
-        "driver_phone": "+919876543210",
+        "driver_phone": "9876543210",
         "driver_user_id": None,
         "advance_amount": 10000.0,
         "start_odo": 100000.0,

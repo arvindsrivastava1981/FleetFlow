@@ -143,8 +143,8 @@ async def api_create_trip(request: Request):
     if not _PLATE_RE.match(vehicle_no):
         return _bad("invalid license plate", "INVALID_PLATE")
     digits = _re.sub(r"\D", "", driver_phone or "")
-    if not (digits.startswith("91") and len(digits) == 12):
-        return _bad("driver_phone must be a valid +91 number", "INVALID_PHONE")
+    if not (_re.match(r"^[6-9][0-9]{9}$", digits)):
+        return _bad("driver_phone must be a valid 10-digit number", "INVALID_PHONE")
 
     with get_db() as conn:
         fleet_id = _resolve_trip_fleet(conn, user)
