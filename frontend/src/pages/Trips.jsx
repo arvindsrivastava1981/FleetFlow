@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function TripsPage() {
+  const { user } = useAuth();
   const [trips, setTrips] = useState([]);
   const [error, setError] = useState("");
 
@@ -13,9 +15,22 @@ export default function TripsPage() {
       .catch((e) => setError(e.message));
   }, []);
 
+  const canCreate =
+    user?.role === "trip_manager" || user?.role === "super_admin";
+
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-extrabold text-slate-900">Trips</h2>
+      <div className="flex flex-wrap justify-between items-center gap-2">
+        <h2 className="text-lg font-extrabold text-slate-900">Trips</h2>
+        {canCreate && (
+          <Link
+            to="/trips/new"
+            className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition shadow"
+          >
+            + Add New Trip
+          </Link>
+        )}
+      </div>
       {error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
           {error}

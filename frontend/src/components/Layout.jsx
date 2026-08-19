@@ -10,9 +10,10 @@ const SECTIONS = [
       { to: "/expenses", label: "Expense Ledger", icon: "🧾" },
       { to: "/whatsapp-driver", label: "WhatsApp Simulator", icon: "💬", roles: ["driver"] },
       { to: "/driver-salary", label: "Driver Salary", icon: "💰", roles: ["driver"] },
-      { to: "/reports", label: "Final Reports", icon: "📄", roles: ["driver"] },
       { to: "/whatsapp-manager", label: "WhatsApp Escalations", icon: "🔔", roles: ["trip_manager", "super_admin"] },
       { to: "/settlements", label: "Settled Trips", icon: "📑" },
+      { to: "/billing", label: "Billing", icon: "💳", roles: ["trip_manager", "super_admin"] },
+      { to: "/rule-engine", label: "Rule Engine", icon: "⚙️", roles: ["trip_manager", "super_admin"] },
     ],
   },
   {

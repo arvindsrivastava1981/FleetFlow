@@ -65,6 +65,16 @@ async function request(path, { method = "GET", body } = {}) {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
+  // Expired / invalid session: clear the local token and bounce to /login. We
+  // skip the login endpoint itself (a wrong-password 401 must NOT redirect the
+  // page) and skip while already on /login to avoid a redirect loop.
+  if (res.status === 401 && !path.includes("/auth/login")) {
+    if (getToken()) setToken(null);
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+  }
+
   return parseResponse(res);
 }
 
@@ -81,6 +91,15 @@ async function postForm(path, form) {
     headers,
     body: new URLSearchParams(form).toString(),
   });
+
+  // Same expired-session handling as `request()` — clear token and bounce to
+  // /login unless the call was the login attempt itself.
+  if (res.status === 401 && !path.includes("/auth/login")) {
+    if (getToken()) setToken(null);
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+  }
 
   return parseResponse(res);
 }

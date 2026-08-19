@@ -5,13 +5,13 @@
 ## Stack
 - Backend: Python 3.12, FastAPI, uvicorn, reportlab (PDF), psycopg2-binary, python-dotenv.
 - Database: Managed PostgreSQL (Neon DB). No ORM, no Alembic. Schema lives only in `/database/schema.sql` (+ `/database/incremental.sql`). The app never runs DDL.
-- Frontend (legacy): Server-rendered HTML strings (f-strings) styled with Tailwind CDN. No separate JS build. **Still works unchanged.**
+- Frontend (legacy): The server-rendered HTML f-string pages (Tailwind CDN) were **removed from the served app** (`main.py` no longer mounts them). All UI now lives in the React SPA; the backend is a **pure JSON API + React bundle server**. See `MIGRATION_JSON.md`.
 - **Frontend (new, Phase 1):** `frontend/` — **Vite + React 18 SPA** (React Router v6, Tailwind v3 pre-built via PostCSS). Builds to `frontend/dist/`. Consumes only `/api/v1/*` JSON endpoints.
   - Build: `cd frontend && npm install && npm run build` → outputs `dist/`.
   - Dev: `npm run dev` (proxies `/api` → `http://localhost:10000`).
   - **Deploy:** `backend/app/main.py` mounts `frontend/dist/` at `/` (see Entry Point below) — single-origin, no separate CDN, no CORS. The SPA uses **relative** `/api/v1/*` paths. `api.js`'s `API_BASE_URL` must default to `""` (same-origin) — never `http://localhost:8000`, which breaks production auth (401) since the SPA and API must be served from the same host so the session/token resolve.
   - Routing note: it is a **pure client-side SPA** (Vite) — dynamic routes like `/trips/:tripCode` resolve client-side via React Router, NOT server-side. The FastAPI catch-all returns `index.html` for any non-API path.
-  - **Pages:** `/` (redirects to `/login`), `/login`, `/dashboard`, `/trips`, `/trips/:tripCode`, `/expenses`, `/settlements` (Settled Trips PDF listing), `/change-password` (all roles), `/drivers` (trip_manager/super_admin) — shows each driver's **batta profile (type + rate)**; **driver-only** `/driver-salary` (read-only salary/batta view) and `/reports` (driver's settled-trip PDFs), plus **Super Admin** `/fleets`, `/users`, `/vehicles`, `/benchmarks` (role-guarded via `<ProtectedRoute>`). CRUD pages call the `/api/v1/*` create/update/toggle endpoints directly. **WhatsApp simulator views:** `/whatsapp-driver` (driver-only chat-style receipt sender posting to `POST /api/v1/expenses`) and `/whatsapp-manager` (trip_manager/super_admin chat-style escalation thread with inline Approve/Deduct quick-reply buttons posting to `POST /api/v1/expenses/{id}/action`); both are linked from the role-aware sidebar.
+  - **Pages:** `/` (redirects to `/login`), `/login`, `/dashboard`, `/trips`, `/trips/:tripCode`, `/trips/new` (trip_manager/super_admin — Start New Trip form posting to `POST /api/v1/trips`, prefills vehicle/driver from `/api/v1/vehicles` + `/api/v1/drivers`), `/expenses`, `/settlements` (Settled Trips PDF listing), `/change-password` (all roles), `/drivers` (trip_manager/super_admin) — shows each driver's **batta profile (type + rate)**; **driver-only** `/driver-salary` (read-only salary/batta view) and `/reports` (driver's settled-trip PDFs; nav link removed as redundant with `/settlements`, route kept for compat), plus **Super Admin** `/fleets`, `/users`, `/vehicles`, `/benchmarks` (role-guarded via `<ProtectedRoute>`). `/billing` and `/rule-engine` and `/trips/:tripCode` are restricted to `trip_manager`/`super_admin` via the inline `roles` guard. A `path="*"` catch-all renders a 404. CRUD pages call the `/api/v1/*` create/update/toggle endpoints directly. `TripDetail.jsx` renders a **Settle Trip** button for `trip_manager`/`super_admin` on `ACTIVE` trips (`POST /api/v1/trips/{code}/settle`). **WhatsApp simulator views:** `/whatsapp-driver` (driver-only chat-style receipt sender posting to `POST /api/v1/expenses`) and `/whatsapp-manager` (trip_manager/super_admin chat-style escalation thread with inline Approve/Deduct quick-reply buttons posting to `POST /api/v1/expenses/{id}/action`); both are linked from the role-aware sidebar.
 - **Phase 0 JSON API (new):** `/api/v1/*` transport-agnostic endpoints in `backend/app/api/api_v1.py` (auth, dashboard, trips, expenses, settle, PDF, vehicles, users, fleets, benchmarks). Reuses `db/queries/*` — no business-logic duplication. Serves the React SPA + hybrid/mobile app; the legacy HTML pages still work unchanged.
 
 ## Route Guards — two auth paths (do not confuse them)
@@ -23,10 +23,10 @@
 ## Entry Point
 - **[backend/app/main.py](/backend/app/main.py)** — the modular FastAPI factory; the **only entry point** (migration complete).
   - Run: `uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}` (see `Dockerfile` / `render.yaml`, which point here).
-  - Wires every router in `backend/app/api/{auth,trips,expenses,demo,dashboard,benchmarks,rule_engine,settlement,views}.py` (see Routes below) + exposes `/healthz` (DB liveness probe).
+  - Wires the **`/api/v1` JSON API** (`backend/app/api/api_v1.py`) + the Razorpay webhook callback (`backend/app/api/webhook.py`) + exposes `/healthz` (DB liveness probe). The legacy server-rendered HTML routers (`auth`, `users`, `drivers`, `vehicles`, `fleets`, `billing`, `trips`, `expenses`, `dashboard`, `dashboards`, `benchmarks`, `rule_engine`, `settlement`, `views`) are **no longer registered** — all UI lives in the React SPA. See `MIGRATION_JSON.md`.
   - **Static SPA mount (Phase 1):** after all routers, if `frontend/dist/` exists, `main.py` mounts `/assets` statically and registers a **catch-all `GET /{path:path}`** that serves real files from `dist/` or falls back to `index.html` (SPA routing). It only activates when `frontend/dist/index.html` is present — otherwise the server is pure-API/HTML. Explicit API/HTML routes always win because they register before the catch-all.
   - Config/security live in `backend/app/core/{config,security}.py` (env-driven, fail-fast; prod refuses).
-  - **Auth hardening (all routers):** every mutation and page guards via `security.require_auth` → 303 to `/login` when unauthenticated; sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); state-changing requests use single-use CSRF tokens; all DB-sourced values are escaped via `security.esc()` (stored-XSS fix). Sessions/attempts are process-local in-memory (single-worker); swap `__sessions`/`_login_attempts`/`_csrf_tokens` for a shared store in multi-worker deploys.
+  - **Auth (JSON API):** every `/api/v1` endpoint guards via `security.require_json_auth` / `require_json_role` → **401/403 JSON**, never a browser 303. Sessions carry a 72h TTL; login has per-IP brute-force lockout (`login_max_attempts=5`, `login_lockout_seconds=300`); `POST /api/v1/auth/login` sets `ff_auth_session` cookie and returns a Bearer token (SPA auth). Sessions/attempts are process-local in-memory (single-worker); swap for a shared store in multi-worker deploys.
 - **Legacy `fleetflow_interactive_demo.py` + `utils.py` have been deleted** — every route and helper they contained (rules engine, HTML chrome, DB access,  auth) now lives in the `backend/app/` package (see Routes below and `PROJECT_STRUCTURE.md` §4). Do not reintroduce either file.
 - [/start.ps1](/start.ps1) — Windows/PowerShell launcher (validate-then-run, non-mutating until start). Validates Python 3.12+, deps, `.env` (`DATABASE_URL`/`_PASSWORD`), `database/schema.sql`, and the modular entry point against `Installation.md` §§1-6; if all required checks pass, starts the deploy target `uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}` (Installation.md §5). Pass `-CheckOnly` to run validation without launching the server; optional items (`.venv`, `incremental.sql`, legacy-file absence) are reported but do not fail. Pure status snapshot: see `/stat.ps` (`powershell -NoProfile -ExecutionPolicy Bypass -Command ". .\stat.ps"`).
 - Legacy SQLite prototypes (`init_db.py`, `fleetflow_backend_core.py`) have been removed; do not reintroduce SQLite.
@@ -94,6 +94,79 @@
 - `GET /api/v1/drivers` — `api/api_v1.py`: role-scoped list of `driver`-role users (trip_manager/super_admin); `password_hash` stripped.
 - `GET/POST /api/v1/benchmarks`, `PUT/DELETE /api/v1/benchmarks/{bid}` — `api/api_v1.py`: Fuel-benchmark CRUD (writes Super-Admin only; reads any authenticated user).
 - `GET/POST /api/v1/fleets`, `GET /api/v1/fleets/plans`, `PUT /api/v1/fleets/{fid}`, `POST /api/v1/fleets/{fid}/toggle` — `api/api_v1.py`: Fleet CRUD + activate/deactivate (Super Admin). 409 on duplicate phone.
+
+- `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout` — `api/api_v1.py`: JSON auth (login returns `{token,user,landing}`; me/logout return JSON). `POST /api/v1/auth/login` accepts a browser-JSON or form-encoded body.
+- `GET /api/v1/billing/overview`, `POST /api/v1/billing/subscribe`, `POST /api/v1/billing/vehicle-slot` — `api/api_v1.py`: plan/entitlement view + Razorpay payment-link creation (returns `{redirect_url}`). Powers the **Billing** SPA page. (The SPA redirects the browser to the returned Razorpay URL.)
+- `GET /api/v1/rules` — `api/api_v1.py`: read-only anomaly-rule explainer data (from `settings` constants). Powers the **Rule Engine** SPA page.
+- `POST /billing/webhook` — `api/webhook.py`: Razorpay server→server callback (HMAC-SHA256 verified, `payment_link.paid` → activate plan / bump vehicle limit; idempotent via `webhook_logs`). This is intentionally **not** JSON (Razorpay verifies the raw body).
+## Role-Flow Navigation Map (React SPA — update this whenever routes/nav change)
+
+> Ground truth is `frontend/src/components/Layout.jsx` (sidebar order + role filters) and `frontend/src/App.jsx` (`<ProtectedRoute>`). Pages call the listed `/api/v1/*` endpoints directly via `frontend/src/lib/api.js`. Backend guards are in `api/api_v1.py`.
+
+### Super Admin flow (`role = "super_admin"`)
+Left-nav sections **Operations → Fleet & Assets → System & Reports → Account**:
+
+| # | Page (Route) | API(s) called | Activity | Observations |
+|---|--------------|---------------|----------|--------------|
+| 1 | Login `/login` → `/dashboard` | `POST /api/v1/auth/login` (form-encoded via `postForm`) | Authenticate; role normalized to `/dashboard` by `AuthContext.login()` | — |
+| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Macro KPIs (active trips/vehicles/drivers, MTD spend, leakage, float) + quick links | — |
+| 3 | Active Trips `/trips` | `GET /api/v1/trips` | List trips (super_admin sees all fleets) → link to detail | — |
+| 4 | New Trip `/trips/new` | `GET /api/v1/vehicles`, `GET /api/v1/drivers`, `POST /api/v1/trips` | Prefill vehicle/driver dropdowns; start trip (auto trip_code) | No client-side plate/phone/non-neg validation — errors only after submit (backend `400/409`). |
+| 5 | Trip Detail `/trips/:tripCode` | `GET /api/v1/trips/{code}`, `POST /api/v1/expenses`, `POST /api/v1/trips/{code}/settle` | View/expense log; **Settle Trip** button shown when `status===ACTIVE` | Route guard has **no `roles`** — any authenticated role can deep-link `/trips/:code`; settle button is UI-restricted but a driver could still submit expenses through this form. |
+| 6 | Expense Ledger `/expenses` | `GET /api/v1/trips`, `GET /api/v1/trips/{code}` | Pick trip → view ledger w/ flagged/status badges | — |
+| 7 | WhatsApp Escalations `/whatsapp-manager` | `GET /api/v1/whatsapp/escalations`, `POST /api/v1/expenses/{id}/action` | Chat-thread flagged/pending feed; inline Approve/Deduct | **Mindmap gap:** `GET /api/v1/whatsapp/escalations` is not documented in the Routes section; the UI Layout section still quotes legacy `/simulate-whatsapp` + `/action-expense`. |
+| 8 | Settled Trips `/settlements` | `GET /api/v1/settlements`, link `GET /api/v1/settlements/{code}/pdf` | PDF listing (super_admin sees all fleets) | — |
+| 9 | Billing `/billing` | `GET /api/v1/billing/overview`, `POST /api/v1/billing/subscribe`, `POST /api/v1/billing/vehicle-slot` | Plan view, subscribe (Razorpay redirect), buy slot | Billing/subscribe checks fleet entitlement — see accessibility note. |
+| 10 | Rule Engine `/rule-engine` | `GET /api/v1/rules` | Read-only anomaly-rule cards; benchmark config linked from Fleet/System | — |
+| 11 | Vehicles `/vehicles` | `GET/POST /api/v1/vehicles`, `PUT /api/v1/vehicles/{vid}`, `POST /api/v1/vehicles/{vid}/toggle` | CRUD (create enforces fleet vehicle_limit `402`) | — |
+| 12 | Drivers `/drivers` | `GET/POST /api/v1/drivers`, `PUT /api/v1/drivers/{uid}`, `POST /api/v1/drivers/{uid}/toggle` | CRUD + batta profile | ✅ All 4 batta types selectable (**FIXED_TRIP/PER_KM/DAILY/NONE**); rate disabled for `NONE`. |
+| 13 | Users `/users` | `GET/POST /api/v1/users`, `PUT /api/v1/users/{uid}`, `POST /api/v1/users/{uid}/toggle` | CRUD Trip Managers/Drivers; creating a manager fires onboarding email | ✅ **Batta block added** to the form (shown when `role === "driver"`), populating `batta_type` + `default_batta_rate`. Driver creation no longer silently defaults batta. |
+| 14 | Fleets `/fleets` | `GET/POST /api/v1/fleets`, `GET /api/v1/fleets/plans`, `PUT /api/v1/fleets/{fid}`, `POST /api/v1/fleets/{fid}/toggle` | Fleet CRUD + activate/deactivate + plan select | — |
+| 15 | Fuel Benchmarks `/benchmarks` | `GET/POST /api/v1/benchmarks`, `PUT/DELETE /api/v1/benchmarks/{bid}` | Per-state price CRUD (write super-admin only) | Delete warns via `window.confirm`. |
+| 16 | Change Password `/change-password` | `POST /api/v1/auth/change-password` | Self-service (verify current → hash → update) | — |
+| 17 | Logout (sidebar) | `POST /api/v1/auth/logout` | Clear session/token | — |
+### Trip Manager flow (`role = "trip_manager"`)
+Same **Operations → Fleet & Assets → Account** sections (no System & Reports). Pages are identical to Super Admin except data scoping: `GET /api/v1/trips`, `/trips/{code}`, `/settlements` and dashboard KPIs are **scoped to trips the manager created** (`created_by`); vehicles/drivers to their own.
+
+| # | Page (Route) | API(s) called | Activity | Observations |
+|---|--------------|---------------|----------|--------------|
+| 1 | Login `/login` → `/dashboard` | `POST /api/v1/auth/login` | Authenticate; normalized to SPA `/dashboard` | — |
+| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Dispatched, pending escalations, advances today, awaiting settlement | — |
+| 3 | Active Trips `/trips` | `GET /api/v1/trips` | List own trips | Ownership enforced backend-side (403 cross-scope). |
+| 4 | New Trip `/trips/new` | `GET /api/v1/vehicles`, `GET /api/v1/drivers`, `POST /api/v1/trips` | Start trip (dropdowns from own vehicles + active drivers) | Same client-validation gap as Super Admin. |
+| 5 | Trip Detail `/trips/:tripCode` | `GET /api/v1/trips/{code}`, `POST /api/v1/expenses`, `POST /api/v1/trips/{code}/settle` | Expense log + Settle Trip | — |
+| 6 | Expense Ledger `/expenses` | `GET /api/v1/trips`, `GET /api/v1/trips/{code}` | Active-trip ledger | — |
+| 7 | WhatsApp Escalations `/whatsapp-manager` | `GET /api/v1/whatsapp/escalations`, `POST /api/v1/expenses/{id}/action` | Approve/Deduct flagged expenses | Same mindmap-gap note as Super Admin. |
+| 8 | Settled Trips `/settlements` | `GET /api/v1/settlements`, `.../{code}/pdf` | Own settled-trip PDFs | — |
+| 9 | Billing `/billing` | `GET /api/v1/billing/overview`, `POST /api/v1/billing/subscribe`, `POST /api/v1/billing/vehicle-slot` | Their fleet's plan/slots | — |
+| 10 | Rule Engine `/rule-engine` | `GET /api/v1/rules` | Explainers | — |
+| 11 | Vehicles `/vehicles` | `GET/POST /api/v1/vehicles`, `PUT .../{vid}`, `POST .../{vid}/toggle` | CRUD (own vehicles, feeds New Trip dropdown) | — |
+| 12 | Drivers `/drivers` | `GET/POST /api/v1/drivers`, `PUT .../{uid}`, `POST .../{uid}/toggle` | CRUD + batta | ✅ All 4 batta types selectable (**FIXED_TRIP/PER_KM/DAILY/NONE**); rate disabled for `NONE`. |
+| 13 | Change Password `/change-password` | `POST /api/v1/auth/change-password` | Self-service | — |
+| 14 | Logout | `POST /api/v1/auth/logout` | — | — |
+
+### Driver flow (`role = "driver"`)
+Left-nav **Operations → Account** only. Billing and Rule Engine are **not** shown to drivers (restricted to `trip_manager`/`super_admin`; see cross-role bullets below).
+
+| # | Page (Route) | API(s) called | Activity | Observations |
+|---|--------------|---------------|----------|--------------|
+| 1 | Login `/login` → `/dashboard` | `POST /api/v1/auth/login` | Authenticate; normalized to `/dashboard` | Backend returns legacy `/driver` landing — SPA ignores it (by design). |
+| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Today logged, cash-in-hand, active trip card + Expense Ledger link | — |
+| 3 | Expense Ledger `/expenses` | `GET /api/v1/trips`, `GET /api/v1/trips/{code}` | View ledger of **own assigned trips** (role-scoped) | Read-only table; no log action here. |
+| 4 | WhatsApp Simulator `/whatsapp-driver` | `GET /api/v1/dashboard/overview`, `GET /api/v1/trips/{code}`, `POST /api/v1/expenses` | Chat-style receipt send (bilingual labels; flags anomalies) | Only functional when a trip is ACTIVE (else `404 trip not active`); simulates G1 real WhatsApp. |
+| 5 | Driver Salary `/driver-salary` | `GET /api/v1/driver/salary` | Read-only batta + per-trip net payable/refund totals | Backend `require_json_role("driver")`; driver-only route. |
+| 6 | ~~Final Reports `/reports`~~ (removed from nav) | `GET /api/v1/settlements`, `.../{code}/pdf` | Own settled-trip PDFs | Redundant with Settled Trips — **nav item removed** (route kept for compat). |
+| 7 | Settled Trips `/settlements` | `GET /api/v1/settlements`, `.../{code}/pdf` | Own settled-trip PDFs | Single consolidated PDF listing for the driver. |
+| 8 | Change Password `/change-password` | `POST /api/v1/auth/change-password` | Self-service | — |
+| 9 | Logout | `POST /api/v1/auth/logout` | — | — |
+
+### Cross-role accessibility observations (from `Layout.jsx` + `App.jsx`) — all resolved
+- ✅ **Billing & Rule Engine restricted to `trip_manager`/`super_admin`** (frontend route `roles` + sidebar filter) **and** `POST /api/v1/billing/subscribe` + `/api/v1/billing/vehicle-slot` now use `require_json_role("trip_manager","super_admin")` in backend (a driver calling them gets `403 FORBIDDEN`). `GET /api/v1/billing/overview` and `GET /api/v1/rules` remain any-authenticated-role.
+- ✅ **`/trips/:tripCode` now role-gated** to `trip_manager`/`super_admin` via `<ProtectedRoute roles>` — drivers can no longer deep-link and submit expenses via that form.
+- ✅ **Driver `Final Reports` nav item removed** as redundant with `Settled Trips`; the `/reports` route + `ReportsPage` are kept for backward-compat (still `driver`-guarded).
+- ✅ **Batta profiles now configurable end-to-end:** `Drivers.jsx` exposes `FIXED_TRIP/PER_KM/DAILY/NONE` (rate field disabled for `NONE`), the `Users.jsx` create/edit form now shows a batta block when `role === "driver"`, and the backend whitelist in `users.py::_normalise_batta` now accepts all four values (`NONE` stores rate `0.00`). Creating a driver via either page no longer silently defaults batta.
+- ✅ **SPA 404 catch-all added** — `path="*"` renders a `NotFound` page under `Layout` (unknown URLs no longer render blank).
+- ✅ **401 auto-redirect to `/login`** added in `frontend/src/lib/api.js` (`request`/`postForm`): any non-login endpoint returning `401` clears the local token and bounces to `/login` (skips `/auth/login` so a wrong-password flow isn't disturbed, and skips when already on `/login`).
 
 ## UI Layout — 3-Column Dual-WhatsApp Architecture (`GET /`)
 `grid grid-cols-1 lg:grid-cols-12 gap-4`, 3 equal `lg:col-span-4` columns:

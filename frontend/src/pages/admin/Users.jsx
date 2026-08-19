@@ -3,7 +3,7 @@ import { api } from "../../lib/api.js";
 
 const ROLES = ["trip_manager", "driver"];
 const ROLE_LABELS = { super_admin: "Super Admin", trip_manager: "Trip Manager", driver: "Driver" };
-const emptyForm = { username: "", full_name: "", role: "trip_manager", phone: "", email: "", password: "" };
+const emptyForm = { username: "", full_name: "", role: "trip_manager", phone: "", email: "", password: "", batta_type: "FIXED_TRIP", default_batta_rate: "2500.00" };
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -49,6 +49,8 @@ export default function UsersPage() {
       phone: u.phone || "",
       email: u.email || "",
       password: "",
+      batta_type: u.batta_type || "FIXED_TRIP",
+      default_batta_rate: u.default_batta_rate != null ? String(u.default_batta_rate) : "2500.00",
     });
   }
 
@@ -86,6 +88,16 @@ export default function UsersPage() {
           </select>
           <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Phone" className="border rounded-lg p-2 bg-slate-50" />
           <input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" className="border rounded-lg p-2 bg-slate-50" />
+          {form.role === "driver" && (
+            <>
+              <select value={form.batta_type} onChange={(e) => set("batta_type", e.target.value)} className="border rounded-lg p-2 bg-slate-50">
+                {["FIXED_TRIP", "PER_KM", "DAILY", "NONE"].map((bt) => (
+                  <option key={bt} value={bt}>{bt.replace(/_/g, " ")}</option>
+                ))}
+              </select>
+              <input value={form.default_batta_rate} onChange={(e) => set("default_batta_rate", e.target.value)} placeholder="Batta Rate ₹" type="number" step="any" min="0" disabled={form.batta_type === "NONE"} className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50" />
+            </>
+          )}
           <input value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={editingId ? "Password (blank = keep)" : "Password"} required={!editingId} type="password" className="border rounded-lg p-2 bg-slate-50" />
           <div className="col-span-2 md:col-span-3 flex gap-2">
             <button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow">

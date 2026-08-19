@@ -39,9 +39,9 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      await fetch("/logout");
+      await api.post("/api/v1/auth/logout");
     } catch {
-      // best-effort; ignore
+      // best-effort; clear local token regardless
     }
     setToken(null);
     setUser(null);

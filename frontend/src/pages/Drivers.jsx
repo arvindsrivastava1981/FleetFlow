@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 
-const BATTA_TYPES = ["FIXED_TRIP"];
+// Aligned with users.batta_type CHECK (FIXED_TRIP/PER_KM/DAILY/NONE).
+const BATTA_TYPES = ["FIXED_TRIP", "PER_KM", "DAILY", "NONE"];
 const emptyForm = {
   username: "",
   full_name: "",
@@ -140,7 +141,8 @@ export default function DriversPage() {
             type="number"
             step="0.01"
             min="0"
-            className="border rounded-lg p-2 bg-slate-50"
+            disabled={form.batta_type === "NONE"}
+            className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50"
           />
           <div className="col-span-2 md:col-span-3 flex gap-2">
             <button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow">

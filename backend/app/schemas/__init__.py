@@ -1,12 +1,9 @@
 """Pydantic v2 request / response contracts.
 
-Validates input at the API boundary (fixes the current "no input validation"
-gap) and gives FastAPI typed response models that serialize to the templates.
+Validates input at the API boundary and gives FastAPI typed response models that
+serialize every `/api/v1` endpoint to a JSON envelope.
 
-- auth.py      : LoginForm, SessionPayload
-- trips.py     : TripCreate, TripView
-- expenses.py  : ExpenseCreate, ExpenseAction, ExpenseView
-- benchmarks.py: FuelBenchmarkUpsert
+- api_v1.py : typed response models for all `/api/v1` JSON endpoints
 - *_constants.py: shared enums (ExpenseType, ManagerStatus, TripStatus,
   SystemInvariants) so routers, services and models all reference one source.
 """
