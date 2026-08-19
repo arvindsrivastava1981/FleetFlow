@@ -7,11 +7,11 @@ INSERT INTO fleets (owner_name, phone, plan_rate)
 VALUES ('Arvind Srivastava', '+91 98765 00000', 799.00)
 ON CONFLICT (phone) DO NOTHING;
 
-INSERT INTO subscription_plans (code, name, billing_cycle, trial_days, price, vehicle_limit)
+INSERT INTO subscription_plans (code, name, billing_cycle, trial_days, price, vehicle_limit, features)
 VALUES
-    ('TRIAL',   '15-Day Free Trial',   'TRIAL',   15, 0.00,  1),
-    ('MONTHLY', 'Monthly ₹799 Plan',   'MONTHLY',  0, 799.00, 1),
-    ('YEARLY',  'Yearly ₹7,191 Plan (25% off)', 'YEARLY', 0, 7191.00, 1)
+    ('TRIAL',   '15-Day Free Trial',   'TRIAL',   15, 0.00,  1, '{"vehicle_limit":1,"driver_limit":5,"whatsapp":true,"reports":true}'),
+    ('MONTHLY', 'Monthly ₹799 Plan',   'MONTHLY',  0, 799.00, 1, '{"vehicle_limit":1,"driver_limit":10,"whatsapp":true,"reports":true,"batta_profiles":true}'),
+    ('YEARLY',  'Yearly ₹7,191 Plan (25% off)', 'YEARLY', 0, 7191.00, 1, '{"vehicle_limit":1,"driver_limit":10,"whatsapp":true,"reports":true,"batta_profiles":true}')
 ON CONFLICT (code) DO NOTHING;
 
 -- ----------------------------------------------------------------------------

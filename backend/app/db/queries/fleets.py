@@ -330,3 +330,48 @@ def extend_billing_date(conn, fleet_id: int, months: int = 1) -> None:
         (months, fleet_id),
     )
 
+
+# --- Billing audit ledger ------------------------------------------------
+
+def log_fleet_billing_event(
+    conn,
+    fleet_id: int,
+    event_type: str,
+    plan_code: str | None = None,
+    payload: dict | None = None,
+    razorpay_ref: str | None = None,
+    amount: float | None = None,
+    created_by: int | None = None,
+) -> None:
+    """Append a row to the fleet_billing_events audit ledger.
+
+    Every entitlement mutation (plan change, extra slot purchase, trial start,
+    payment) writes a row so limit changes are explainable and reversible (G6/G10).
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO fleet_billing_events
+            (fleet_id, event_type, plan_code, payload, razorpay_ref, amount, created_by)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """,
+        (fleet_id, event_type, plan_code, payload or {}, razorpay_ref, amount, created_by),
+    )
+
+
+def get_fleet_billing_events(conn, fleet_id: int, limit: int = 50) -> list[dict]:
+    """Return the recent billing/entitlement events for a fleet, newest-first."""
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT id, event_type, plan_code, payload, razorpay_ref, amount,
+               created_by, created_at
+          FROM fleet_billing_events
+         WHERE fleet_id = %s
+         ORDER BY created_at DESC
+         LIMIT %s
+        """,
+        (fleet_id, limit),
+    )
+    return cur.fetchall()
+

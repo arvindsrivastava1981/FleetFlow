@@ -9,6 +9,7 @@ from backend.app.api.v1 import (
     dashboard,
     expenses,
     fleets,
+    onboard,
     rules,
     trips,
     users,
@@ -28,6 +29,7 @@ _DOMAIN_ROUTERS = (
     benchmarks.router,
     billing.router,
     rules.router,
+    onboard.router,
 )
 
 for _r in _DOMAIN_ROUTERS:

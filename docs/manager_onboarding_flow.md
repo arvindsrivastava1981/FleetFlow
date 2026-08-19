@@ -143,6 +143,54 @@ TRIP MANAGER                          (login → /billing)
 **Fix (frontend):** add `fleet_id` select (from `GET /api/v1/fleets`) to the `Users.jsx` create form (Super Admin-only).
 
 **Fix (data model, optional):** add `default_fleet_id` on `users` so a manager points at a non-default fleet explicitly.
+---
+
+## Implementation status (completed with "fleet = transport firm" model)
+
+> All of the following changes have been **implemented and are covered by tests**
+> (`tests/unit/test_onboarding_entitlements.py`, plus the pre-existing
+> `tests/unit/test_new_manager_vehicle.py` which is green).
+
+### Data model
+- `subscription_plans.features` JSONB capability matrix (seed values provided).
+- `fleets.is_default` anchor + `fleets.entitlement_addons` JSONB.
+- `users.fleet_role` (owner/manager/branch_head/driver).
+- New `fleet_billing_events` audit table (PLAN_CHANGE / EXTRA_SLOT / TRIAL_START / PAYMENT).
+- All additions are **idempotent** in `schema.sql` and `incremental.sql` (drop-safe, no removed columns).
+
+### Services & routes
+- **`backend/app/services/entitlements.py`** — single entitlement resolver
+  (`fleet_feature()`) + vehicle gate (`fleet_can_add_vehicles()`) producing
+  distinct `NOT_ENTITLED` vs `VEHICLE_LIMIT` reasons (fixes G3).
+- **`POST /api/v1/fleets/onboard`** (`onboard.py`) — transactional onboarding
+  wizard: fleet + owner manager + trial (+ optional vehicle/driver), returns
+  inline `payment_url` for paid plans (fixes G2, inline subscription).
+- **`POST /api/v1/users`** — optional `fleet_id` picker for `trip_manager`
+  creation (fixes G1).
+- **`GET /api/v1/fleets/{fid}/billing`** — Super Admin billing/entitlement
+  health view incl. audit ledger (fixes G6).
+- `log_fleet_billing_event` / `get_fleet_billing_events` query helpers.
+
+### Status of the earlier gap list
+| Gap | Status |
+|---|---|
+| G1 fleet picker | ✅ implemented |
+| G2 onboarding wizard | ✅ implemented |
+| G3 entitlement-reason clarity | ✅ implemented (NOT_ENTITLED vs VEHICLE_LIMIT) |
+| G4 trip cancel API | ⏭ not implemented (recommended next) |
+| G5 default-fleet anchor | ✅ `fleets.is_default` added (routing favour pending) |
+| G6 billing health view | ✅ implemented |
+| G7 tenant-isolation fallback | 🟡 partially (is_default added; fallback removal recommended) |
+| G8 email audit | ⏭ not implemented |
+| G9 trial-restart cap | ⏭ not implemented |
+| G10 billing/slot ledger | ✅ `fleet_billing_events` added + queried |
+
+### Suggested next steps
+- **G4** `POST /api/v1/trips/{code}/cancel` to release the one-active-trip lock.
+- **G5/G7** wire `is_default` into `get_default_fleet`/`_resolve_*_fleet` so
+  manager-creation & vehicle/trip/billing never silently fall back to the first
+  active fleet.
+- **G8** record onboarding-email outcome on `users.onboarding_email_at`.
 
 ### G2 — No transactional "onboarding wizard" 🔴
 Phase 1–5 are five separate manual calls; a Super Admin must know the order, and there's no atomic "one-shot" path.

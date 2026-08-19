@@ -17,6 +17,7 @@ from backend.app.db.queries.users import (
 )
 from backend.app.db.queries.fleets import (
     get_default_fleet,
+    get_fleet_by_id,
     get_fleet_email_context,
     get_fleet_entitlement,
     is_trial_active,
@@ -127,11 +128,18 @@ async def api_create_user(request: Request):
     if role != "driver":
         batta_type = None
         default_batta_rate = None
+    # Fleet picker (G1): allow a Super Admin to target a non-default fleet when
+    # creating a trip_manager. Falls back to the default active fleet when absent.
+    requested_fleet_id = body.get("fleet_id")
     with get_db() as conn:
         # Bind a new Trip Manager to the default active fleet so vehicle
         # creation resolves to a valid, billable fleet (get_user_fleet_id).
         if role == "trip_manager":
-            manager_fleet_id = _resolve_default_fleet_id(conn)
+            manager_fleet_id = int(requested_fleet_id) if requested_fleet_id else None
+            if manager_fleet_id is None:
+                manager_fleet_id = _resolve_default_fleet_id(conn)
+            elif get_fleet_by_id(conn, manager_fleet_id) is None:
+                return _bad("unknown fleet_id", "INVALID_FLEET")
             if manager_fleet_id is not None and not _fleet_entitled(conn, manager_fleet_id):
                 # Seed/default fleets may be TRIAL with no trial clock set
                 # (treated as expired). Start the 15-day trial so the new
