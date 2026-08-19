@@ -62,6 +62,17 @@ def compute_settlement(trip: dict, expenses: list[dict]) -> SettlementResult:
     # Strict definition: only manager-APPROVED rows enter the settlement math.
     approved = [e for e in expenses if e.get("manager_status") == "APPROVED"]
 
+    # 1. Cash Advance (credit) & Driver Salary/batta (debit) from the auto-posted
+    #    ledger entries. Fall back to the trip columns for legacy rows.
+    adv_from_ledger = [
+        _get_effective_amount(e) for e in approved if e.get("exp_type") == "CASH_ADVANCE"
+    ]
+    batta_from_ledger = [
+        _get_effective_amount(e) for e in approved if e.get("exp_type") == "DRIVER_SALARY"
+    ]
+    if adv_from_ledger:
+        advance = round(sum(adv_from_ledger), 2)
+
     # 1. Goods Income (Credit) — cash the driver collected / returned via sales.
     goods_income = round(sum(
         _get_effective_amount(e) for e in approved if e.get("exp_type") == "GOODS_SALE"
@@ -80,10 +91,12 @@ def compute_settlement(trip: dict, expenses: list[dict]) -> SettlementResult:
 
     total_road_expenses = round(sum(expense_buckets.values()), 2)
 
-    # 3. Driver Batta — resolved at trip-creation and stored on the trip row;
-    #    fall back to the flat rate when the column is absent/NULL.
+    # 3. Driver Batta — from the DRIVER_SALARY ledger entry (auto-posted at
+    #    trip creation). Falls back to the trip column / flat rate for legacy.
     raw_batta = trip.get("driver_batta_amount")
     driver_batta = round(float(raw_batta), 2) if raw_batta is not None else DEFAULT_DRIVER_BATTA
+    if batta_from_ledger:
+        driver_batta = round(sum(batta_from_ledger), 2)
 
     # 4. Balancing.
     total_cr = round(advance + goods_income, 2)

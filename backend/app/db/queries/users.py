@@ -76,7 +76,7 @@ def get_driver_batta_profile(conn, user_id: int | None) -> dict | None:
         return None
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, batta_type, default_batta_rate "
+        "SELECT id, phone, batta_type, default_batta_rate "
         "FROM users WHERE id = %s AND role = 'driver'",
         (user_id,),
     )

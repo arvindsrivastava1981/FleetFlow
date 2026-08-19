@@ -23,7 +23,7 @@ from backend.app.db.queries.users import (
     get_user_fleet_id,
 )
 from backend.app.db.queries.fleets import get_default_fleet
-from backend.app.db.queries.expenses import get_expenses_for_trip
+from backend.app.db.queries.expenses import get_expenses_for_trip, insert_expense
 from backend.app.services.audit.cash import compute_settlement, resolve_trip_batta
 from backend.app.services.pdf.settlement import build_settlement_pdf
 
@@ -128,7 +128,6 @@ async def api_create_trip(request: Request):
 
     vehicle_no = str(body.get("vehicle_no", "")).strip().upper()
     driver_name = str(body.get("driver_name", "")).strip()
-    driver_phone = str(body.get("driver_phone", "")).strip()
     advance_amount = float(body.get("advance_amount", 0.0))
     start_odo = float(body.get("start_odo", 0.0))
     vehicle_id = body.get("vehicle_id") or None
@@ -142,9 +141,6 @@ async def api_create_trip(request: Request):
         )
     if not _PLATE_RE.match(vehicle_no):
         return _bad("invalid license plate", "INVALID_PLATE")
-    digits = _re.sub(r"\D", "", driver_phone or "")
-    if not (_re.match(r"^[6-9][0-9]{9}$", digits)):
-        return _bad("driver_phone must be a valid 10-digit number", "INVALID_PHONE")
 
     with get_db() as conn:
         fleet_id = _resolve_trip_fleet(conn, user)
@@ -159,6 +155,17 @@ async def api_create_trip(request: Request):
                 },
             )
         driver = get_driver_batta_profile(conn, driver_user_id)
+        if not driver:
+            return _bad("unknown driver selected", "UNKNOWN_DRIVER")
+        # Driver phone is derived from the selected driver's user profile, not
+        # captured as a separate manual input (mirrors the UI, which no longer
+        # shows a "Driver Phone" field).
+        driver_phone = str(driver.get("phone") or "").strip()
+        digits = _re.sub(r"\D", "", driver_phone)
+        if not (_re.match(r"^[6-9][0-9]{9}$", digits)):
+            return _bad(
+                "selected driver has no valid phone on file", "INVALID_PHONE"
+            )
         driver_batta_amount = resolve_trip_batta(driver)
         trip_code = insert_trip(
             conn,
@@ -170,9 +177,27 @@ async def api_create_trip(request: Request):
             start_odo,
             created_by=user.get("user_id"),
             driver_user_id=driver_user_id,
-            vehicle_id=vehicle_id,
+                        vehicle_id=vehicle_id,
             driver_batta_amount=driver_batta_amount,
         )
+        # Auto-post the two unified-ledger legs for this trip: Cash Advance (credit
+        # to driver) and Driver Salary/batta (debit). They are fixed provisions, so
+        # they are inserted APPROVED and bypass the rules engine (no flag). The
+        # settlement engine (`compute_settlement`) now reads these two amounts from
+        # the ledger instead of from the trip columns alone, so advance/batta appear
+        # in one place — the expenses ledger — for managers and the driver.
+        if advance_amount > 0:
+            insert_expense(
+                conn, trip_code=trip_code, exp_type="CASH_ADVANCE",
+                amount=advance_amount, liters=0.0, rate=0.0, odometer=0.0,
+                is_flagged=False, flag_reason=None, manager_status="APPROVED",
+            )
+        if driver_batta_amount > 0:
+            insert_expense(
+                conn, trip_code=trip_code, exp_type="DRIVER_SALARY",
+                amount=driver_batta_amount, liters=0.0, rate=0.0, odometer=0.0,
+                is_flagged=False, flag_reason=None, manager_status="APPROVED",
+            )
     return _created({"trip_code": trip_code, "status": "ACTIVE"})
 @router.post("/trips/{trip_code}/settle", response_model=Data[SettleTripResult])
 def api_settle_trip(request: Request, trip_code: str):

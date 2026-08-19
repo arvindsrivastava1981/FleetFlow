@@ -35,6 +35,21 @@ CREATE INDEX IF NOT EXISTS idx_error_logs_status_code ON error_logs(status_code)
 CREATE INDEX IF NOT EXISTS idx_error_logs_error_type ON error_logs(error_type);
 
 -- ----------------------------------------------------------------------------
+-- EXPENSES — extend the exp_type whitelist with the auto-posted ledger entries
+-- (CASH_ADVANCE = credit to driver, DRIVER_SALARY = debit for batta). These are
+-- inserted by the backend at trip-creation; they are never submitted through the
+-- rules/flag pipeline. Postgres CHECK constraints cannot be `IF NOT EXISTS`, so
+-- refresh idempotently by dropping + re-adding under the same name.
+-- ----------------------------------------------------------------------------
+DO $$
+BEGIN
+    ALTER TABLE expenses DROP CONSTRAINT IF EXISTS expenses_exp_type_check;
+    ALTER TABLE expenses ADD CONSTRAINT expenses_exp_type_check
+        CHECK (exp_type IN ('FUEL', 'DEF', 'TOLL', 'REPAIR', 'CHALLAN', 'MISC',
+                            'GOODS_BUY', 'GOODS_SALE', 'CASH_ADVANCE', 'DRIVER_SALARY'));
+END $$;
+
+-- ----------------------------------------------------------------------------
 -- ONBOARDING / ENTITLEMENT UPGRADES (idempotent) — new columns + fleet_billing_events
 -- ledger introduced with the "fleet = transport firm" model. All statements are
 -- `IF NOT EXISTS` so re-runs against an already-upgraded DB are a no-op.

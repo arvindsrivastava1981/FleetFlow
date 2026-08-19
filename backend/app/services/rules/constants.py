@@ -30,6 +30,7 @@ ANTI_SPAM_SCANS_PER_HOUR: int = settings.anti_spam_scans_per_hour
 # Must stay in sync with the `expenses.exp_type` CHECK constraint in schema.sql.
 EXPENSE_TYPES: tuple[str, ...] = (
     "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
+    "CASH_ADVANCE", "DRIVER_SALARY",
 )
 GOODS_TYPES: tuple[str, ...] = ("GOODS_BUY", "GOODS_SALE")
 ALWAYS_FLAG_NON_GOODS_REVIEW: tuple[str, ...] = (

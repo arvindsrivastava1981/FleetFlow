@@ -27,7 +27,13 @@ router = APIRouter(prefix="/api/v1")
 
 JSON_EXPENSE_TYPES: tuple[str, ...] = (
     "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
+    "CASH_ADVANCE", "DRIVER_SALARY",
 )
+
+# Auto-posted at trip-creation (never submitted via the rule/flag pipeline).
+# CASH_ADVANCE credits the driver (money given), DRIVER_SALARY debits the trip
+# (batta earned). Both are always APPROVED and never flagged.
+AUTO_LEDGER_TYPES: frozenset[str] = frozenset({"CASH_ADVANCE", "DRIVER_SALARY"})
 
 
 @router.get("/whatsapp/escalations", response_model=Data[list[EscalationRow]])
@@ -76,16 +82,26 @@ async def api_create_expense(request: Request):
             )
         if trip_status(conn, trip_code) != "ACTIVE":
             return _not_found("trip not active")
-        verdict = evaluate_expense(
-            RuleInput(
-                exp_type=exp_type,
-                amount=amount,
-                liters=liters,
-                rate=rate,
-                odometer=odometer,
+        if exp_type in AUTO_LEDGER_TYPES:
+            # Auto-posted entries (CASH_ADVANCE / DRIVER_SALARY) bypass the
+            # rule/flag pipeline: fixed-provision rows are always Approved.
+            verdict = None
+            manager_status = "APPROVED"
+            is_flagged = False
+            flag_reason = None
+        else:
+            verdict = evaluate_expense(
+                RuleInput(
+                    exp_type=exp_type,
+                    amount=amount,
+                    liters=liters,
+                    rate=rate,
+                    odometer=odometer,
+                )
             )
-        )
-        manager_status = "PENDING" if verdict.flagged or exp_type in GOODS_TYPES else "APPROVED"
+            manager_status = "PENDING" if verdict.flagged or exp_type in GOODS_TYPES else "APPROVED"
+            is_flagged = bool(verdict.flagged)
+            flag_reason = verdict.reason or None
         insert_expense(
             conn,
             trip_code=trip_code,
@@ -94,8 +110,8 @@ async def api_create_expense(request: Request):
             liters=liters,
             rate=rate,
             odometer=odometer,
-            is_flagged=bool(verdict.flagged),
-            flag_reason=verdict.reason or None,
+            is_flagged=is_flagged,
+            flag_reason=flag_reason,
             manager_status=manager_status,
         )
         if odometer > 0:
@@ -106,8 +122,8 @@ async def api_create_expense(request: Request):
             "trip_code": trip_code,
             "exp_type": exp_type,
             "manager_status": manager_status,
-            "is_flagged": bool(verdict.flagged),
-            "flag_reason": verdict.reason or None,
+            "is_flagged": is_flagged,
+            "flag_reason": flag_reason,
         }
     )
 
