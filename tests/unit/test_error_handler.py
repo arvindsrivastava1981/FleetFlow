@@ -167,3 +167,33 @@ def test_log_error_is_best_effort(_mock_db: mock.MagicMock):
         error_type=_ET_INTERNAL,
         message="internal server error",
     )
+@mock.patch.object(err_mod, "_log_error", return_value=None)
+def test_internal_error_surfaces_real_details(log_mock: mock.MagicMock):
+    """Uncaught 5xx must return the REAL exception type/message/traceback in the
+    response body (production too), not a generic 'internal server error'."""
+    from backend.app.core.errors import _ET_INTERNAL
+
+    app = FastAPI()
+
+    @app.get("/crash")
+    def _crash(request: Request):
+        raise RuntimeError("boom: db connection lost")
+
+    register_error_handlers(app)
+    client = TestClient(app, raise_server_exceptions=False)
+
+    resp = client.get("/crash")
+
+    assert resp.status_code == 500
+    body = resp.json()
+    assert body["code"] == "INTERNAL_ERROR"
+    assert body["error"] == "boom: db connection lost"
+    assert body["details"]["exc_type"] == "RuntimeError"
+    assert "boom: db connection lost" in body["details"]["exc_str"]
+    assert "Traceback (most recent call last)" in body["details"]["traceback"]
+
+    log_call = log_mock.call_args
+    assert log_call.kwargs["status_code"] == 500
+    assert log_call.kwargs["error_type"] == _ET_INTERNAL
+    assert log_call.kwargs["message"] == "boom: db connection lost"
+    assert "Traceback" in log_call.kwargs["traceback_text"]

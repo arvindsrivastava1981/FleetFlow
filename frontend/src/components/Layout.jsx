@@ -7,7 +7,7 @@ const SECTIONS = [
     links: [
       { to: "/dashboard", label: "My Dashboard", icon: "📊" },
       { to: "/trips", label: "Active Trips", icon: "🚚", roles: ["trip_manager", "super_admin"] },
-      { to: "/expenses", label: "Expense Ledger", icon: "🧾" },
+      { to: "/expenses", label: "Expense Ledger", icon: "🧾", roles: ["trip_manager", "super_admin"] },
       { to: "/whatsapp-driver", label: "WhatsApp Simulator", icon: "💬", roles: ["driver"] },
       { to: "/driver-salary", label: "Driver Salary", icon: "💰", roles: ["driver"] },
       { to: "/whatsapp-manager", label: "WhatsApp Escalations", icon: "🔔", roles: ["trip_manager", "super_admin"] },
