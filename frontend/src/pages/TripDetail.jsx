@@ -129,7 +129,7 @@ export default function TripDetailPage() {
       {s && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Advance Issued</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Owner Cash In</p>
             <p className="text-lg font-extrabold text-slate-900 mt-1">
               ₹{(s.advance_amount ?? 0).toLocaleString("en-IN")}
             </p>
@@ -141,7 +141,7 @@ export default function TripDetailPage() {
             </p>
           </div>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Driver Batta</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">Driver Salary</p>
             <p className="text-lg font-extrabold text-slate-900 mt-1">
               ₹{(s.driver_batta ?? 0).toLocaleString("en-IN")}
             </p>

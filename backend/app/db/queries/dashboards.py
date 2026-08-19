@@ -180,7 +180,7 @@ def open_escalations_detail(
         f"""SELECT e.id, e.trip_code, e.exp_type, e.amount, e.liters, e.rate,
                   e.odometer, e.station_name, e.is_flagged, e.flag_reason,
                   e.manager_status, e.created_at,
-                  t.driver_name, t.vehicle_no
+                  t.driver_name, t.vehicle_no, t.advance_amount, t.driver_batta_amount
              FROM expenses e
              LEFT JOIN trips t ON t.trip_code = e.trip_code
             WHERE (e.is_flagged = TRUE OR e.manager_status = 'PENDING'){scope_sql}

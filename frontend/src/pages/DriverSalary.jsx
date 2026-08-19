@@ -56,7 +56,7 @@ export default function DriverSalaryPage() {
       {data && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Total Batta Earned" value={totals.total_batta || 0} cls="bg-emerald-50" />
+            <Stat label="Total Driver Salary" value={totals.total_batta || 0} cls="bg-emerald-50" />
             <Stat label="Total Payable to You" value={totals.total_payable || 0} cls="bg-sky-50" />
             <Stat label="Total Refund to Fleet" value={totals.total_refund || 0} cls="bg-amber-50" />
             <StatusStat label="Trips" value={`${trips.length} trips`} />
@@ -81,7 +81,7 @@ export default function DriverSalaryPage() {
                   <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Trip</th>
                   <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
                   <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Completed</th>
-                  <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Batta</th>
+                  <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Driver Salary</th>
                   <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Net Due</th>
                 </tr>
               </thead>
