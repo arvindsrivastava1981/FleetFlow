@@ -5,6 +5,8 @@ from typing import Any, Optional
 import httpx
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from backend.app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 # Template engine setup
@@ -15,7 +17,7 @@ env = Environment(
 )
 
 def _is_email_configured() -> bool:
-    return bool(os.getenv("RESEND_API_KEY") and os.getenv("SENDER_EMAIL"))
+    return bool(settings.resend_api_key and settings.sender_email)
 
 async def send_email(
     to_email: str,
@@ -34,8 +36,8 @@ async def send_email(
         return result
 
     try:
-        api_key = os.getenv("RESEND_API_KEY")
-        sender = from_email or os.getenv("SENDER_EMAIL")
+        api_key = settings.resend_api_key
+        sender = from_email or settings.sender_email
         payload: dict[str, Any] = {
             "from": sender,
             "to": [to_email],
@@ -92,7 +94,7 @@ async def send_manager_onboarding_email(
         "vehicle_limit": vehicle_limit,
         "driver_limit": driver_limit,
         "default_batta_rate": f"{default_batta_rate:,.2f}",
-        "support_email": os.getenv("SUPPORT_EMAIL", "support@vahankhata.com"),
+        "support_email": settings.support_email,
     }
     
     html_content = template.render(context)

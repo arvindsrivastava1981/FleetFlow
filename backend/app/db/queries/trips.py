@@ -94,6 +94,21 @@ def trip_status(conn, trip_code: str) -> str | None:
     return row["status"] if row else None
 
 
+def update_trip_odometer(conn, trip_code: str, odometer: float) -> None:
+    """Monotonic odo roll-up on the trip row (never steps the odometer back).
+
+    Mirrors the rule in the legacy prototype: only ever raises `current_odo`,
+    so a lower reading logged later is ignored. Called from the expense-creation
+    flow after a wallet/FUEL expense is accepted.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE trips SET current_odo = GREATEST(current_odo, %s) "
+        "WHERE trip_code = %s",
+        (odometer, trip_code),
+    )
+
+
 def next_trip_code(conn, vehicle_no: str) -> str:
     """Auto-generate the next trip_code as `{last4-of-plate}-{next-number}`.
 

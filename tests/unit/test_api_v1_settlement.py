@@ -98,14 +98,29 @@ def resolve_db(monkeypatch):
     """
 
     def _patch(db_obj, user=MOCK_USER):
-        monkeypatch.setattr("backend.app.api.api_v1.get_db", lambda: db_obj)
+        # Each v1 sub-router imports `get_db` by name at module load, creating a
+        # bound reference per module. Patch all of them so any route under test
+        # uses the mocked connection.
+        for _module in (
+            "backend.app.api.v1.trips",
+            "backend.app.api.v1.dashboard",
+            "backend.app.api.v1.expenses",
+            "backend.app.api.v1.users",
+            "backend.app.api.v1.vehicles",
+            "backend.app.api.v1.fleets",
+            "backend.app.api.v1.benchmarks",
+            "backend.app.api.v1.billing",
+            "backend.app.api.v1.auth",
+        ):
+            monkeypatch.setattr(f"{_module}.get_db", lambda: db_obj)
         # require_json_auth / require_json_role call core.security.get_current_user;
-        # api_v1._identity uses api_v1's own imported reference. Patch both.
+        # the routers' `_identity` uses deps.get_current_user (bound import).
+        # Patch the common core.security source + the deps bound reference.
         monkeypatch.setattr(
             "backend.app.core.security.get_current_user", lambda request: user
         )
         monkeypatch.setattr(
-            "backend.app.api.api_v1.get_current_user", lambda request: user
+            "backend.app.api.v1.deps.get_current_user", lambda request: user
         )
 
     return _patch

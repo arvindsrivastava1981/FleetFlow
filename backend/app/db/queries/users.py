@@ -8,9 +8,10 @@ from __future__ import annotations
 
 # Valid driver remuneration modes (aligned with the users.batta_type CHECK;
 # DEFAULT_* are the fallbacks when a driver does not opt in to a specific profile).
+from backend.app.services.audit.cash import DEFAULT_DRIVER_BATTA as DEFAULT_BATTA_RATE
+
 BATTA_TYPES: tuple[str, ...] = ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
 DEFAULT_BATTA_TYPE = "FIXED_TRIP"
-DEFAULT_BATTA_RATE = 2500.00
 
 
 def _normalise_batta(
