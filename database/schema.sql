@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
     trial_days INT NOT NULL DEFAULT 0,
     price NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     vehicle_limit INT NOT NULL DEFAULT 1,  -- vehicles included with this plan
+    features JSONB NOT NULL DEFAULT '{}',  -- capability matrix {"vehicle_limit":1,"driver_limit":5,...}
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -53,6 +54,8 @@ CREATE TABLE IF NOT EXISTS fleets (
     razorpay_subscription_id VARCHAR(64),
     razorpay_customer_id VARCHAR(64),
     is_active BOOLEAN DEFAULT TRUE,
+    is_default BOOLEAN DEFAULT FALSE,          -- exactly-one default fleet anchor (G5/G7)
+    entitlement_addons JSONB NOT NULL DEFAULT '{}',  -- {"vehicle_limit":2,...} extra bought capacity
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -72,9 +75,11 @@ CREATE TABLE IF NOT EXISTS users (
     phone VARCHAR(20),
     email VARCHAR(150),
     fleet_id BIGINT REFERENCES fleets(id) ON DELETE CASCADE,
+    fleet_role VARCHAR(20) DEFAULT NULL       -- firm position: owner / manager / branch_head / driver
+        CHECK (fleet_role IN ('owner', 'manager', 'branch_head', 'driver')),
     is_active BOOLEAN DEFAULT TRUE,
     batta_type VARCHAR(20) DEFAULT NULL,
-    default_batta_rate NUMERIC(10, 2) DEFAULT NULL
+    default_batta_rate NUMERIC(10, 2) DEFAULT NULL,
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -206,6 +211,56 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_event_id ON webhook_logs(event_id);
+
+-- ----------------------------------------------------------------------------
+-- 8b. FLEET BILLING EVENTS — append-only audit ledger for plan changes, extra
+--      vehicle-slot purchases, and trial starts. Replayed in the billing/fleet
+--      "health" view (G6, G10). Each entitlement mutation writes a row here so
+--      limit changes are always explainable and reversible.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS fleet_billing_events (
+    id BIGSERIAL PRIMARY KEY,
+    fleet_id BIGINT NOT NULL REFERENCES fleets(id) ON DELETE CASCADE,
+    event_type VARCHAR(30) NOT NULL           -- PLAN_CHANGE | EXTRA_SLOT | TRIAL_START | PAYMENT
+        CHECK (event_type IN ('PLAN_CHANGE', 'EXTRA_SLOT', 'TRIAL_START', 'PAYMENT')),
+    plan_code VARCHAR(30),                    -- before/after plan for PLAN_CHANGE
+    payload JSONB NOT NULL DEFAULT '{}',      -- {from_limit, to_limit, ...}
+    razorpay_ref VARCHAR(64),
+    amount NUMERIC(10, 2),
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_fleet_events_fleet_id ON fleet_billing_events(fleet_id);
+CREATE INDEX IF NOT EXISTS idx_fleet_events_created_at ON fleet_billing_events(created_at DESC);
+
+-- ----------------------------------------------------------------------------
+-- 9. ERROR LOGS — central sink for every error raised on the backend side.
+--    `backend/app/core/errors.py` registers global FastAPI exception handlers;
+--    whenever an endpoint raises (ApiError, request validation failure, HTTP
+--    error, or any uncaught 5xx exception) a row is inserted here for audit,
+--    tracing and post-mortem analysis. `traceback_text` holds the full stack
+--    for internal (5xx) failures; `detail` stores a JSON-encoded payload for
+--    validation/API errors. `source` defaults to 'BACKEND' and can be extended
+--    for payment/webhook/whatsapp sub-systems.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS error_logs (
+    id BIGSERIAL PRIMARY KEY,
+    method VARCHAR(10),                        -- HTTP verb (GET/POST/PUT/PATCH/DELETE)
+    path TEXT,                                 -- the request URL path
+    status_code INT NOT NULL,                  -- intended HTTP status (400/404/422/500...)
+    error_type VARCHAR(30) NOT NULL,           -- API_ERROR | VALIDATION | HTTP | INTERNAL
+    message TEXT NOT NULL,                     -- human-readable error message
+    detail TEXT,                               -- JSON-encoded payload (validation errors, details)
+    traceback_text TEXT,                       -- full stack trace for INTERNAL errors
+    endpoint VARCHAR(255),                     -- route/path identifier used for grouping
+    source VARCHAR(20) DEFAULT 'BACKEND'
+        CHECK (source IN ('BACKEND', 'PAYMENT', 'WHATSAPP', 'WEBHOOK')),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON error_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_status_code ON error_logs(status_code);
+CREATE INDEX IF NOT EXISTS idx_error_logs_error_type ON error_logs(error_type);
 
 -- ----------------------------------------------------------------------------
 -- AUTOMATED UPDATED_AT TIMESTAMP TRIGGER

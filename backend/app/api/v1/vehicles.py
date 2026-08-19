@@ -9,10 +9,8 @@ from backend.app.core.config import settings
 from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.fleets import (
-    count_active_vehicles,
     get_default_fleet,
     get_fleet_entitlement,
-    is_trial_active,
 )
 from backend.app.db.queries.users import get_user_fleet_id
 from backend.app.db.queries.vehicles import (
@@ -26,6 +24,7 @@ from backend.app.db.queries.vehicles import (
 
 from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
 from backend.app.schemas.api_v1 import Data, ResourceAck, ToggleAck
+from backend.app.services.entitlements import fleet_can_add_vehicles
 
 import re as _re
 
@@ -45,18 +44,6 @@ def _resolve_vehicle_fleet(conn, user: dict) -> int | None:
     return fleet_id
 
 
-def _vehicle_limit_ok(conn, fleet_id: int) -> bool:
-    """True when the fleet subscription allows registering one more vehicle."""
-    entitlement = get_fleet_entitlement(conn, fleet_id)
-    if not entitlement:
-        return False
-    active = (
-        entitlement["subscription_status"] == "ACTIVE"
-        or is_trial_active(conn, fleet_id)
-    )
-    if not active:
-        return False
-    return count_active_vehicles(conn, fleet_id) < entitlement["vehicle_limit"]
 @router.get("/vehicles", response_model=Data[list[dict[str, Any]]])
 def api_vehicles(request: Request):
     guard = require_json_auth(request)
@@ -96,12 +83,14 @@ async def api_create_vehicle(request: Request):
         fleet_id = _resolve_vehicle_fleet(conn, user)
         if fleet_id is None:
             return _bad("no fleet configured for this user", "NO_FLEET")
-        if not _vehicle_limit_ok(conn, fleet_id):
+        entitlement = get_fleet_entitlement(conn, fleet_id)
+        allowed, reason = fleet_can_add_vehicles(conn, fleet_id, entitlement)
+        if not allowed:
             return JSONResponse(
                 status_code=402,
                 content={
                     "error": "vehicle limit reached for this fleet",
-                    "code": "VEHICLE_LIMIT",
+                    "code": "VEHICLE_LIMIT" if reason == "VEHICLE_LIMIT" else "NOT_ENTITLED",
                 },
             )
         new_id = insert_vehicle(

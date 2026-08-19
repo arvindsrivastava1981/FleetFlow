@@ -10,6 +10,7 @@ import FleetsPage from "./pages/admin/Fleets.jsx";
 import UsersPage from "./pages/admin/Users.jsx";
 import VehiclesPage from "./pages/admin/Vehicles.jsx";
 import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
+import OnboardFirmPage from "./pages/admin/OnboardFirm.jsx";
 import BillingPage from "./pages/Billing.jsx";
 import RuleEnginePage from "./pages/RuleEngine.jsx";
 import SettledTripsPage from "./pages/SettledTrips.jsx";
@@ -196,9 +197,19 @@ export default function App() {
       <Route
         path="/fleets"
         element={
-          <ProtectedRoute roles={["super_admin"]}>
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <FleetsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/onboard"
+        element={
+          <ProtectedRoute roles={["super_admin"]}>
+            <Layout>
+              <OnboardFirmPage />
             </Layout>
           </ProtectedRoute>
         }

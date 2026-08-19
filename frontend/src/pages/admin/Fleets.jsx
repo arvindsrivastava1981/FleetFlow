@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 
 const emptyForm = { owner_name: "", phone: "", email: "", subscription_plan: "MONTHLY" };
 
 export default function FleetsPage() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
   const [fleets, setFleets] = useState([]);
   const [plans, setPlans] = useState([]);
   const [error, setError] = useState("");
@@ -79,6 +82,11 @@ export default function FleetsPage() {
         <h3 className="text-sm font-extrabold text-slate-800 mb-3">
           {editingId ? "Edit Fleet" : "Create New Fleet"}
         </h3>
+        {!isSuperAdmin && !editingId && (
+          <p className="text-xs text-sky-700 mb-2">
+            Creating a fleet makes it your active fleet — new vehicles you add will belong to it.
+          </p>
+        )}
         <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
           <input value={form.owner_name} onChange={(e) => set("owner_name", e.target.value)} placeholder="Owner Name" required className="border rounded-lg p-2 bg-slate-50" />
           <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Phone" required className="border rounded-lg p-2 bg-slate-50" />
@@ -113,7 +121,7 @@ export default function FleetsPage() {
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Plan</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Vehicles</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
+              {isSuperAdmin && <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>}
             </tr>
           </thead>
           <tbody>
@@ -129,10 +137,15 @@ export default function FleetsPage() {
                 </td>
                 <td className="p-3 text-xs text-slate-600">{f.vehicle_count} / {f.vehicle_limit}</td>
                 <td className="p-3 text-xs flex gap-3">
-                  <button onClick={() => startEdit(f)} className="text-sky-600 hover:text-sky-800 font-semibold">Edit</button>
-                  <button onClick={() => toggle(f)} className={f.is_active ? "text-rose-600 hover:text-rose-800 font-semibold" : "text-emerald-600 hover:text-emerald-800 font-semibold"}>
-                    {f.is_active ? "Deactivate" : "Activate"}
-                  </button>
+                  {isSuperAdmin && (
+                    <>
+                      <button onClick={() => startEdit(f)} className="text-sky-600 hover:text-sky-800 font-semibold">Edit</button>
+                      <button onClick={() => toggle(f)} className={f.is_active ? "text-rose-600 hover:text-rose-800 font-semibold" : "text-emerald-600 hover:text-emerald-800 font-semibold"}>
+                        {f.is_active ? "Deactivate" : "Activate"}
+                      </button>
+                    </>
+                  )}
+                  {!isSuperAdmin && <span className="text-slate-400">Read-only</span>}
                 </td>
               </tr>
             ))}

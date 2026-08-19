@@ -9,10 +9,11 @@ const BATTA_UNIT = {
   DAILY: "₹/day",
   NONE: "No batta",
 };
-const emptyForm = { username: "", full_name: "", role: "trip_manager", phone: "", email: "", password: "", batta_type: "FIXED_TRIP", default_batta_rate: "2500.00" };
+const emptyForm = { username: "", full_name: "", role: "trip_manager", phone: "", email: "", password: "", fleet_id: "", batta_type: "FIXED_TRIP", default_batta_rate: "2500.00" };
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
+  const [fleets, setFleets] = useState([]);
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
@@ -23,7 +24,14 @@ export default function UsersPage() {
       .then(setUsers)
       .catch((e) => setError(e.message));
   }
-  useEffect(load, []);
+  function loadFleets() {
+    api.get("/api/v1/fleets").then(setFleets).catch(() => {});
+  }
+  useEffect(() => {
+    load();
+    loadFleets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -55,6 +63,7 @@ export default function UsersPage() {
       phone: u.phone || "",
       email: u.email || "",
       password: "",
+      fleet_id: u.fleet_id ? String(u.fleet_id) : "",
       batta_type: u.batta_type || "FIXED_TRIP",
       default_batta_rate: u.default_batta_rate != null ? String(u.default_batta_rate) : "2500.00",
     });
@@ -92,6 +101,16 @@ export default function UsersPage() {
               </option>
             ))}
           </select>
+          {form.role === "trip_manager" && (
+            <select value={form.fleet_id} onChange={(e) => set("fleet_id", e.target.value)} className="border rounded-lg p-2 bg-slate-50">
+              <option value="">Default Fleet</option>
+              {fleets.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.owner_name} — {f.plan_name || f.plan_code || "fleet"}
+                </option>
+              ))}
+            </select>
+          )}
           <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Phone" className="border rounded-lg p-2 bg-slate-50" />
           <input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" className="border rounded-lg p-2 bg-slate-50" />
           {form.role === "driver" && (

@@ -11,6 +11,7 @@ from backend.app.api import (
     api_v1,
     webhook,
 )
+from backend.app.core.errors import register_error_handlers
 from backend.app.db.connection import healthcheck
 
 app = FastAPI(
@@ -119,3 +120,10 @@ if _FRONTEND_DIST.is_dir() and _STATIC_INDEX.is_file():
             status_code=200,
             headers=_HTML_NO_CACHE,
         )
+
+
+# ---- Global error handlers ---------------------------------------------------
+# Install AFTER routes/middleware so every endpoint (and any uncaught 5xx)
+# flows through the central error handlers, which persist failures into the
+# `error_logs` table (see backend/app/core/errors.py).
+register_error_handlers(app)
