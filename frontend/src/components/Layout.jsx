@@ -28,6 +28,7 @@ const SECTIONS = [
     title: "System & Reports",
     roles: ["super_admin"],
     links: [
+      { to: "/onboard", label: "Onboard Transport Firm", icon: "🏗️", roles: ["super_admin"] },
       { to: "/users", label: "Users", icon: "👤", roles: ["super_admin"] },
       { to: "/benchmarks", label: "Fuel Benchmarks", icon: "⛽", roles: ["super_admin"] },
     ],
