@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import psycopg2.extras
 
@@ -207,7 +207,7 @@ def is_trial_active(conn, fleet_id: int) -> bool:
         return False
     if row["subscription_status"] != "TRIAL":
         return False
-    return row["trial_ends_at"] is not None and row["trial_ends_at"] >= datetime.now()
+    return row["trial_ends_at"] is not None and row["trial_ends_at"] >= datetime.now(timezone.utc)
 
 
 def get_fleet_entitlement(conn, fleet_id: int) -> dict | None:
@@ -232,7 +232,7 @@ def get_fleet_entitlement(conn, fleet_id: int) -> dict | None:
         return None
     # A TRIAL fleet whose window lapsed behaves like PAST_DUE.
     if fleet["subscription_status"] == "TRIAL":
-        if fleet["trial_ends_at"] is None or fleet["trial_ends_at"] < datetime.now():
+        if fleet["trial_ends_at"] is None or fleet["trial_ends_at"] < datetime.now(timezone.utc):
             fleet["subscription_status"] = "PAST_DUE"
     return fleet
 

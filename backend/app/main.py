@@ -95,6 +95,20 @@ if _FRONTEND_DIST.is_dir() and _STATIC_INDEX.is_file():
         name="spa-assets",
     )
 
+    def _serve_index() -> HTMLResponse:
+        return HTMLResponse(
+            _STATIC_INDEX.read_text(encoding="utf-8"),
+            status_code=200,
+            headers=_HTML_NO_CACHE,
+        )
+
+    # Explicit root route: Starlette's `/{path:path}` converter does NOT reliably
+    # match the bare `/`, which previously caused the logged `GET / → 404` /
+    # `HEAD / → 404`. Register `/` directly so the index is always served.
+    @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False, response_model=None)
+    def spa_root() -> HTMLResponse:
+        return _serve_index()
+
     @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False, response_model=None)
     def spa_fallback(request: Request, path: str):
         """Serve real static files, else fall back to the SPA index.html.
@@ -115,11 +129,7 @@ if _FRONTEND_DIST.is_dir() and _STATIC_INDEX.is_file():
                 _FRONTEND_DIST / path,
                 headers=_HTML_NO_CACHE,
             )
-        return HTMLResponse(
-            _STATIC_INDEX.read_text(encoding="utf-8"),
-            status_code=200,
-            headers=_HTML_NO_CACHE,
-        )
+        return _serve_index()
 
 
 # ---- Global error handlers ---------------------------------------------------
