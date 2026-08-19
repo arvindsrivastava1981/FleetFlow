@@ -208,6 +208,35 @@ CREATE TABLE IF NOT EXISTS webhook_logs (
 CREATE INDEX IF NOT EXISTS idx_webhook_logs_event_id ON webhook_logs(event_id);
 
 -- ----------------------------------------------------------------------------
+-- 9. ERROR LOGS — central sink for every error raised on the backend side.
+--    `backend/app/core/errors.py` registers global FastAPI exception handlers;
+--    whenever an endpoint raises (ApiError, request validation failure, HTTP
+--    error, or any uncaught 5xx exception) a row is inserted here for audit,
+--    tracing and post-mortem analysis. `traceback_text` holds the full stack
+--    for internal (5xx) failures; `detail` stores a JSON-encoded payload for
+--    validation/API errors. `source` defaults to 'BACKEND' and can be extended
+--    for payment/webhook/whatsapp sub-systems.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS error_logs (
+    id BIGSERIAL PRIMARY KEY,
+    method VARCHAR(10),                        -- HTTP verb (GET/POST/PUT/PATCH/DELETE)
+    path TEXT,                                 -- the request URL path
+    status_code INT NOT NULL,                  -- intended HTTP status (400/404/422/500...)
+    error_type VARCHAR(30) NOT NULL,           -- API_ERROR | VALIDATION | HTTP | INTERNAL
+    message TEXT NOT NULL,                     -- human-readable error message
+    detail TEXT,                               -- JSON-encoded payload (validation errors, details)
+    traceback_text TEXT,                       -- full stack trace for INTERNAL errors
+    endpoint VARCHAR(255),                     -- route/path identifier used for grouping
+    source VARCHAR(20) DEFAULT 'BACKEND'
+        CHECK (source IN ('BACKEND', 'PAYMENT', 'WHATSAPP', 'WEBHOOK')),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON error_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_status_code ON error_logs(status_code);
+CREATE INDEX IF NOT EXISTS idx_error_logs_error_type ON error_logs(error_type);
+
+-- ----------------------------------------------------------------------------
 -- AUTOMATED UPDATED_AT TIMESTAMP TRIGGER
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION update_timestamp_column()

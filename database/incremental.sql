@@ -11,6 +11,30 @@
 
 
 -- ----------------------------------------------------------------------------
+-- ERROR LOGS — central sink for backend-raised errors (see schema.sql for the
+-- column semantics). Created by `backend/app/core/errors.py` global handlers.
+-- Idempotent: `IF NOT EXISTS` makes re-runs of this script a no-op.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS error_logs (
+    id BIGSERIAL PRIMARY KEY,
+    method VARCHAR(10),
+    path TEXT,
+    status_code INT NOT NULL,
+    error_type VARCHAR(30) NOT NULL,
+    message TEXT NOT NULL,
+    detail TEXT,
+    traceback_text TEXT,
+    endpoint VARCHAR(255),
+    source VARCHAR(20) DEFAULT 'BACKEND'
+        CHECK (source IN ('BACKEND', 'PAYMENT', 'WHATSAPP', 'WEBHOOK')),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_error_logs_created_at ON error_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_status_code ON error_logs(status_code);
+CREATE INDEX IF NOT EXISTS idx_error_logs_error_type ON error_logs(error_type);
+
+-- ----------------------------------------------------------------------------
 -- MASTER DATA (1) — Subscription plan catalogue (billable product objects),
 -- idempotent on the unique code.
 -- ----------------------------------------------------------------------------

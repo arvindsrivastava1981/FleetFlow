@@ -4,8 +4,8 @@ import datetime as _dt
 from typing import Any
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
 
+from backend.app.core.errors import bad_request as _err_bad, not_found as _err_not_found
 from backend.app.core.security import get_current_user
 from backend.app.db.queries.users import get_user_fleet_id
 
@@ -33,12 +33,18 @@ def _created(payload: Any) -> dict:
     return {"data": _jsonable(payload)}
 
 
-def _bad(msg: str, code: str = "BAD_REQUEST") -> JSONResponse:
-    return JSONResponse(status_code=400, content={"error": msg, "code": code})
+def _bad(msg: str, code: str = "BAD_REQUEST") -> None:
+    """Raise a 400 API error; the global handler logs it + returns JSON.
+
+    This raises rather than returns so existing `return _bad(...)` call sites
+    propagate the exception through FastAPI's global handlers unchanged.
+    """
+    raise _err_bad(msg, code=code)
 
 
-def _not_found(msg: str = "not found") -> JSONResponse:
-    return JSONResponse(status_code=404, content={"error": msg, "code": "NOT_FOUND"})
+def _not_found(msg: str = "not found") -> None:
+    """Raise a 404 API error; the global handler logs it + returns JSON."""
+    raise _err_not_found(msg)
 
 
 def _identity(request: Request) -> dict:
