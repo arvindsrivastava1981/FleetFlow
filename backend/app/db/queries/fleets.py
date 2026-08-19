@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import psycopg2.extras
+
 
 # --- Plans ---------------------------------------------------------------
 
@@ -355,7 +357,8 @@ def log_fleet_billing_event(
             (fleet_id, event_type, plan_code, payload, razorpay_ref, amount, created_by)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
-        (fleet_id, event_type, plan_code, payload or {}, razorpay_ref, amount, created_by),
+        (fleet_id, event_type, plan_code,
+         psycopg2.extras.Json(payload or {}), razorpay_ref, amount, created_by),
     )
 
 

@@ -73,6 +73,11 @@ CREATE TABLE IF NOT EXISTS fleet_billing_events (
 CREATE INDEX IF NOT EXISTS idx_fleet_events_fleet_id ON fleet_billing_events(fleet_id);
 CREATE INDEX IF NOT EXISTS idx_fleet_events_created_at ON fleet_billing_events(created_at DESC);
 
+-- Drop the orphan updated_at trigger on `trips`. Older schema.sql (pre-settlement)
+-- created trg_trips_updated_at, but `trips` has NO updated_at column, so any
+-- `UPDATE trips` (e.g. /settle) raised: record "new" has no field "updated_at".
+DROP TRIGGER IF EXISTS trg_trips_updated_at ON trips;
+
 -- ----------------------------------------------------------------------------
 -- MASTER DATA (1) — Subscription plan catalogue (billable product objects),
 -- idempotent on the unique code.
