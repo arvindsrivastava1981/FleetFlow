@@ -39,6 +39,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---- No-cache guard ----------------------------------------------------------
+# Force every response (backend APIs, SPA HTML, hashed assets, webhook callbacks)
+# to bypass HTTP caches entirely: `no-store` forbids storing the response anywhere,
+# which guarantees the latest deployed page + backend code is always served in
+# production. Applied as the outermost middleware so it wraps ALL routes and
+# mounted sub-apps.
+_HTML_NO_CACHE = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
+@app.middleware("http")
+async def _no_cache_everything(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
 # ---- Routers (JSON API only) ------------------------------------------------
 # All UI is served by the React SPA (`frontend/dist` mounted below). The backend
 # exposes only the `/api/v1` JSON API and the Razorpay webhook callback. The
@@ -78,21 +100,22 @@ if _FRONTEND_DIST.is_dir() and _STATIC_INDEX.is_file():
 
         Cache strategy:
         - `index.html` (and every HTML document) returns `Cache-Control:
-          no-cache` so the browser must revalidate on every reload and always
-          picks up the newest bundle references (fresh UI). Hash-named assets
-          are immutable, so they can be cached long-term.
-        - For non-HTML static files (hashed JS/CSS/fonts) we send
-          `Cache-Control: no-cache` too and rely on Vite's content-hashed
-          filenames for cache-busting: a changed build produces a new filename,
-          so revalidation yields the new immutable asset with no stale-UI risk.
+          no-store, no-cache, must-revalidate, max-age=0` so the browser never
+          stores it and always serves the newest build on reload.
+        - For non-HTML static files (hashed JS/CSS/fonts) we also send
+          `no-store` too and rely on Vite's content-hashed filenames for
+          cache-busting: a changed build produces a new filename, so the new
+          asset is always fetched with no stale-UI risk. The outer no-cache
+          middleware guarantees no layer (browser, CDN, render proxy) caches
+          any response.
         """
         if path and (_FRONTEND_DIST / path).is_file():
             return FileResponse(
                 _FRONTEND_DIST / path,
-                headers={"Cache-Control": "no-cache"},
+                headers=_HTML_NO_CACHE,
             )
         return HTMLResponse(
             _STATIC_INDEX.read_text(encoding="utf-8"),
             status_code=200,
-            headers={"Cache-Control": "no-cache"},
+            headers=_HTML_NO_CACHE,
         )
