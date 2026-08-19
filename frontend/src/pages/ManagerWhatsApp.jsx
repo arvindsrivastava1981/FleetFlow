@@ -59,7 +59,7 @@ export default function ManagerWhatsAppPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center gap-2">
         <div>
-          <h2 className="text-lg font-extrabold text-slate-900">Manager WhatsApp Escalation</h2>
+          <h2 className="page-title">Manager WhatsApp Escalation</h2>
           <p className="text-xs text-slate-500">
             Chat-style thread · flagged expenses routed to you for quick Approve / Deduct
           </p>
@@ -75,11 +75,11 @@ export default function ManagerWhatsAppPage() {
       </div>
 
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">{error}</div>
+        <div className="alert alert-error">{error}</div>
       )}
 
       {loading ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">
+        <div className="empty card">
           Loading escalations…
         </div>
       ) : (
@@ -149,7 +149,7 @@ export default function ManagerWhatsAppPage() {
                     <button
                       onClick={() => decide(e, "APPROVE")}
                       disabled={busyId === e.id}
-                      className="text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2.5 py-1 rounded-full transition disabled:opacity-50"
+                      className="text-[10px] btn-success px-2.5 py-1 rounded-full transition disabled:opacity-50"
                     >
                       {busyId === e.id ? "…" : "✅ Approve"}
                     </button>

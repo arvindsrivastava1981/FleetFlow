@@ -86,29 +86,29 @@ export default function BenchmarksPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-extrabold text-slate-900">Fuel Benchmarks</h2>
+      <h2 className="page-title">Fuel Benchmarks</h2>
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
+        <div className="alert alert-error">
           {error}
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div className="card-pad">
         <h3 className="text-sm font-extrabold text-slate-800 mb-3">
           {editingId ? "Edit Benchmark" : "Add Benchmark"}
         </h3>
         <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <input value={form.state_code} onChange={(e) => set("state_code", e.target.value)} placeholder="State Code (e.g. UP)" required className="border rounded-lg p-2 bg-slate-50" />
-          <input value={form.state_name} onChange={(e) => set("state_name", e.target.value)} placeholder="State Name" required className="border rounded-lg p-2 bg-slate-50" />
-          <input value={form.benchmark_price_per_liter} onChange={(e) => set("benchmark_price_per_liter", e.target.value)} placeholder="Price ₹/L" required type="number" step="any" className="border rounded-lg p-2 bg-slate-50" />
-          <input value={form.tolerance_pct} onChange={(e) => set("tolerance_pct", e.target.value)} placeholder="Tolerance %" type="number" step="any" className="border rounded-lg p-2 bg-slate-50" />
-          <input value={form.effective_date} onChange={(e) => set("effective_date", e.target.value)} placeholder="Effective Date (YYYY-MM-DD)" type="date" className="border rounded-lg p-2 bg-slate-50" />
+          <input value={form.state_code} onChange={(e) => set("state_code", e.target.value)} placeholder="State Code (e.g. UP)" required className="input" />
+          <input value={form.state_name} onChange={(e) => set("state_name", e.target.value)} placeholder="State Name" required className="input" />
+          <input value={form.benchmark_price_per_liter} onChange={(e) => set("benchmark_price_per_liter", e.target.value)} placeholder="Price ₹/L" required type="number" step="any" className="input" />
+          <input value={form.tolerance_pct} onChange={(e) => set("tolerance_pct", e.target.value)} placeholder="Tolerance %" type="number" step="any" className="input" />
+          <input value={form.effective_date} onChange={(e) => set("effective_date", e.target.value)} placeholder="Effective Date (YYYY-MM-DD)" type="date" className="input" />
           <div className="col-span-2 md:col-span-4 flex gap-2">
-            <button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow">
+            <button type="submit" className="btn-primary py-2 px-4 rounded-xl transition shadow">
               {editingId ? "Save Changes" : "Add Benchmark"}
             </button>
             {editingId && (
-              <button type="button" onClick={() => { setForm(emptyForm); setEditingId(null); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-xl">
+              <button type="button" onClick={() => { setForm(emptyForm); setEditingId(null); }} className="btn-secondary py-2 px-4 rounded-xl">
                 Cancel
               </button>
             )}
@@ -116,8 +116,8 @@ export default function BenchmarksPage() {
         </form>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left">
+      <div className="table-wrap">
+        <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Code</th>
@@ -135,7 +135,7 @@ export default function BenchmarksPage() {
                 <td className="p-3 text-xs text-slate-600">₹{b.benchmark_price_per_liter}</td>
                 <td className="p-3 text-xs text-slate-600">{b.tolerance_pct}%</td>
                 <td className="p-3 text-xs flex gap-3">
-                  <button onClick={() => startEdit(b)} className="text-sky-600 hover:text-sky-800 font-semibold">Edit</button>
+                  <button onClick={() => startEdit(b)} className="text-brand-600 hover:text-brand-800 font-semibold">Edit</button>
                   <button onClick={() => remove(b)} className="text-rose-600 hover:text-rose-800 font-semibold">Delete</button>
                 </td>
               </tr>
@@ -163,7 +163,7 @@ export default function BenchmarksPage() {
                 type="button"
                 onClick={() => setPendingDelete(null)}
                 disabled={deleting}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-xl text-sm"
+                className="btn-secondary py-2 px-4 rounded-xl text-sm"
               >
                 Cancel
               </button>

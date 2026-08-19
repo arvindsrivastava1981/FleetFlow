@@ -80,15 +80,15 @@ export default function DriversPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-extrabold text-slate-900">Drivers</h2>
+        <h2 className="page-title">Drivers</h2>
         <p className="text-xs text-slate-500">Registered driver users and their batta profile.</p>
       </div>
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
+        <div className="alert alert-error">
           {error}
         </div>
       )}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div className="card-pad">
         <h3 className="text-sm font-extrabold text-slate-800 mb-3">
           {editingId ? "Edit Driver" : "Add New Driver"}
         </h3>
@@ -99,27 +99,27 @@ export default function DriversPage() {
             placeholder="Username"
             required
             disabled={!!editingId}
-            className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50"
+            className="input disabled:opacity-50"
           />
           <input
             value={form.full_name}
             onChange={(e) => set("full_name", e.target.value)}
             placeholder="Full Name"
             required
-            className="border rounded-lg p-2 bg-slate-50"
+            className="input"
           />
           <input
             value={form.phone}
             onChange={(e) => set("phone", e.target.value)}
             placeholder="Phone (+91...)"
-            className="border rounded-lg p-2 bg-slate-50"
+            className="input"
           />
           <input
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
             placeholder="Email"
             type="email"
-            className="border rounded-lg p-2 bg-slate-50"
+            className="input"
           />
           <input
             value={form.password}
@@ -127,12 +127,12 @@ export default function DriversPage() {
             placeholder={editingId ? "Password (blank = keep)" : "Password"}
             required={!editingId}
             type="password"
-            className="border rounded-lg p-2 bg-slate-50"
+            className="input"
           />
           <select
             value={form.batta_type}
             onChange={(e) => set("batta_type", e.target.value)}
-            className="border rounded-lg p-2 bg-slate-50"
+            className="input"
           >
             {BATTA_TYPES.map((b) => (
               <option key={b} value={b}>
@@ -148,17 +148,17 @@ export default function DriversPage() {
             step="0.01"
             min="0"
             disabled={form.batta_type === "NONE"}
-            className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50"
+            className="input disabled:opacity-50"
           />
           <div className="col-span-2 md:col-span-3 flex gap-2">
-            <button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow">
+            <button type="submit" className="btn-primary py-2 px-4 rounded-xl transition shadow">
               {editingId ? "Save Changes" : "Add Driver"}
             </button>
             {editingId && (
               <button
                 type="button"
                 onClick={() => { setForm(emptyForm); setEditingId(null); }}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-xl"
+                className="btn-secondary py-2 px-4 rounded-xl"
               >
                 Cancel
               </button>
@@ -167,8 +167,8 @@ export default function DriversPage() {
         </form>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left">
+      <div className="table-wrap">
+        <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Username</th>
@@ -200,7 +200,7 @@ export default function DriversPage() {
                 <td className="p-3 text-xs text-slate-600">{d.phone || "—"}</td>
                 <td className="p-3 text-xs">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`badge ${
                       d.is_active
                         ? "bg-emerald-100 text-emerald-800"
                         : "bg-rose-100 text-rose-800"
@@ -210,7 +210,7 @@ export default function DriversPage() {
                   </span>
                 </td>
                 <td className="p-3 text-xs flex gap-3">
-                  <button onClick={() => startEdit(d)} className="text-sky-600 hover:text-sky-800 font-semibold">
+                  <button onClick={() => startEdit(d)} className="text-brand-600 hover:text-brand-800 font-semibold">
                     Edit
                   </button>
                   <button

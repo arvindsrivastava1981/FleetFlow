@@ -1,12 +1,4 @@
 
-
--- 15-day free trial for a newly created fleet/trip-manager, then ₹799/mo
--- (or ₹7,191/yr at 25% off). Each plan includes 1 vehicle; extra vehicles
--- are a separate per-vehicle Razorpay purchase.
-INSERT INTO fleets (owner_name, phone, plan_rate)
-VALUES ('Arvind Srivastava', '+91 98765 00000', 799.00)
-ON CONFLICT (phone) DO NOTHING;
-
 INSERT INTO subscription_plans (code, name, billing_cycle, trial_days, price, vehicle_limit, features)
 VALUES
     ('TRIAL',   '15-Day Free Trial',   'TRIAL',   15, 0.00,  1, '{"vehicle_limit":1,"driver_limit":5,"whatsapp":true,"reports":true}'),

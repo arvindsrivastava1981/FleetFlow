@@ -78,13 +78,13 @@ export default function TripDetailPage() {
     if (!s || s.net_balance === 0) return null;
     if (s.is_driver_refund) {
       return (
-        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+        <span className="badge bg-amber-100 text-amber-700">
           Refundable to Fleet
         </span>
       );
     }
     return (
-      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">
+      <span className="badge bg-emerald-100 text-emerald-700">
         Payable to Driver
       </span>
     );
@@ -92,7 +92,7 @@ export default function TripDetailPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-extrabold text-slate-900">
+      <h2 className="page-title">
         Trip {tripCode}
         {trip && (
           <span className="ml-2 text-xs font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 align-middle">
@@ -101,13 +101,13 @@ export default function TripDetailPage() {
         )}
       </h2>
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
+        <div className="alert alert-error">
           {error}
         </div>
       )}
 
       {showSettle && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div className="card p-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold text-slate-800">
               Ready to settle this trip?
@@ -119,7 +119,7 @@ export default function TripDetailPage() {
           <button
             onClick={settleTrip}
             disabled={settleBusy}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition shadow disabled:opacity-50"
+            className="btn-success px-4 py-2 rounded-xl transition shadow disabled:opacity-50"
           >
             {settleBusy ? "Settling…" : "✓ Settle Trip"}
           </button>
@@ -128,30 +128,30 @@ export default function TripDetailPage() {
 
       {s && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className="card p-4">
             <p className="text-[10px] font-bold text-slate-400 uppercase">Owner Cash In</p>
-            <p className="text-lg font-extrabold text-slate-900 mt-1">
+            <p className="page-title mt-1">
               ₹{(s.advance_amount ?? 0).toLocaleString("en-IN")}
             </p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className="card p-4">
             <p className="text-[10px] font-bold text-slate-400 uppercase">Approved Road Spend</p>
-            <p className="text-lg font-extrabold text-slate-900 mt-1">
+            <p className="page-title mt-1">
               ₹{(s.total_road_expenses ?? 0).toLocaleString("en-IN")}
             </p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className="card p-4">
             <p className="text-[10px] font-bold text-slate-400 uppercase">Driver Salary</p>
-            <p className="text-lg font-extrabold text-slate-900 mt-1">
+            <p className="page-title mt-1">
               ₹{(s.driver_batta ?? 0).toLocaleString("en-IN")}
             </p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+          <div className="card p-4">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-bold text-slate-400 uppercase">Final Settlement</p>
               {dueBadge()}
             </div>
-            <p className="text-lg font-extrabold text-slate-900 mt-1">
+            <p className="page-title mt-1">
               ₹{Math.abs(s.net_balance ?? 0).toLocaleString("en-IN")}
             </p>
             <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase">{s.status_label_en}</p>
@@ -159,13 +159,13 @@ export default function TripDetailPage() {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div className="card-pad">
         <h3 className="text-sm font-extrabold text-slate-800 mb-3">Log Expense</h3>
         <form onSubmit={addExpense} className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <select
             value={expType}
             onChange={(e) => setExpType(e.target.value)}
-            className="border rounded-lg p-2 bg-slate-50 text-sm"
+            className="input text-sm"
             required
           >
             {EXPENSE_TYPES.map((t) => (
@@ -181,7 +181,7 @@ export default function TripDetailPage() {
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Amount ₹"
             required
-            className="border rounded-lg p-2 bg-slate-50 text-sm"
+            className="input text-sm"
           />
           <input
             type="number"
@@ -189,7 +189,7 @@ export default function TripDetailPage() {
             value={liters}
             onChange={(e) => setLiters(e.target.value)}
             placeholder="Liters"
-            className="border rounded-lg p-2 bg-slate-50 text-sm"
+            className="input text-sm"
           />
           <input
             type="number"
@@ -197,7 +197,7 @@ export default function TripDetailPage() {
             value={rate}
             onChange={(e) => setRate(e.target.value)}
             placeholder="Rate ₹/L"
-            className="border rounded-lg p-2 bg-slate-50 text-sm"
+            className="input text-sm"
           />
           <input
             type="number"
@@ -205,20 +205,20 @@ export default function TripDetailPage() {
             value={odometer}
             onChange={(e) => setOdometer(e.target.value)}
             placeholder="Odometer (KM)"
-            className="border rounded-lg p-2 bg-slate-50 text-sm col-span-2"
+            className="input text-sm col-span-2"
           />
           <button
             type="submit"
             disabled={busy}
-            className="col-span-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 rounded-xl transition shadow disabled:opacity-50"
+            className="col-span-2 btn-primary py-2 rounded-xl transition shadow disabled:opacity-50"
           >
             {busy ? "Saving…" : "Log Expense"}
           </button>
         </form>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left">
+      <div className="table-wrap">
+        <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Type</th>
@@ -234,7 +234,7 @@ export default function TripDetailPage() {
                 <td className="p-3 text-xs text-slate-600">₹{e.amount}</td>
                 <td className="p-3 text-xs">
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`badge ${
                       e.manager_status === "APPROVED"
                         ? "bg-emerald-100 text-emerald-700"
                         : e.manager_status === "REJECTED"

@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { api } from "../../lib/api.js";
 
 const PLANS = [
@@ -16,7 +16,7 @@ export default function OnboardFirmPage() {
   });
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
-  const input = "border rounded-lg p-2 bg-slate-50";
+  const input = "input";
 
   function set(k, v) { setForm((f) => ({ ...f, [k]: v })); }
 
@@ -48,11 +48,11 @@ export default function OnboardFirmPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-extrabold text-slate-900">Onboard a Transport Firm</h2>
+      <h2 className="page-title">Onboard a Transport Firm</h2>
       <p className="text-xs text-slate-500">Create a whole firm — fleet + owner Trip Manager + subscription — in one step (Super Admin).</p>
-      {error && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">{error}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
       {result && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm rounded-xl p-4 space-y-1">
+        <div className="alert alert-success space-y-1">
           <p className="font-bold">Firm created</p>
           <p>Fleet ID: {result.fleet_id} · Owner user ID: {result.owner_user_id}</p>
           <p>Vehicle ID: {result.vehicle_id || "—"} · Driver ID: {result.driver_user_id || "—"}</p>
@@ -63,7 +63,7 @@ export default function OnboardFirmPage() {
         </div>
       )}
 
-      <form onSubmit={onSubmit} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+      <form onSubmit={onSubmit} className="card-pad space-y-4">
         <div><h3 className="text-sm font-extrabold text-slate-800 mb-2">Firm details</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             <input value={form.owner_name} onChange={(e) => set("owner_name", e.target.value)} placeholder="Owner / Firm Name" required className={input} />
@@ -81,7 +81,7 @@ export default function OnboardFirmPage() {
         <div><h3 className="text-sm font-extrabold text-slate-800 mb-2">Subscription</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
             {PLANS.map((p) => (
-              <label key={p.code} className={`cursor-pointer border rounded-xl p-3 ${form.plan_code === p.code ? "border-sky-500 bg-sky-50" : "border-slate-200"}`}>
+              <label key={p.code} className={`cursor-pointer rounded-xl border p-3 ${form.plan_code === p.code ? "border-brand-500 bg-brand-50" : "border-ink-200"}`}>
                 <input type="radio" name="plan_code" value={p.code} checked={form.plan_code === p.code} onChange={(e) => set("plan_code", e.target.value)} className="mr-2" />
                 <span className="font-bold">{p.name}</span>
                 <span className="block text-[10px] text-slate-500">{p.desc}</span>
@@ -103,7 +103,7 @@ export default function OnboardFirmPage() {
             <input value={form.driver_phone} onChange={(e) => set("driver_phone", e.target.value)} placeholder="Driver Phone" className={input} />
           </div></div>
 
-        <button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow">Create Firm</button>
+        <button type="submit" className="btn-primary">Create Firm</button>
       </form>
     </div>
   );

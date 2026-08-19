@@ -67,31 +67,30 @@ export default function FleetsPage() {
   }
 
   const statusCls = (s) =>
-    ({ TRIAL: "bg-sky-100 text-sky-800", ACTIVE: "bg-emerald-100 text-emerald-800", PAST_DUE: "bg-amber-100 text-amber-800", CANCELLED: "bg-rose-100 text-rose-800" }[s] || "bg-slate-100 text-slate-600");
+    ({ TRIAL: "badge-info", ACTIVE: "bg-emerald-100 text-emerald-800", PAST_DUE: "bg-amber-100 text-amber-800", CANCELLED: "bg-rose-100 text-rose-800" }[s] || "bg-slate-100 text-slate-600");
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-extrabold text-slate-900">Manage Fleets</h2>
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
-          {error}
-        </div>
-      )}
+    <div className="space-y-5">
+      <div>
+        <h2 className="page-title">Manage Fleets</h2>
+        <p className="page-sub">Create and manage transport firms.</p>
+      </div>
+      {error && <div className="alert alert-error">{error}</div>}
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <h3 className="text-sm font-extrabold text-slate-800 mb-3">
+      <div className="card-pad">
+        <h3 className="mb-3 text-sm font-bold text-ink-800">
           {editingId ? "Edit Fleet" : "Create New Fleet"}
         </h3>
         {!isSuperAdmin && !editingId && (
-          <p className="text-xs text-sky-700 mb-2">
+          <p className="mb-2 text-sm text-brand-700">
             Creating a fleet makes it your active fleet — new vehicles you add will belong to it.
           </p>
         )}
-        <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <input value={form.owner_name} onChange={(e) => set("owner_name", e.target.value)} placeholder="Owner Name" required className="border rounded-lg p-2 bg-slate-50" />
-          <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Phone" required className="border rounded-lg p-2 bg-slate-50" />
-          <input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" className="border rounded-lg p-2 bg-slate-50" />
-          <select value={form.subscription_plan} onChange={(e) => set("subscription_plan", e.target.value)} className="border rounded-lg p-2 bg-slate-50" disabled={!!editingId}>
+        <form onSubmit={onSubmit} className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+          <input value={form.owner_name} onChange={(e) => set("owner_name", e.target.value)} placeholder="Owner Name" required className="input" />
+          <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Phone" required className="input" />
+          <input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" className="input" />
+          <select value={form.subscription_plan} onChange={(e) => set("subscription_plan", e.target.value)} className="input" disabled={!!editingId}>
             {plans
               .filter((p) => p.code !== "TRIAL")
               .map((p) => (
@@ -100,58 +99,61 @@ export default function FleetsPage() {
                 </option>
               ))}
           </select>
-          <div className="col-span-2 md:col-span-4 flex gap-2">
-            <button type="submit" className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow">
+          <div className="col-span-2 flex gap-2 md:col-span-4">
+            <button type="submit" className="btn-primary">
               {editingId ? "Save Changes" : "Create Fleet"}
             </button>
             {editingId && (
-              <button type="button" onClick={() => { setForm(emptyForm); setEditingId(null); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-xl">
+              <button type="button" onClick={() => { setForm(emptyForm); setEditingId(null); }} className="btn-secondary">
                 Cancel
               </button>
             )}
           </div>
         </form>
       </div>
-<div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-200">
+
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
             <tr>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Owner</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Phone</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Plan</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Vehicles</th>
-              {isSuperAdmin && <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>}
+              <th>Owner</th>
+              <th>Phone</th>
+              <th>Plan</th>
+              <th>Status</th>
+              <th>Vehicles</th>
+              {isSuperAdmin && <th>Action</th>}
             </tr>
           </thead>
           <tbody>
             {fleets.map((f) => (
-              <tr key={f.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-3 text-xs font-bold text-slate-800">{f.owner_name}</td>
-                <td className="p-3 text-xs text-slate-600">{f.phone}</td>
-                <td className="p-3 text-xs text-slate-600">{f.plan_name || "—"}</td>
-                <td className="p-3 text-xs">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusCls(f.subscription_status)}`}>
+              <tr key={f.id}>
+                <td className="font-semibold text-ink-800">{f.owner_name}</td>
+                <td>{f.phone}</td>
+                <td>{f.plan_name || "—"}</td>
+                <td>
+                  <span className={`badge ${statusCls(f.subscription_status)}`}>
                     {(f.subscription_status || "TRIAL").replace("_", " ")}
                   </span>
                 </td>
-                <td className="p-3 text-xs text-slate-600">{f.vehicle_count} / {f.vehicle_limit}</td>
-                <td className="p-3 text-xs flex gap-3">
-                  {isSuperAdmin && (
-                    <>
-                      <button onClick={() => startEdit(f)} className="text-sky-600 hover:text-sky-800 font-semibold">Edit</button>
-                      <button onClick={() => toggle(f)} className={f.is_active ? "text-rose-600 hover:text-rose-800 font-semibold" : "text-emerald-600 hover:text-emerald-800 font-semibold"}>
-                        {f.is_active ? "Deactivate" : "Activate"}
-                      </button>
-                    </>
-                  )}
-                  {!isSuperAdmin && <span className="text-slate-400">Read-only</span>}
+                <td>{f.vehicle_count} / {f.vehicle_limit}</td>
+                <td>
+                  <div className="flex gap-3 text-sm font-semibold">
+                    {isSuperAdmin && (
+                      <>
+                        <button onClick={() => startEdit(f)} className="text-brand-600 hover:text-brand-800">Edit</button>
+                        <button onClick={() => toggle(f)} className={f.is_active ? "text-rose-600 hover:text-rose-800" : "text-emerald-600 hover:text-emerald-800"}>
+                          {f.is_active ? "Deactivate" : "Activate"}
+                        </button>
+                      </>
+                    )}
+                    {!isSuperAdmin && <span className="text-ink-400">Read-only</span>}
+                  </div>
                 </td>
               </tr>
             ))}
             {!fleets.length && (
               <tr>
-                <td colSpan="6" className="p-6 text-center text-xs text-slate-400">No fleets yet.</td>
+                <td colSpan="6" className="empty">No fleets yet.</td>
               </tr>
             )}
           </tbody>
