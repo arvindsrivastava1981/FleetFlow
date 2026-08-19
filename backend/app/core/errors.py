@@ -10,6 +10,7 @@ DB write fails, the original error response is still returned.
 from __future__ import annotations
 
 import json
+import logging
 import traceback
 from typing import Any
 
@@ -19,6 +20,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.app.db.connection import get_db
+
+logger = logging.getLogger(__name__)
 
 _SOURCE_BACKEND = "BACKEND"
 _ET_API = "API_ERROR"          # ApiError raised by an endpoint / helper
@@ -83,6 +86,20 @@ def _log_error(*, request: Request | None, status_code: int, error_type: str,
     except Exception:  # noqa: BLE001
         method, path, detail_json = None, None, None
 
+    # Surface the real failure to the application log stream (visible in the
+    # deploy platform's log dashboard in production) as well as the DB sink.
+    logger.error(
+        "[error_log] %s %s -> %s (%s) message=%s detail=%s",
+        method,
+        path,
+        status_code,
+        error_type,
+        message,
+        detail_json,
+    )
+    if traceback_text:
+        logger.error("[error_log] traceback:\n%s", traceback_text)
+
     try:
         with get_db() as conn, conn.cursor() as cur:
             cur.execute(
@@ -128,10 +145,18 @@ async def _handle_http_error(request: Request, exc: StarletteHTTPException) -> J
 
 async def _handle_internal_error(request: Request, exc: Exception) -> JSONResponse:
     tb = traceback.format_exc()
+    exc_str = str(exc) or type(exc).__name__
+    message = exc_str
+    detail = {
+        "exc_type": type(exc).__name__,
+        "exc_str": exc_str,
+        "traceback": tb,
+    }
     _log_error(request=request, status_code=500, error_type=_ET_INTERNAL,
-               message="internal server error", traceback_text=tb,
-               detail={"exc_type": type(exc).__name__, "exc_str": str(exc)})
-    return _endpoint_json(500, "internal server error", "INTERNAL_ERROR")
+               message=message, traceback_text=tb, detail=detail)
+    # Surface the REAL error details to the client in every environment
+    # (including production) instead of a generic "internal server error".
+    return _endpoint_json(500, message, "INTERNAL_ERROR", details=detail)
 
 
 def register_error_handlers(app: FastAPI) -> None:

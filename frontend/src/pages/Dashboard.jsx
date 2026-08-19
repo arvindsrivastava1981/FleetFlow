@@ -84,13 +84,15 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Link
-          to="/expenses"
-          className="bg-sky-600 hover:bg-sky-500 text-white rounded-2xl p-5 text-center shadow-sm transition"
-        >
-          <span className="block text-2xl">🧾</span>
-          <span className="text-xs font-bold block mt-2">Expense Ledger</span>
-        </Link>
+        {(role === "trip_manager" || role === "super_admin") && (
+          <Link
+            to="/expenses"
+            className="bg-sky-600 hover:bg-sky-500 text-white rounded-2xl p-5 text-center shadow-sm transition"
+          >
+            <span className="block text-2xl">🧾</span>
+            <span className="text-xs font-bold block mt-2">Expense Ledger</span>
+          </Link>
+        )}
         {(role === "trip_manager" || role === "super_admin") && (
           <Link
             to="/trips"
