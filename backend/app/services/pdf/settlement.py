@@ -1,13 +1,49 @@
 from __future__ import annotations
 
 import io
+import os
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from backend.app.services.audit.cash import compute_settlement
+
+# ---------------------------------------------------------------------------#
+# Devanagari-capable font registration.
+#
+# reportlab's built-in Helvetica has NO Devanagari glyphs, so any Hindi text
+# renders as ▓ (blank boxes). We register a bundled TrueType font that carries
+# the full Devanagari block (Noto Sans Devanagari, SIL OFL) so both the Latin
+# and Devanagari scripts render correctly on every deploy target (Linux/macOS/
+# Windows). The font is resolved relative to this module so it travels with the
+# package and needs no system font dependency.
+# ---------------------------------------------------------------------------#
+_FONT_NAME = "VK-Devanagari"
+_FONT_FILE = "NotoSansDevanagari-Regular.ttf"
+_FONTS_DIR = os.path.dirname(__file__)
+
+pdfmetrics.registerFont(TTFont(_FONT_NAME, os.path.join(_FONTS_DIR, _FONT_FILE)))
+
+_HI_STYLE_CTR = [0]
+
+
+def _hi_style(parent, **kwargs) -> ParagraphStyle:
+    """Return a ParagraphStyle using the Devanagari font (for bilingual text).
+
+    Sets both ``fontName`` and ``boldFontName`` so reportlab's inline ``<b>``
+    markup keeps using the same font instead of falling back to Helvetica-Bold
+    (which would drop the Devanagari glyphs again).
+    """
+    kwargs.setdefault("fontName", _FONT_NAME)
+    kwargs.setdefault("boldFontName", _FONT_NAME)
+    _HI_STYLE_CTR[0] += 1
+    name = kwargs.pop("name", None) or f"HiStyle_{_HI_STYLE_CTR[0]}"
+    return ParagraphStyle(name, parent=parent, **kwargs)
+
 
 # Bucket -> bilingual label (dr side). Debit rows follow ROAD_EXPENSE_BUCKETS order.
 BUCKET_LABELS: dict[str, tuple[str, str]] = {
@@ -39,11 +75,11 @@ def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
     story = []
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle("TitleStyle", parent=styles["Heading1"], fontSize=18, leading=22, textColor=colors.HexColor("#0f172a"))
-    sub_style = ParagraphStyle("SubStyle", parent=styles["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
-    meta_style = ParagraphStyle("MetaStyle", parent=styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
-    cell_style = ParagraphStyle("CellStyle", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
-    hi_style = ParagraphStyle("HiStyle", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#64748b"))
+    title_style = ParagraphStyle("TitleStyle", parent=styles["Heading1"], fontName=_FONT_NAME, boldFontName=_FONT_NAME, fontSize=18, leading=22, textColor=colors.HexColor("#0f172a"))
+    sub_style = _hi_style(styles["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
+    meta_style = _hi_style(styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
+    cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
+    hi_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#64748b"))
 
     story.append(Paragraph("<b>VahanKhata</b>", title_style))
     story.append(Paragraph("Official Trip Settlement & Advance Reconciliation Ledger", sub_style))
@@ -71,10 +107,10 @@ def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
 
 def _render_pdf(doc, buffer, story, styles, s) -> bytes:
     """Build the body flowables for a `SettlementResult` ledger + footer."""
-    cell_style = ParagraphStyle("CellStyle2", parent=styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
+    cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
 
     # ---- Double-entry Dr/Cr ledger ---------------------------------------
-    story.append(Paragraph("<b>Bilingual Double-Entry Ledger / दोहरी प्रविष्टि हिसाब</b>", styles["Heading3"]))
+    story.append(Paragraph("<b>Bilingual Double-Entry Ledger / दोहरी प्रविष्टि हिसाब</b>", _hi_style(styles["Heading3"])))
     story.append(Spacer(1, 6))
 
     ledger_rows = [[
@@ -107,7 +143,7 @@ def _render_pdf(doc, buffer, story, styles, s) -> bytes:
             Paragraph("—", cell_style),
         ])
     ledger_rows.append([
-        Paragraph("<b>Driver Trip Batta / चालक ट्रिप भत्ता</b>", cell_style),
+        Paragraph("<b>Driver Trip Salary / चालक ट्रिप भत्ता</b>", cell_style),
         Paragraph(f"<b>{_rs(s.driver_batta)}</b>", cell_style),
         Paragraph("—", cell_style),
     ])
