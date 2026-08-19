@@ -46,6 +46,14 @@ def action_expense_status(conn, expense_id: int, status: str) -> str:
     return row["trip_code"] if row else ""
 
 
+def get_expense_trip_code(conn, expense_id: int) -> str:
+    """Return the trip_code an expense belongs to, without mutating it."""
+    cur = conn.cursor()
+    cur.execute("SELECT trip_code FROM expenses WHERE id = %s", (expense_id,))
+    row = cur.fetchone()
+    return row["trip_code"] if row else ""
+
+
 def get_expenses_for_trip(conn, trip_code: str) -> list[dict]:
     """All expenses for a trip, newest first (for the ledger view)."""
     cur = conn.cursor()

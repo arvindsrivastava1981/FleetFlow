@@ -3,6 +3,12 @@ import { api } from "../lib/api.js";
 
 // Aligned with users.batta_type CHECK (FIXED_TRIP/PER_KM/DAILY/NONE).
 const BATTA_TYPES = ["FIXED_TRIP", "PER_KM", "DAILY", "NONE"];
+const BATTA_UNIT = {
+  FIXED_TRIP: "₹/trip",
+  PER_KM: "₹/km",
+  DAILY: "₹/day",
+  NONE: "No batta",
+};
 const emptyForm = {
   username: "",
   full_name: "",
@@ -137,7 +143,7 @@ export default function DriversPage() {
           <input
             value={form.default_batta_rate}
             onChange={(e) => set("default_batta_rate", e.target.value)}
-            placeholder="Batta Rate (₹/trip)"
+            placeholder={`Batta Rate (${BATTA_UNIT[form.batta_type] || "₹/trip"})`}
             type="number"
             step="0.01"
             min="0"

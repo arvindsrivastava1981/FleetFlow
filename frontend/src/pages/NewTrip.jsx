@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 
+// Standard Indian registration plate regex (system invariant).
+const PLATE_REGEX = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
+
 const emptyForm = {
   vehicle_no: "",
   driver_name: "",
@@ -12,6 +15,38 @@ const emptyForm = {
   driver_user_id: "",
 };
 
+const initialErrors = {
+  vehicle_no: "",
+  driver_phone: "",
+  advance_amount: "",
+  start_odo: "",
+};
+
+function validate(form) {
+  const errs = { ...initialErrors };
+  const vehicleNo = (form.vehicle_no || "").trim().toUpperCase();
+  if (vehicleNo && !PLATE_REGEX.test(vehicleNo)) {
+    errs.vehicle_no = "Invalid plate — expected format like UP32MA1234";
+  }
+  const phone = (form.driver_phone || "").trim();
+  if (phone && !/^\+91[6-9][0-9]{9}$/.test(phone)) {
+    errs.driver_phone = "Phone must match +91 6-9 9-digit (e.g. +919876543210)";
+  }
+  const advance = Number(form.advance_amount || 0);
+  if (Number.isNaN(advance)) {
+    errs.advance_amount = "Advance must be a number";
+  } else if (advance < 0) {
+    errs.advance_amount = "Advance cannot be negative";
+  }
+  const odo = Number(form.start_odo || 0);
+  if (Number.isNaN(odo)) {
+    errs.start_odo = "Odometer must be a number";
+  } else if (odo < 0) {
+    errs.start_odo = "Odometer cannot be negative";
+  }
+  return errs;
+}
+
 export default function NewTripPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
@@ -19,6 +54,7 @@ export default function NewTripPage() {
   const [drivers, setDrivers] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState(initialErrors);
 
   function load() {
     api
@@ -34,10 +70,17 @@ export default function NewTripPage() {
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
+    setFieldErrors((e) => ({ ...e, [k]: "" }));
   }
 
   async function onSubmit(e) {
     e.preventDefault();
+    const errs = validate(form);
+    setFieldErrors(errs);
+    if (Object.values(errs).some(Boolean)) {
+      setError("Please fix the highlighted fields before starting the trip.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -62,6 +105,12 @@ export default function NewTripPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function fieldClass(hasError) {
+    return `border rounded-lg p-2 bg-slate-50 ${
+      hasError ? "border-rose-400" : ""
+    }`;
   }
 
   const activeVehicles = vehicles.filter((v) => v.is_active !== false);
@@ -123,23 +172,33 @@ export default function NewTripPage() {
             placeholder="Vehicle No (UP32MA1234)"
             required
             disabled={!!form.vehicle_id}
-            className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50"
+            className={fieldClass(!!fieldErrors.vehicle_no)}
           />
+          {fieldErrors.vehicle_no && (
+            <p className="col-span-2 md:col-span-3 text-[11px] text-rose-600">
+              {fieldErrors.vehicle_no}
+            </p>
+          )}
           <input
             value={form.driver_name}
             onChange={(e) => set("driver_name", e.target.value)}
             placeholder="Driver Name"
             required
             disabled={!!form.driver_user_id}
-            className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50"
+            className={fieldClass(false)}
           />
           <input
             value={form.driver_phone}
             onChange={(e) => set("driver_phone", e.target.value)}
             placeholder="Driver Phone (+91...)"
             required
-            className="border rounded-lg p-2 bg-slate-50"
+            className={fieldClass(!!fieldErrors.driver_phone)}
           />
+          {fieldErrors.driver_phone && (
+            <p className="col-span-2 md:col-span-3 text-[11px] text-rose-600">
+              {fieldErrors.driver_phone}
+            </p>
+          )}
           <input
             value={form.advance_amount}
             onChange={(e) => set("advance_amount", e.target.value)}
@@ -148,8 +207,13 @@ export default function NewTripPage() {
             step="any"
             min="0"
             required
-            className="border rounded-lg p-2 bg-slate-50"
+            className={fieldClass(!!fieldErrors.advance_amount)}
           />
+          {fieldErrors.advance_amount && (
+            <p className="col-span-2 md:col-span-3 text-[11px] text-rose-600">
+              {fieldErrors.advance_amount}
+            </p>
+          )}
           <input
             value={form.start_odo}
             onChange={(e) => set("start_odo", e.target.value)}
@@ -158,8 +222,13 @@ export default function NewTripPage() {
             step="any"
             min="0"
             required
-            className="border rounded-lg p-2 bg-slate-50"
+            className={fieldClass(!!fieldErrors.start_odo)}
           />
+          {fieldErrors.start_odo && (
+            <p className="col-span-2 md:col-span-3 text-[11px] text-rose-600">
+              {fieldErrors.start_odo}
+            </p>
+          )}
 
           <div className="col-span-2 md:col-span-3 flex gap-2">
             <button
