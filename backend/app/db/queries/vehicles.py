@@ -1,13 +1,3 @@
-"""Query helpers for the `vehicles` table.
-
-All functions take a live `psycopg2` connection (from `db/connection.get_db()`)
-and return plain dict rows / booleans. None of them commit — the caller's
-`get_db()` contextmanager commits on clean exit.
-
-Scoping: `super_admin` sees every vehicle; a `trip_manager` sees only the
-vehicles they registered (`created_by = user_id`). This mirrors the trip-level
-ownership already used across the app.
-"""
 from __future__ import annotations
 
 

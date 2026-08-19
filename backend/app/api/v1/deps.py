@@ -1,20 +1,3 @@
-"""Shared HTTP helpers for the `/api/v1` sub-routers.
-
-Centralizes the serialization and response helpers that every domain router
-would otherwise duplicate:
-
-- ``_jsonable``: recursively coerce psycopg2 rows (dates, dicts, lists) to
-  JSON-safe primitives.
-- ``_ok`` / ``_created``: success envelopes (`{ "data": ... }`).
-- ``_bad`` / ``_not_found``: JSONError responses with a stable error ``code``.
-- ``_identity`` / ``get_current_user`` import: auth identity access.
-- ``_trip_forbidden``: multi-tenant (fleet) authorization for a trip row.
-- ``_read_json_body``: safely parse a JSON request body (falls back to {}).
-
-Routers must use ``router = APIRouter(prefix="/api/v1")`` locally; this module
-does NOT declare a prefix so it can be imported by any sub-router without
-stacking prefixes.
-"""
 from __future__ import annotations
 
 import datetime as _dt

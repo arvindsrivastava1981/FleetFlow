@@ -1,15 +1,3 @@
-"""Tests for the Razorpay webhook idempotency guard (`webhook_logs`).
-
-These validate the query-layer contract without a live Postgres:
-
-- `webhook_already_processed` issues `SELECT ... FROM webhook_logs WHERE event_id=%s`
-  returning True when the cursor finds a row (i.e. the event was already applied).
-- `mark_webhook_processed` issues an INSERT with `%s::jsonb` payload so a retried
-  delivery of the same event id would violate UNIQUE(event_id).
-
-A fake connection records the executed SQL so we can assert the guard is wired
-into the route with the stable Razorpay event id as the unique key.
-"""
 from __future__ import annotations
 
 import json

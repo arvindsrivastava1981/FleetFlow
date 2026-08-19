@@ -1,9 +1,3 @@
-"""Expenses + WhatsApp escalation feed `/api/v1` router.
-
-Owns the expense mutation contract (log an expense, manager approve/deduct) and
-the WhatsApp-style escalation feed. The odometer roll-up on the trip row is
-delegated to ``trips.update_trip_odometer`` (no inline SQL in the router).
-"""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request

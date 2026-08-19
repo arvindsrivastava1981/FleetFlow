@@ -1,14 +1,3 @@
-"""Unit tests for the single-source settlement netting engine.
-
-Covers the consolidated Dr/Cr math in `services/audit/cash.py`:
-    1. COALESCE(approved_amount, amount) fallback
-    2. GOODS_SALE credits to Cr; CHALLAN debits to Dr
-    3. driver_batta_amount = 0.00 handling
-    4. division-by-zero protection on avg_kml
-    5. hash determinism / sensitivity
-
-Pure-function tests — no live DB required (mirrors tests/unit/rules/).
-"""
 from __future__ import annotations
 
 import pytest

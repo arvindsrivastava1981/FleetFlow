@@ -1,10 +1,3 @@
-"""Unit tests for auto-generated trip codes.
-
-Verifies `next_trip_code` derives the code from the vehicle plate's last-4
-digits and increments per vehicle (`{last4}-{last_trip+1}`), including the
-first-trip case and isolation across plates sharing the same suffix. No live
-DB is touched — the cursor/connection and the trip query are mocked.
-"""
 from __future__ import annotations
 
 from unittest import mock

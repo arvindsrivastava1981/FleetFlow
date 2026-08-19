@@ -1,12 +1,3 @@
-"""VahanKhata application entrypoint (FastAPI factory).
-
-Primary deploy target (see Dockerfile / render.yaml / start.ps1):
-    uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-10000}
-
-All routes from the legacy `fleetflow_interactive_demo.py` prototype have been
-migrated into `backend/app/api/*` routers wired below. The prototype file and
-`utils.py` have been removed (see APP_MINDMAP.md / PROJECT_STRUCTURE.md).
-"""
 from __future__ import annotations
 
 from pathlib import Path

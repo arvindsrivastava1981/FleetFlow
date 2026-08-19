@@ -1,9 +1,3 @@
-"""Aggregate all `/api/v1` domain routers into one FastAPI router.
-
-Each domain router uses `prefix="/api/v1"`, so mounting them here is a plain
-`include_router(other)` — no stacked prefixes. `backend.app.api.api_v1`
-re-exports this aggregated `router` for `main.py`.
-"""
 from __future__ import annotations
 
 from fastapi import APIRouter

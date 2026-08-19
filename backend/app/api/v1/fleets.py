@@ -1,9 +1,3 @@
-"""Fleet CRUD `/api/v1` router (Super Admin).
-
-Manages fleets and the plan catalogue listing. Plan upgrades / vehicle-slot
-purchases live in the billing router; this router only owns the fleet entity
-(list, plans, create, update, toggle).
-"""
 from __future__ import annotations
 
 from typing import Any

@@ -1,4 +1,3 @@
-"""Role-aware dashboard `/api/v1` router (single endpoint)."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request

@@ -1,12 +1,3 @@
-"""Run the full VahanKhata test suite from the repo root.
-
-Usage:
-    python scripts/run_tests.py
-    python scripts/run_tests.py --only tests/unit/rules
-
-Installs/verifies nothing; just wraps pytest with a stable working-directory/
-import/silent-verbosity convention so CI and local dev agree.
-"""
 from __future__ import annotations
 
 import subprocess

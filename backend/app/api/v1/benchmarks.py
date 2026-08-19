@@ -1,8 +1,3 @@
-"""Fuel benchmarks CRUD `/api/v1` router.
-
-GET is open to any authenticated user (read-only list); writes (create/update/
-delete) require `super_admin`.
-"""
 from __future__ import annotations
 
 from typing import Any

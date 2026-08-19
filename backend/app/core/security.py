@@ -1,17 +1,3 @@
-"""Security primitives — auth, HTML escaping, CSRF, login brute-force defense.
-
-Consolidates and hardens what was inline in `utils.py`:
-
-- `is_(request)` / session tokens (with TTL, not a bare unbounded set)
-- `require_auth(request)` -> 303 redirect helper for routers
-- `csrf_token` generate/validate for every state-changing POST (fixes §2.4)
-- `esc(value)` -> html.escape for every DB-sourced value (fixes §2.3 XSS)
-- login rate limiting + lockout (fixes §2.2 brute-force gap)
-
-Session store remains process-local for the single-worker, in-memory reactor
-app; multi-worker deployments should swap `__sessions` for a shared
-store (e.g. DB-backed) without changing call sites.
-"""
 from __future__ import annotations
 
 import hashlib

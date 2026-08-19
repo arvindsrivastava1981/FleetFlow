@@ -1,9 +1,3 @@
-"""Query helpers for the `users` table.
-
-All functions take a live `psycopg2` connection (from `db/connection.get_db()`)
-and return plain dict rows / booleans. None of them commit — the caller's
-`get_db()` contextmanager commits on clean exit.
-"""
 from __future__ import annotations
 
 # Valid driver remuneration modes (aligned with the users.batta_type CHECK;

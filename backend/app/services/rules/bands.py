@@ -1,16 +1,3 @@
-"""Fuel price band derivation.
-
-Fixes the HIGH bug in deep_agent_recommendation §2.5: `evaluate_rules()` had a
-literal `82.0 / 98.0` band that drifted from both the `BENCHMARK_PRICE` constant
-and the 90.50 ± 8% product spec. Instead of hardcoding, the band is derived from
-a benchmark and tolerance.
-
-    min = benchmark * (1 - tolerance)
-    max = benchmark * (1 + tolerance)
-
-Phase A (G4) will swap the flat `benchmark_price`/`tolerance_pct` arguments for a
-`fuel_benchmarks` row looked up per trip/state, without changing this signature.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

@@ -70,3 +70,4 @@ htmlcov/
 logs/
 uvicorn.log
 *.pyc
+__init__.py

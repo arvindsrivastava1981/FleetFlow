@@ -1,13 +1,3 @@
-"""Idempotent environment/schema sanity check for developers & CI.
-
-Verifies (without mutating anything):
-  - required env vars present
-  - the package imports and /healthz contract resolves
-  - the rules band matches the product spec
-
-Intended for local dev + fast CI smoke gates, not as a substitute for the
-migration's formal fixtures.
-"""
 from __future__ import annotations
 
 import sys

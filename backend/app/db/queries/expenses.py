@@ -1,9 +1,3 @@
-"""Query helpers for the `expenses` table.
-
-Fixing §2.7 from deep_agent_recommendation: every live expense now resolves and
-persists `expenses.trip_id` at insert (previously always NULL at runtime), so
-the FK + `idx_expenses_trip_id` actually mean something for cascades/deletes.
-"""
 from __future__ import annotations
 
 

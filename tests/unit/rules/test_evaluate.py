@@ -1,13 +1,3 @@
-"""Unit tests for the extracted Anomaly Rules Engine (`services/rules`).
-
-Covers every formula in `docs/product_details.md` §3:
-    1. Math integrity        |claimed - L*R| > 10  -> flag
-    2. Fuel price band       90.50 +/- 8% = 83.26..97.74
-    3. Tank capacity         liters > 350 -> flag
-    4. Mileage               km/L < 2.8 -> flag (+ odometer rollback)
-    5. DEF                    rate > 75  or ratio outside 3-6%
-    6. REPAIR > 3000 -> flag; TOLL always flags (pre-corridor)
-"""
 from __future__ import annotations
 
 import pytest
