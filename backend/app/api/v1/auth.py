@@ -1,8 +1,3 @@
-"""Auth `/api/v1` router — login / me / logout / change-password.
-
-Returns Bearer token + user as JSON (never a 303 redirect). Auth resolves via
-cookie OR `Authorization: Bearer` through the shared in-memory session store.
-"""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Response

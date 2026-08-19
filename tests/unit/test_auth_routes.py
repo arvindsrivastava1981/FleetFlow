@@ -1,14 +1,3 @@
-"""Route-security tests for the CRITICAL auth-guard fixes (§2.1).
-
-Every mutation endpoint that used to be unauthenticated must now redirect
-anonymous clients to `/login` with status 303. We run the app through FastAPI's
-TestClient with `follow_redirects=False` so we observe the raw 303 instead of
-the followed login page, and we send valid Form bodies on POST endpoints so
-FastAPI's request validation (which runs before the handler) doesn't shadow the
-guard with a 422.
-
-None of these require a live DB: the guards fire before any database work.
-"""
 from __future__ import annotations
 
 from fastapi.testclient import TestClient

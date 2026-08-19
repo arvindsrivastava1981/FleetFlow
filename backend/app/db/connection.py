@@ -1,12 +1,3 @@
-"""Database connection management — guaranteed close on all code paths.
-
-Fixes the gap flagged in deep_agent_recommendation §3.4: the prototype calls
-`get_db()` then `conn.close()` per route, leaking connections on exception.
-This module exposes a `contextmanager` that always releases the connection.
-
-Also preserves the DEC2FLOAT global caster so NUMERIC columns arrive as `float`.
-Zero DDL: schema is applied manually via /database/schema.sql (Neon).
-"""
 from __future__ import annotations
 
 from contextlib import contextmanager

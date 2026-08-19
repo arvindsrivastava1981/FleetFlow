@@ -1,9 +1,3 @@
-"""Trips + settlements `/api/v1` router.
-
-Owns the trip lifecycle JSON contract: listing, detail (with the single-source
-settlement block), start, settle, the settled-trips listing, the settlement PDF,
-and the driver salary view.
-"""
 from __future__ import annotations
 
 from typing import Any

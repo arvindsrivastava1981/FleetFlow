@@ -1,16 +1,3 @@
-"""The Anomaly Rules Engine — pure, dependency-free evaluation.
-
-Extracted from `evaluate_rules()` in `utils.py` and made a pure function so it
-can be unit-tested without a live DB. The engine takes a plain expense plus
-whatever context the caller already resolved (previous odometer, cumulative
-diesel/DEF volumes, fuel band) and returns a deterministic `RuleVerdict`.
-
-Fix notes vs. the prototype:
-- §2.5 band: uses `bands.derive_band` instead of literal 82/98.
-- §2.8 mileage: `prev_odo` is passed in from the *latest* expense of any type
-  (or `trips.current_odo`), not only the last FUEL row, so non-FUEL odometer
-  submissions are respected.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass

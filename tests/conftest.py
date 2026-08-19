@@ -1,9 +1,3 @@
-"""Shared pytest fixtures for the VahanKhata backend.
-
-Lets the repo root onto `sys.path` (so `backend/...` imports just work when
-running `pytest` from the project root) and exposes a reusable default fuel band
-for the rules-engine tests.
-"""
 from __future__ import annotations
 
 import sys

@@ -1,10 +1,3 @@
-"""Razorpay webhook router — server-to-server payment callback.
-
-This is the only remaining non-`/api/v1` route, and it is NOT a page: it is a
-server-to-server callback from Razorpay that must verify the raw-body HMAC-SHA256
-signature and return plain-text acks. It cannot be JSON-wrapped because Razorpay
-verifies the exact body it sent. All other UI moved to the React SPA.
-"""
 from __future__ import annotations
 
 import json

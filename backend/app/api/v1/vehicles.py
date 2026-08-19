@@ -1,9 +1,3 @@
-"""Vehicles CRUD `/api/v1` router (trip_manager / super_admin).
-
-Vehicle creation is gated by the owning fleet's subscription vehicle limit and
-an active (non-expired) subscription/trial; the plate is validated with the
-shared license-plate regex before insert.
-"""
 from __future__ import annotations
 
 from typing import Any

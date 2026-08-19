@@ -1,14 +1,3 @@
-"""Typed Pydantic v2 response contracts for the `/api/v1` JSON API.
-
-Every success response is a JSON envelope. Most endpoints wrap their payload in
-a `data` key; the auth endpoints (`/auth/me`, `/auth/login`) return their
-payload at the top level because the React SPA reads them that way.
-
-Row-shaped payloads (trips, vehicles, users, fleets, benchmarks, expenses,
-escalations, settlements) are typed with `extra="allow"` so a `SELECT *` row
-streamed from the DB is never silently stripped — documented fields give the
-contract, real rows keep every column.
-"""
 from __future__ import annotations
 
 from typing import Any, Generic, Optional, TypeVar

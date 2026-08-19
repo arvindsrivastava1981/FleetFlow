@@ -1,7 +1,3 @@
-"""Password hashing — PBKDF2 (stdlib hashlib, no external deps).
-
-Format: ``pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>``
-"""
 from __future__ import annotations
 
 import hashlib

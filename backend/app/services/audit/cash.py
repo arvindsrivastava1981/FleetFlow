@@ -1,13 +1,3 @@
-"""Single-source settlement netting engine.
-
-Consolidates all trip netting math that previously lived (duplicated) in
-`services/pdf/settlement.py` and `api/views.py`. Pure function: takes the trip
-row + its expenses, returns a deterministic `SettlementResult` with the Dr/Cr
-double-entry balance, driver batta, mileage and a tamper-evident fingerprint.
-
-Closes deep_agent_recommendation §2.6 / §2.9: single named helper, strict
-"APPROVED only" definition, `COALESCE(approved_amount, amount)` fallback.
-"""
 from __future__ import annotations
 
 import hashlib

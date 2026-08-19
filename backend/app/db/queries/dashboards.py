@@ -1,17 +1,3 @@
-"""Query helpers for the role-based dashboards (`/admin`, `/manager`, `/driver`).
-
-Pure SQL aggregations over `trips` / `expenses` / `vehicles`. These back the
-Super Admin, Trip Manager, and Driver dashboard pages in `api/dashboards.py`.
-
-Conventions (APP_MINDMAP.md):
-- `%s` placeholders only; rows are plain `RealDict` dicts.
-- Callers use `db/connection.get_db()` which commits on clean exit.
-
-Cash-in-hand / float math (matches the settlement signs in `views.py`):
-- Every approved non-GOODS expense reduces the driver's cash (paid from advance).
-- An approved `GOODS_SALE` increases cash in hand (driver collects at delivery).
-- Net balance per trip = advance + SUM(approved sales) - SUM(approved other).
-"""
 from __future__ import annotations
 
 

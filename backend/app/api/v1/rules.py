@@ -1,4 +1,3 @@
-"""Rules engine (JSON) `/api/v1` router — read-only anomaly-rule explainer."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request

@@ -1,8 +1,3 @@
-// Lightweight fetch wrapper for the /api/v1 JSON API.
-// - Attaches `Authorization: Bearer <token>` from localStorage when present.
-// - Returns the parsed JSON body; throws on non-2xx with a decoded error message.
-// - Uses relative paths so the SPA is fully portable across single-origin deploys.
-
 // Parse a fetch Response into its JSON payload. A body is optional: 204 and
 // other empty responses resolve to `null` instead of throwing
 // "Unexpected end of JSON input" when callers `.json()` an empty body.

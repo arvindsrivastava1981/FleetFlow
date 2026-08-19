@@ -1,9 +1,3 @@
-"""Unit tests for the plug-and-play manager onboarding email service.
-
-These verify the data plumbing (recipient override, correct fleet/subscription
-derivation) and the template rendering without touching a live DB or Resend.
-The low-level HTTP client (`send_email`) is patched out.
-"""
 from __future__ import annotations
 
 from datetime import date, datetime, timezone

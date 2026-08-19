@@ -1,18 +1,3 @@
-"""Application configuration — env-driven, fail-fast.
-
-Replaces the flat `os.getenv` reads previously hoisted at module-import time in
-`utils.py`. Two production invariants:
-1. DATABASE_URL is required — fail loudly at startup, never silently run against a
-   missing variable (fixes the masking risk flagged in deep_agent_recommendation §5).
-2. Auth is per-user: login validates username + password against the `users` table.
-   USER_PASSWORD env is deprecated (kept for backwards-compat only).
-
-
-Access anywhere as:  from backend.app.core.config import settings
-
-All values are read once at import time so the app boots deterministically and a
-missing required var raises a clear error instead of half-initializing.
-"""
 from __future__ import annotations
 
 import os

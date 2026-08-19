@@ -1,9 +1,3 @@
-"""Billing `/api/v1` router — plan upgrade, trial, and vehicle-slot purchases.
-
-Resolves the caller's fleet, then either activates a TRIAL/MONTHLY/YEARLY plan
-(TRIAL is free and applied inline) or builds a Razorpay payment link for
-MONTHLY/YEARLY/vehicle-slot and returns its `short_url` for the SPA redirect.
-"""
 from __future__ import annotations
 
 from fastapi import APIRouter, Request

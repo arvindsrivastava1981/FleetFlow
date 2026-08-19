@@ -1,12 +1,3 @@
-"""Settlement PDF builder — reportlab, no GTK/system deps.
-
-Extracted from `fleetflow_interactive_demo.py`'s `/generate-settlement-pdf` route
-so the router stays a thin HTTP wrapper. Pure function: takes the trip row +
-its expenses, returns the PDF bytes.
-
-All netting math is delegated to `services/audit/cash.compute_settlement` so the
-PDF, the settle transaction and (future) dashboards read the *same* numbers.
-"""
 from __future__ import annotations
 
 import io

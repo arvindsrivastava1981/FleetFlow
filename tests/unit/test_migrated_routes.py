@@ -1,16 +1,3 @@
-"""Tests for the JSON-only backend + SPA-fallback architecture.
-
-All server-rendered HTML routers were removed from the backend (`views.py`,
-`auth.py`, `benchmarks.py`, `settlement.py`, `rule_engine.py`, `vehicles.py`,
-`users.py`, `dashboards.py`, etc.). `main.py` mounts only the `/api/v1` JSON
-router, the Razorpay webhook, and the built React SPA (catch-all -> index.html).
-
-These tests assert:
-- every legacy HTML page path now falls through to the SPA index (no backend
-  HTML generation),
-- the `/api/v1` JSON endpoints keep returning 401 (not 303) when unauthenticated,
-- the app exposes no module for the removed routers.
-"""
 from __future__ import annotations
 
 from pathlib import Path

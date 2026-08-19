@@ -1,14 +1,3 @@
-"""Razorpay billing client.
-
-Uses Payment Links for everything — monthly, yearly, and vehicle-slot purchases.
-No pre-created Plans needed. Recurring is handled by sending a new payment link
-when `next_billing_date` approaches (the billing upgrade page shows a link).
-
-Hardcoded pricing:
-  Monthly  — ₹ 799 / month   (1 vehicle)
-  Yearly   — ₹ 7,191 / year   (25% off: 799×12=9,588 × 0.75)
-  Per-vehicle slot — ₹ 799   (one-time, raises fleet vehicle_limit by 1)
-"""
 from __future__ import annotations
 
 import httpx

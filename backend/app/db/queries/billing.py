@@ -1,13 +1,3 @@
-"""Query helpers for the `webhook_logs` table (Razorpay webhook idempotency).
-
-The webhook route writes a `webhook_logs` row *inside the same transaction* that
-applies the event's side effect, keyed by the stable Razorpay `event.id`. A
-retried delivery of the same event hits the UNIQUE(event_id) constraint and is a
-no-op, so activation / vehicle-limit bumps can never be applied twice.
-
-All functions take a live `psycopg2` connection (from `db/connection.get_db()`)
-and do NOT commit — the caller's `get_db()` contextmanager commits on clean exit.
-"""
 from __future__ import annotations
 
 import json

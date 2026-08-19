@@ -1,9 +1,3 @@
-"""Users + drivers admin CRUD `/api/v1` router (Super Admin / Trip Manager).
-
-Super Admin manages system users (any role); Trip Manager / Super Admin manage
-driver users with a batta profile. Onboarding email for created trip managers
-is dispatched through the shared email service (never fails the request).
-"""
 from __future__ import annotations
 
 from typing import Any

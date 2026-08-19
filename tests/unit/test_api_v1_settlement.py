@@ -1,10 +1,3 @@
-"""Unit tests for the settlement payload on `GET /api/v1/trips/{trip_code}`.
-
-Verifies that the `settlement` object attached to the trip detail response
-strictly mirrors the single-source `compute_settlement()` engine, and that the
-FULLY SETTLED / refund-direction status logic matches it. No live Neon DB is
-touched — the DB cursor chain and auth identity are mocked.
-"""
 from __future__ import annotations
 
 from unittest import mock

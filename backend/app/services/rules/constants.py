@@ -1,9 +1,3 @@
-"""Rules-engine constants — single source of truth.
-
-Centralises the magic numbers currently hardcoded across `utils.py` and
-`fleetflow_interactive_demo.py`. Routers, services and tests import from here
-(NOT from a mix of globals) so a change in a threshold is reflected everywhere.
-"""
 from __future__ import annotations
 
 from backend.app.core.config import settings
