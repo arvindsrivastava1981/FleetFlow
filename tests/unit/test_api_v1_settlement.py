@@ -181,6 +181,53 @@ def test_driver_overview_cash_in_hand_subtracts_batta(client, resolve_db):
     assert body["cash_in_hand"] == pytest.approx(10000.0 - 2000.0 - DEFAULT_DRIVER_BATTA)
 
 
+def test_trip_detail_forbids_other_managers_trip(client, resolve_db):
+    """A trip_manager cannot view a trip they did not create (403)."""
+    trip = _trip(created_by=99, fleet_id=1)
+    resolve_db(_mock_db_cursor(trip), user={"user_id": 5, "username": "m2", "role": "trip_manager"})
+
+    resp = client.get("/api/v1/trips/TRIP-101")
+    assert resp.status_code == 403
+
+
+def test_trip_detail_forbids_other_fleet_manager(client, resolve_db):
+    """Fleet (tenant) mismatch blocks a manager even if they created the trip."""
+    trip = _trip(created_by=5, fleet_id=7)
+    # fetchone sequence: get_trip_by_code -> trip; get_user_fleet_id -> user fleet row.
+    db_obj = _mock_multi_cursor(trip, {"fleet_id": 1})
+    resolve_db(db_obj, user={"user_id": 5, "username": "m", "role": "trip_manager"})
+
+    resp = client.get("/api/v1/trips/TRIP-101")
+    # user.fleet (1) != trip.fleet (7) => forbidden
+    assert resp.status_code == 403
+
+
+def test_trip_detail_forbids_driver_on_others_trip(client, resolve_db):
+    """A driver cannot view a trip assigned to someone else (403)."""
+    trip = _trip(driver_user_id=88, fleet_id=1)
+    resolve_db(_mock_db_cursor(trip), user={"user_id": 5, "username": "d", "role": "driver"})
+
+    resp = client.get("/api/v1/trips/TRIP-101")
+    assert resp.status_code == 403
+
+
+def test_expense_action_requires_manager_role(client, resolve_db):
+    """A driver must NOT be able to approve/reject expenses (403)."""
+    resolve_db(_mock_db_cursor(_trip(), {}), user={"user_id": 5, "username": "d", "role": "driver"})
+    resp = client.post("/api/v1/expenses/1/action", json={"action": "APPROVE"})
+    assert resp.status_code == 403
+
+
+def test_expense_action_forbids_cross_scope_manager(client, resolve_db):
+    """A manager may not action expenses on another fleet's trip (403)."""
+    trip = _trip(fleet_id=7, created_by=99)
+    # get_expense_trip_code -> {"trip_code": ...}; get_trip_by_code -> trip.
+    db_obj = _mock_multi_cursor({"trip_code": trip["trip_code"]}, trip)
+    resolve_db(db_obj, user={"user_id": 5, "username": "m", "role": "trip_manager"})
+    resp = client.post("/api/v1/expenses/1/action", json={"action": "REJECT"})
+    assert resp.status_code == 403
+
+
 def test_trip_detail_returns_404_for_unknown_trip(client, resolve_db):
     """An unknown trip yields 404 before any settlement math."""
     db_obj = _mock_db_cursor(trip=None)

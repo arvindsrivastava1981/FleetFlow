@@ -3,6 +3,12 @@ import { api } from "../../lib/api.js";
 
 const ROLES = ["trip_manager", "driver"];
 const ROLE_LABELS = { super_admin: "Super Admin", trip_manager: "Trip Manager", driver: "Driver" };
+const BATTA_UNIT = {
+  FIXED_TRIP: "₹/trip",
+  PER_KM: "₹/km",
+  DAILY: "₹/day",
+  NONE: "No batta",
+};
 const emptyForm = { username: "", full_name: "", role: "trip_manager", phone: "", email: "", password: "", batta_type: "FIXED_TRIP", default_batta_rate: "2500.00" };
 
 export default function UsersPage() {
@@ -95,7 +101,7 @@ export default function UsersPage() {
                   <option key={bt} value={bt}>{bt.replace(/_/g, " ")}</option>
                 ))}
               </select>
-              <input value={form.default_batta_rate} onChange={(e) => set("default_batta_rate", e.target.value)} placeholder="Batta Rate ₹" type="number" step="any" min="0" disabled={form.batta_type === "NONE"} className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50" />
+              <input value={form.default_batta_rate} onChange={(e) => set("default_batta_rate", e.target.value)} placeholder={`Batta Rate ${BATTA_UNIT[form.batta_type] || ""}`} type="number" step="any" min="0" disabled={form.batta_type === "NONE"} className="border rounded-lg p-2 bg-slate-50 disabled:opacity-50" />
             </>
           )}
           <input value={form.password} onChange={(e) => set("password", e.target.value)} placeholder={editingId ? "Password (blank = keep)" : "Password"} required={!editingId} type="password" className="border rounded-lg p-2 bg-slate-50" />

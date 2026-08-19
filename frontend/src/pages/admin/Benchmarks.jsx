@@ -14,6 +14,8 @@ export default function BenchmarksPage() {
   const [error, setError] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   function load() {
     api
@@ -50,13 +52,24 @@ export default function BenchmarksPage() {
     }
   }
 
-  async function remove(b) {
-    if (!window.confirm("Delete this benchmark?")) return;
+  function remove(b) {
+    // Open an in-app confirmation modal instead of relying on native
+    // window.confirm (which mobile/embedded web views may silently suppress).
+    setPendingDelete(b);
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setError("");
     try {
-      await api.del(`/api/v1/benchmarks/${b.id}`);
+      await api.del(`/api/v1/benchmarks/${pendingDelete.id}`);
+      setPendingDelete(null);
       load();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -135,6 +148,37 @@ export default function BenchmarksPage() {
           </tbody>
         </table>
       </div>
+
+      {pendingDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-sm p-6">
+            <h4 className="text-base font-extrabold text-slate-900">Delete Fuel Benchmark?</h4>
+            <p className="text-sm text-slate-600 mt-2">
+              This permanently deletes the benchmark for{" "}
+              <strong>{pendingDelete.state_code}</strong> ({pendingDelete.state_name}).
+              Are you sure?
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                disabled={deleting}
+                className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-xl text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-xl text-sm disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -44,7 +44,12 @@ from backend.app.db.queries.dashboards import (
     open_escalations,
     open_escalations_detail,
 )
-from backend.app.db.queries.expenses import action_expense_status, get_expenses_for_trip, insert_expense
+from backend.app.db.queries.expenses import (
+    action_expense_status,
+    get_expense_trip_code,
+    get_expenses_for_trip,
+    insert_expense,
+)
 from backend.app.db.queries.fleets import (
     count_active_vehicles,
     deactivate_fleet,
@@ -197,6 +202,35 @@ def _not_found(msg: str = "not found") -> JSONResponse:
 
 def _identity(request: Request) -> dict:
     return get_current_user(request) or {}
+
+
+def _trip_forbidden(conn, user: dict, trip: dict) -> bool:
+    """Multi-tenant (fleet) authorization for a trip row.
+
+    super_admin may access any fleet's trips. Every other role must be bound to
+    the trip on the tenant dimension (fleet_id) in addition to their ownership:
+      - trip_manager: must have created the trip AND belong to the trip's fleet.
+      - driver: must be the assigned driver AND belong to the trip's fleet.
+    Returns True when access must be forbidden (the caller has no right to it).
+    """
+    role = user.get("role", "")
+    uid = user.get("user_id")
+    if role == "super_admin":
+        return False
+    if role == "trip_manager":
+        if trip.get("created_by") != uid:
+            return True
+    elif role == "driver":
+        if trip.get("driver_user_id") != uid:
+            return True
+    else:
+        return True
+    # Fleet-level (tenant) equality: a user scoped to a fleet may only read or
+    # mutate trips that belong to that same fleet.
+    user_fleet = get_user_fleet_id(conn, uid) if uid else None
+    if user_fleet is not None and trip.get("fleet_id") not in (None, user_fleet):
+        return True
+    return False
 # ---------------------------------------------------------------------------#
 # Dashboard overview — one endpoint, role-aware
 # ---------------------------------------------------------------------------#
@@ -270,10 +304,7 @@ def api_trip_detail(request: Request, trip_code: str):
         trip = get_trip_by_code(conn, trip_code)
         if trip is None:
             return _not_found("trip not found")
-        role = user.get("role", "")
-        if role == "trip_manager" and trip["created_by"] != user.get("user_id"):
-            return JSONResponse(status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"})
-        if role == "driver" and trip["driver_user_id"] != user.get("user_id"):
+        if _trip_forbidden(conn, user, trip):
             return JSONResponse(status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"})
         expenses = get_expenses_for_trip(conn, trip_code)
         res = compute_settlement(trip, expenses)
@@ -333,6 +364,7 @@ async def api_create_expense(request: Request):
     trip_code = str(body.get("trip_code", "")).strip().upper()
     exp_type = str(body.get("exp_type", "")).upper()
     amount = float(body.get("amount", 0.0))
+    user = _identity(request)
     odometer = float(body.get("odometer") or 0.0)
     liters = float(body.get("liters") or 0.0)
     rate = float(body.get("rate") or 0.0)
@@ -341,6 +373,11 @@ async def api_create_expense(request: Request):
         return _bad("invalid expense type", "INVALID_EXPENSE_TYPE")
 
     with get_db() as conn:
+        trip = get_trip_by_code(conn, trip_code)
+        if trip is None:
+            return _not_found("trip not active")
+        if _trip_forbidden(conn, user, trip):
+            return JSONResponse(status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"})
         if trip_status(conn, trip_code) != "ACTIVE":
             return _not_found("trip not active")
         verdict = evaluate_expense(
@@ -379,9 +416,10 @@ async def api_create_expense(request: Request):
 
 @router.post("/expenses/{expense_id}/action", response_model=Data[ExpenseActionResult])
 async def api_action_expense(request: Request, expense_id: int):
-    guard = require_json_auth(request)
+    guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
+    user = _identity(request)
     try:
         body = await request.json()
     except Exception:  # noqa: BLE001
@@ -392,9 +430,13 @@ async def api_action_expense(request: Request, expense_id: int):
     status = "APPROVED" if action == "APPROVE" else "REJECTED"
 
     with get_db() as conn:
+        expense_code = get_expense_trip_code(conn, expense_id)
+        if not expense_code:
+            return _not_found("expense not found")
+        trip = get_trip_by_code(conn, expense_code)
+        if trip is None or _trip_forbidden(conn, user, trip):
+            return JSONResponse(status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"})
         trip_code = action_expense_status(conn, expense_id, status)
-    if not trip_code:
-        return _not_found("expense not found")
     return _ok({"expense_id": expense_id, "status": status, "trip_code": trip_code})
 
 
@@ -481,7 +523,7 @@ def api_settle_trip(request: Request, trip_code: str):
         trip = get_trip_by_code(conn, trip_code)
         if trip is None:
             return _not_found("trip not found")
-        if user.get("role") == "trip_manager" and trip.get("created_by") != user.get("user_id"):
+        if _trip_forbidden(conn, user, trip):
             return JSONResponse(status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"})
         if pending_expense_count(conn, trip_code):
             return JSONResponse(
@@ -518,9 +560,7 @@ def api_settlement_pdf(request: Request, trip_code: str):
         trip = get_trip_by_code(conn, trip_code)
         if trip is None:
             return _not_found("trip not found")
-        if user.get("role") == "trip_manager" and trip.get("created_by") != user.get("user_id"):
-            return Response("Forbidden", status_code=403)
-        if user.get("role") == "driver" and trip.get("driver_user_id") != user.get("user_id"):
+        if _trip_forbidden(conn, user, trip):
             return Response("Forbidden", status_code=403)
         expenses = get_expenses_for_trip(conn, trip_code)
 
