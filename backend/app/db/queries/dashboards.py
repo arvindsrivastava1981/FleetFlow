@@ -51,7 +51,7 @@ def admin_kpis(conn) -> dict:
              FROM trips t
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
             WHERE t.status IN ('ACTIVE', 'COMPLETED')
-            GROUP BY t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount
+            GROUP BY t.id, t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount
             ORDER BY t.id"""
     )
     float_rows = cur.fetchall()

@@ -44,6 +44,8 @@
 
 ## Database Access Pattern (Postgres/Neon)
 - Connection: `psycopg2.connect(os.getenv("DATABASE_URL"), cursor_factory=psycopg2.extras.RealDictCursor)`.
+- JSONB params are always passed as `psycopg2.extras.Json(...)` or `json.dumps(...)` — never a raw Python `dict` (`fleets.log_fleet_billing_event`, `billing.webhook_logs`).
+- `trips` deliberately has NO `updated_at` column; there is no `trg_trips_updated_at` trigger (older schema.sql created one, which broke every `UPDATE trips` — dropped in `schema.sql` + `incremental.sql`).
 - Global `DEC2FLOAT` type caster registered at startup so `NUMERIC` columns arrive as Python `float`, not `Decimal`.
 - Placeholders: `%s` only (never `?`).
 - `created_at`/timestamps are native `datetime` objects — always format via `fmt_dt(dt)` helper, never slice (`dt[:16]` crashes).

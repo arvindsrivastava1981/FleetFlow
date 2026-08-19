@@ -293,11 +293,6 @@ CREATE TRIGGER trg_vehicles_updated_at
     FOR EACH ROW
     EXECUTE PROCEDURE update_timestamp_column();
 
-CREATE TRIGGER trg_trips_updated_at
-    BEFORE UPDATE ON trips
-    FOR EACH ROW
-    EXECUTE PROCEDURE update_timestamp_column();
-
 CREATE TRIGGER trg_expenses_updated_at
     BEFORE UPDATE ON expenses
     FOR EACH ROW
