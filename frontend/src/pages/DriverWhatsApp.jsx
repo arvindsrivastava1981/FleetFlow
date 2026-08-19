@@ -148,7 +148,7 @@ async function sendReceipt(e) {
                   <strong>{trip.vehicle_no}</strong>.
                 </p>
                 <p className="text-slate-600">
-                  Advance: <strong className="text-emerald-700">₹{fmtRs(trip.advance_amount)}</strong>
+                  Owner Cash In: <strong className="text-emerald-700">₹{fmtRs(trip.advance_amount)}</strong>
                 </p>
                 <p className="text-[10px] text-slate-400">Send a diesel or bill photo here.</p>
               </div>
@@ -292,8 +292,12 @@ async function sendReceipt(e) {
                 <span className="text-xs font-bold text-slate-800">{trip.vehicle_no}</span>
               </div>
               <div className="bg-sky-50 border border-sky-200 p-2.5 rounded-xl text-sky-800">
-                <span className="text-[9px] uppercase font-bold block">Advance</span>
+                <span className="text-[9px] uppercase font-bold block">Owner Cash In</span>
                 <span className="text-xs font-bold">₹{fmtRs(trip.advance_amount)}</span>
+              </div>
+              <div className="bg-violet-50 border border-violet-200 p-2.5 rounded-xl text-violet-800">
+                <span className="text-[9px] uppercase font-bold block">Driver Salary</span>
+                <span className="text-xs font-bold">₹{fmtRs(trip.driver_batta_amount)}</span>
               </div>
               <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl text-emerald-800">
                 <span className="text-[9px] uppercase font-bold block">Receipts Logged</span>
