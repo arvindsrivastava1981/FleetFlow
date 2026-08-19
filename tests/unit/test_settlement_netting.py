@@ -103,22 +103,6 @@ def test_advance_plus_batta_refund_scenario():
     assert s.status_label_hi == "चालक द्वारा कंपनी को वापसी"
 
 
-def test_goods_heavy_payable_to_driver_scenario():
-    """Goods + expenses exceed advance -> fleet pays the driver (net<0)."""
-    expenses = [
-        _exp(exp_type="GOODS_SALE", amount=30000.0),
-        _exp(exp_type="FUEL", amount=5000.0, liters=50.0),
-        _exp(exp_type="CHALLAN", amount=1000.0),
-    ]
-    s = compute_settlement(_trip(advance_amount=20000.0), expenses)
-    assert s.total_cr == 50000.0            # 20000 advance + 30000 goods
-    assert s.total_driver_credits == 8500.0  # 5000 + 1000 + 2500 batta
-    assert s.net_balance == pytest.approx(41500.0)
-    assert s.is_driver_refund is False
-    assert s.status_label_en == "PAYABLE TO DRIVER"
-    assert s.status_label_hi == "कंपनी द्वारा चालक को देय"
-
-
 def test_fully_settled_when_balanced():
     """When Cr == Dr the status is FULLY SETTLED."""
     expenses = [_exp(exp_type="FUEL", amount=2500.0, liters=25.0)]

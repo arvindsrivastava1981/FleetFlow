@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import LoginPage from "./pages/Login.jsx";
 import DashboardPage from "./pages/Dashboard.jsx";
@@ -27,6 +27,22 @@ function ProtectedRoute({ children, roles }) {
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
+}
+
+function NotFound() {
+  return (
+    <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl shadow-sm">
+      <p className="text-6xl font-black text-slate-300">404</p>
+      <h2 className="text-lg font-extrabold text-slate-900 mt-3">Page Not Found</h2>
+      <p className="text-xs text-slate-500 mt-1">The page you are looking for does not exist.</p>
+      <Link
+        to="/dashboard"
+        className="inline-block mt-6 bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-4 py-2 rounded-xl transition shadow"
+      >
+        Go to Dashboard
+      </Link>
+    </div>
+  );
 }
 
 export default function App() {
@@ -60,7 +76,7 @@ export default function App() {
       <Route
         path="/trips/:tripCode"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <TripDetailPage />
             </Layout>
@@ -160,7 +176,7 @@ export default function App() {
       <Route
         path="/billing"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <BillingPage />
             </Layout>
@@ -170,7 +186,7 @@ export default function App() {
       <Route
         path="/rule-engine"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <RuleEnginePage />
             </Layout>
@@ -221,6 +237,16 @@ export default function App() {
       <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
       <Route path="/manager" element={<Navigate to="/dashboard" replace />} />
       <Route path="/driver" element={<Navigate to="/dashboard" replace />} />
+      <Route
+        path="*"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <NotFound />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

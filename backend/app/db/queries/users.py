@@ -6,8 +6,9 @@ and return plain dict rows / booleans. None of them commit — the caller's
 """
 from __future__ import annotations
 
-# Valid driver remuneration modes (aligned with the users.batta_type CHECK).
-BATTA_TYPES: tuple[str, ...] = ("FIXED_TRIP")
+# Valid driver remuneration modes (aligned with the users.batta_type CHECK;
+# DEFAULT_* are the fallbacks when a driver does not opt in to a specific profile).
+BATTA_TYPES: tuple[str, ...] = ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
 DEFAULT_BATTA_TYPE = "FIXED_TRIP"
 DEFAULT_BATTA_RATE = 2500.00
 
@@ -25,6 +26,8 @@ def _normalise_batta(
     bt = (batta_type or "").strip().upper() or DEFAULT_BATTA_TYPE
     if bt not in BATTA_TYPES:
         bt = DEFAULT_BATTA_TYPE
+    if bt == "NONE":
+        return bt, 0.0
     rate = default_batta_rate
     if rate is None or rate == "":
         return bt, DEFAULT_BATTA_RATE

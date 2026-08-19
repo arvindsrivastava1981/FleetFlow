@@ -1334,7 +1334,7 @@ def api_auth_logout(request: Request):
 @router.post("/billing/subscribe", response_model=Data[BillingSubscribeResult])
 async def api_billing_subscribe(request: Request):
     """Subscribe to a plan; returns a JSON `redirect_url` to Razorpay."""
-    guard = require_json_auth(request)
+    guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
     user = _identity(request)
@@ -1370,7 +1370,7 @@ async def api_billing_subscribe(request: Request):
 @router.post("/billing/vehicle-slot", response_model=Data[BillingVehicleSlotResult])
 async def api_billing_vehicle_slot(request: Request):
     """Purchase an extra vehicle slot; returns JSON `redirect_url`."""
-    guard = require_json_auth(request)
+    guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
     user = _identity(request)
