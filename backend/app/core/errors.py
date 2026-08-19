@@ -119,8 +119,18 @@ def _log_error(*, request: Request | None, status_code: int, error_type: str,
 # -- Exception handlers ---------------------------------------------------------
 
 async def _handle_api_error(request: Request, exc: ApiError) -> JSONResponse:
-    _log_error(request=request, status_code=exc.status_code, error_type=_ET_API,
-               message=exc.message, detail={"code": exc.code, "details": exc.details})
+    # ---- Routing-miss noise guard (mirrors _handle_http_error) -------------
+    # An ApiError raised for a non-existent resource (e.g. `GET /trips/NOPE`
+    # via `_not_found()` → 404) is indistinguishable from ordinary web junk and
+    # probe traffic. Persisting every one of these rows floods `error_logs` and
+    # buries real defects; the client still gets the exact same `{error, code}`
+    # 404 JSON. Every other status this handler sees (400/401/403/409 and any
+    # ApiError-based 5xx) is still logged exactly as before.
+    _log_it = not (exc.status_code == 404 or exc.status_code == 405)
+    if _log_it:
+        _log_error(request=request, status_code=exc.status_code, error_type=_ET_API,
+                   message=exc.message,
+                   detail={"code": exc.code, "details": exc.details})
     return _endpoint_json(exc.status_code, exc.message, exc.code)
 
 

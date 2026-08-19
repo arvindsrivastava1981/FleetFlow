@@ -90,6 +90,39 @@ def test_register_handlers_and_raise_flow(log_mock: mock.MagicMock):
     assert log_call.kwargs["error_type"] == _ET_API
     assert log_call.kwargs["message"] == "bad things"
 
+@mock.patch.object(err_mod, "_log_error", return_value=None)
+def test_api_error_404_not_persisted(log_mock: mock.MagicMock):
+    """A 404 ApiError (e.g. `GET /trips/NOPE` via `_not_found()`) returns the
+    same `{error, code}` body but is NOT written to `error_logs` — it is
+    ordinary routing-miss junk indistinguishable from the noise already
+    suppressed by `_handle_http_error`. Other statuses still log."""
+    from backend.app.core.errors import _ET_API
+
+    app = FastAPI()
+    register_error_handlers(app)
+    client = TestClient(app)
+
+    # 404 NOT_FOUND -> suppressed.
+    @app.get("/missing")
+    def _missing(request: Request):
+        raise not_found("trip not found")
+
+    resp = client.get("/missing")
+    assert resp.status_code == 404
+    assert resp.json() == {"error": "trip not found", "code": "NOT_FOUND"}
+    log_mock.assert_not_called()
+
+    # 400 BAD_REQUEST -> still persisted.
+    @app.get("/boom")
+    def _boom(request: Request):
+        raise bad_request("bad things")
+
+    resp = client.get("/boom")
+    assert resp.status_code == 400
+    assert log_mock.called
+    log_call = log_mock.call_args
+    assert log_call.kwargs["status_code"] == 400
+    assert log_call.kwargs["error_type"] == _ET_API
 
 @mock.patch.object(err_mod, "_log_error", return_value=None)
 def test_validation_error_returns_422_and_logs(log_mock: mock.MagicMock):
