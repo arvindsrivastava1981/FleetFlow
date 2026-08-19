@@ -58,6 +58,11 @@ class Settings:
         self.qr_code_length: int = 6
         self.anti_spam_scans_per_hour: int = 3
 
+        # ---- Email (Resend) ---------------------------------------------------
+        self.resend_api_key: str | None = os.getenv("RESEND_API_KEY")
+        self.sender_email: str | None = os.getenv("SENDER_EMAIL")
+        self.support_email: str = os.getenv("SUPPORT_EMAIL", "support@vahankhata.com")
+
         # ---- WhatsApp (Phase C) & OCR (Phase D) ----------------------------
         self.whatsapp_access_token: str | None = os.getenv("WHATSAPP_ACCESS_TOKEN")
         self.whatsapp_phone_id: str | None = os.getenv("WHATSAPP_PHONE_ID")

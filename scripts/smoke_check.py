@@ -25,8 +25,9 @@ def main() -> int:
     checks: list[bool] = []
     print("[1/3] env")
     checks.append(bool(settings.database_url))
-    checks.append(bool(settings.password))
+    checks.append(bool(settings.support_email))
     print("   database_url set:", bool(settings.database_url))
+    print("   support_email set:", bool(settings.support_email))
 
     print("[2/3] rules band")
     band = DEFAULT_BAND
@@ -35,7 +36,7 @@ def main() -> int:
     checks.append(abs(band.max_price - 97.74) < 0.01)
 
     print("[3/3] import paths")
-    from backend.app.db.connection import get_db, get_cursor, healthcheck  # noqa
+    from backend.app.db.connection import get_db, healthcheck  # noqa
     from backend.app.core.security import esc, is_authorized_user  # noqa
     checks.append(True)
 

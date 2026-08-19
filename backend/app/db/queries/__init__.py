@@ -2,7 +2,7 @@
 
 One module per core table, exposing focused functions that take a
 `psycopg2` connection/cursor and return plain rows. Routers never write SQL
-inline here — they call these functions (wrapped further by `models/`).
+inline here — they call these functions (see `backend/app/api/v1/*`) directly.
 
 - trips.py        : active-trip guards, insert, settle, pending count
 - expenses.py     : insert expense (with trip-id resolution), update status
@@ -49,6 +49,7 @@ from backend.app.db.queries.trips import (
     pending_expense_count,
     settle_trip,
     trip_status,
+    update_trip_odometer,
 )
 from backend.app.db.queries.users import (
     create_user,
@@ -106,5 +107,6 @@ __all__ = [
     "set_yearly_subscription",
     "trip_status",
     "update_fleet",
+    "update_trip_odometer",
     "update_user",
 ]

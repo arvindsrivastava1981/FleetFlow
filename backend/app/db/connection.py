@@ -58,13 +58,6 @@ def get_db() -> Iterator[PgConnection]:
         conn.close()
 
 
-@contextmanager
-def get_cursor() -> Iterator[psycopg2.extras.RealDictCursor]:
-    """Convenience wrapper yielding a RealDictCursor with auto-commit/close."""
-    with get_db() as conn:
-        yield conn.cursor()
-
-
 def healthcheck() -> dict:
     """Return a lightweight DB liveness payload for /healthz."""
     try:

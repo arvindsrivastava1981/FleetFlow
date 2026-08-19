@@ -6,8 +6,7 @@ Package map
 -----------
 api      : FastAPI router definitions + endpoint wiring (JSON API only)
 core     : App config, security helpers (auth, escaping, rate-limit)
-db       : Connection/factory helpers and typed row access
-models   : Thin data access / domain query functions
+db       : Connection/factory helpers (connection.py) + named SQL (queries/)
 schemas  : Pydantic v2 request/response contracts
 schemas/constants
 services : Business rules engine + WhatsApp/OCR/PDF/audit integrations
