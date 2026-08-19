@@ -17,7 +17,11 @@ their own session, so callers (API routers) keep an explicit transactional scope
 
 from __future__ import annotations
 
-from backend.app.db.queries.fleets import count_active_vehicles, get_plan_by_code
+from backend.app.db.queries.fleets import (
+    count_active_vehicles,
+    get_plan_by_code,
+    get_plan_by_id,
+)
 
 DEFAULT_FEATURES: dict = {"vehicle_limit": 1, "driver_limit": 1}
 
@@ -49,7 +53,10 @@ def fleet_feature(conn, fleet_id: int, feature: str):
         return None
     plan_code = fleet.get("plan_code")
     if not plan_code and fleet.get("plan_id"):
-        plan = get_plan_by_code(conn, fleet.get("plan_id"))
+        # get_fleet_by_id returns a raw fleet row (no joined plan_code), so
+        # resolve the plan by its numeric id — never by code (that would hit a
+        # varchar=integer mismatch on the code column).
+        plan = get_plan_by_id(conn, fleet.get("plan_id"))
         plan_code = (plan or {}).get("code")
     merge = _merged_features(fleet, conn, plan_code)
     if feature not in merge:

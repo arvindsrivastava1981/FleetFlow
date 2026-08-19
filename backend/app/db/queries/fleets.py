@@ -23,6 +23,12 @@ def get_plan_by_code(conn, code: str) -> dict | None:
     return cur.fetchone()
 
 
+def get_plan_by_id(conn, id: int) -> dict | None:
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM subscription_plans WHERE id = %s", (id,))
+    return cur.fetchone()
+
+
 # --- Fleets ---------------------------------------------------------------
 
 def get_all_fleets(conn, fleet_id: int | None = None) -> list[dict]:
