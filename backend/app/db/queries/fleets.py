@@ -23,18 +23,26 @@ def get_plan_by_code(conn, code: str) -> dict | None:
 
 # --- Fleets ---------------------------------------------------------------
 
-def get_all_fleets(conn) -> list[dict]:
-    """All fleets newest-first, with their plan name and vehicle count."""
+def get_all_fleets(conn, fleet_id: int | None = None) -> list[dict]:
+    """Fleets newest-first, with plan name and vehicle count.
+
+    Pass *fleet_id* to restrict the result to a single fleet (used for a
+    trip_manager's "own fleet" view on the Fleets page).
+    """
     cur = conn.cursor()
+    where = "WHERE f.id = %s" if fleet_id is not None else ""
+    params: list = [fleet_id] if fleet_id is not None else []
     cur.execute(
-        """
+        f"""
         SELECT f.*, sp.name AS plan_name, sp.code AS plan_code,
                (SELECT COUNT(*) FROM vehicles v
                  WHERE v.fleet_id = f.id AND v.is_active = TRUE) AS vehicle_count
           FROM fleets f
           LEFT JOIN subscription_plans sp ON sp.id = f.plan_id
+         {where}
          ORDER BY f.id DESC
-        """
+        """,
+        params,
     )
     return cur.fetchall()
 

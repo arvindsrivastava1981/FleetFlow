@@ -15,7 +15,13 @@ from backend.app.db.queries.users import (
     reactivate_user,
     update_user,
 )
-from backend.app.db.queries.fleets import get_default_fleet, get_fleet_email_context
+from backend.app.db.queries.fleets import (
+    get_default_fleet,
+    get_fleet_email_context,
+    get_fleet_entitlement,
+    is_trial_active,
+    start_trial_subscription,
+)
 from backend.app.services.email.client import (
     manager_onboarding_email_context,
     send_manager_onboarding_email_sync,
@@ -35,6 +41,22 @@ def _resolve_user_fleet(conn) -> dict | None:
     if default is None:
         return None
     return get_fleet_email_context(conn, default["id"])
+
+
+def _resolve_default_fleet_id(conn) -> int | None:
+    """Return the default active fleet id for binding a new trip manager."""
+    default = get_default_fleet(conn)
+    return default["id"] if default else None
+
+
+def _fleet_entitled(conn, fleet_id: int) -> bool:
+    """True when a fleet can currently register vehicles (active or trial)."""
+    entitlement = get_fleet_entitlement(conn, fleet_id)
+    if not entitlement:
+        return False
+    return entitlement["subscription_status"] == "ACTIVE" or is_trial_active(
+        conn, fleet_id
+    )
 
 
 def _login_url(request: Request) -> str:
@@ -106,9 +128,21 @@ async def api_create_user(request: Request):
         batta_type = None
         default_batta_rate = None
     with get_db() as conn:
+        # Bind a new Trip Manager to the default active fleet so vehicle
+        # creation resolves to a valid, billable fleet (get_user_fleet_id).
+        if role == "trip_manager":
+            manager_fleet_id = _resolve_default_fleet_id(conn)
+            if manager_fleet_id is not None and not _fleet_entitled(conn, manager_fleet_id):
+                # Seed/default fleets may be TRIAL with no trial clock set
+                # (treated as expired). Start the 15-day trial so the new
+                # manager can immediately register their first vehicle.
+                start_trial_subscription(conn, manager_fleet_id)
+        else:
+            manager_fleet_id = None
         new_id = create_user(
             conn, username, hash_password(password), full_name, role,
             phone, email, created_by=user.get("user_id"),
+            fleet_id=manager_fleet_id,
             batta_type=batta_type,
             default_batta_rate=default_batta_rate,
         )

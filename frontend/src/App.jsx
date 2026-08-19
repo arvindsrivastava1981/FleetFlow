@@ -196,7 +196,7 @@ export default function App() {
       <Route
         path="/fleets"
         element={
-          <ProtectedRoute roles={["super_admin"]}>
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <FleetsPage />
             </Layout>

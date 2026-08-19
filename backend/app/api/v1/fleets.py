@@ -17,8 +17,10 @@ from backend.app.db.queries.fleets import (
     reactivate_fleet,
     update_fleet,
 )
+from backend.app.db.queries.users import update_user as _update_user_row
 
-from backend.app.api.v1.deps import _bad, _created, _not_found, _ok
+from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
+from backend.app.db.queries.users import get_user_fleet_id
 from backend.app.schemas.api_v1 import Data, ResourceAck, ToggleAck
 
 router = APIRouter(prefix="/api/v1")
@@ -26,11 +28,17 @@ router = APIRouter(prefix="/api/v1")
 
 @router.get("/fleets", response_model=Data[list[dict[str, Any]]])
 def api_get_fleets(request: Request):
-    guard = require_json_role(request, "super_admin")
+    guard = require_json_role(request, "super_admin", "trip_manager")
     if guard is not None:
         return guard
+    user = _identity(request)
+    role = user.get("role", "super_admin")
     with get_db() as conn:
-        fleets = get_all_fleets(conn)
+        if role == "super_admin":
+            fleets = get_all_fleets(conn)
+        else:
+            fleet_id = get_user_fleet_id(conn, user.get("user_id"))
+            fleets = get_all_fleets(conn, fleet_id)
     return _ok(fleets)
 
 
@@ -46,9 +54,10 @@ def api_get_plans(request: Request):
 
 @router.post("/fleets", response_model=Data[ResourceAck])
 async def api_create_fleet(request: Request):
-    guard = require_json_role(request, "super_admin")
+    guard = require_json_role(request, "super_admin", "trip_manager")
     if guard is not None:
         return guard
+    user = _identity(request)
     try:
         body = await request.json()
     except Exception:  # noqa: BLE001
@@ -70,6 +79,13 @@ async def api_create_fleet(request: Request):
         new_id = insert_fleet(
             conn, owner_name, phone, email.strip() if email else None, plan
         )
+        # In-place switch: when a trip_manager creates a fleet, it becomes
+        # their active fleet so vehicles they create resolve into it
+        # (get_user_fleet_id), and billing/trips follow the same tenant.
+        role = user.get("role", "super_admin")
+        uid = user.get("user_id")
+        if role == "trip_manager" and uid is not None:
+            _update_user_row(conn, uid, None, None, fleet_id=new_id)
     return _created({"id": new_id})
 
 
