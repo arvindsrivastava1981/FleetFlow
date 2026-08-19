@@ -108,7 +108,7 @@ updates `vehicle_limit` and `next_billing_date` (+1 / +12 months).
 6. `insert_trip(fleet_id, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, created_by=manager, driver_user_id, vehicle_id, driver_batta_amount)`.
 7. → **`201 {"trip_code": "…", "status": "ACTIVE"}`** ✅ live.
 
-**Operational loop follows:** driver submits fuel/expense receipts (`/api/v1/expenses` via WhatsApp simulator) → manager approves/deducts (`/expenses/{id}/action`) → settlement computed → **`POST /api/v1/trips/{code}/settle`** (no pending expenses) → settled PDF.
+**Operational loop follows:** driver submits fuel/expense receipts (`/api/v1/expenses` via Driver (WhatsApp)) → manager approves/deducts (`/expenses/{id}/action`) → settlement computed → **`POST /api/v1/trips/{code}/settle`** (no pending expenses) → settled PDF.
 
 ---
 

@@ -27,6 +27,27 @@ export default function SettledTripsPage() {
   const pdfUrl = (tripCode) =>
     `/api/v1/settlements/${encodeURIComponent(tripCode)}/pdf`;
 
+  const [opening, setOpening] = useState("");
+
+  // The server requires the Bearer token, which a plain <a target="_blank">
+  // navigation (cookies only) would not send and would return 401. Fetch the PDF
+  // as a blob through the authenticated api layer, then open it in a new tab.
+  async function openPdf(tripCode) {
+    setOpening(tripCode);
+    setError("");
+    try {
+      const blob = await api.blob(pdfUrl(tripCode));
+      const objectUrl = URL.createObjectURL(blob);
+      window.open(objectUrl, "_blank", "noopener,noreferrer");
+      // Release the object URL reference once the new tab resolves it.
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setOpening("");
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div>
@@ -52,14 +73,14 @@ export default function SettledTripsPage() {
                 Settled {fmtDate(t.settled_at)}
               </p>
             </div>
-            <a
-              href={pdfUrl(t.trip_code)}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => openPdf(t.trip_code)}
+              disabled={opening === t.trip_code}
               className="btn-secondary btn-sm"
             >
-              📄 View Settlement PDF
-            </a>
+              {opening === t.trip_code ? "Opening…" : "📄 View Settlement PDF"}
+            </button>
           </div>
         ))}
         {!trips.length && !error && (

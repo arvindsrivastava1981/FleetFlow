@@ -230,9 +230,16 @@ def settle_trip(conn, trip_code: str) -> None:
     netting engine to compute the deterministic verification hash + resolved
     batta, and writes them in the same transaction that flips status so a
     historical print's voucher code is stable and verifiable.
+
+    Accepts both ACTIVE and COMPLETED trips: a trip may be marked COMPLETED by
+    the driver/field flow before the manager performs the final settlement,
+    so the settle action must not be stripped for that intermediate state.
     """
     cur = conn.cursor()
-    cur.execute("SELECT * FROM trips WHERE trip_code = %s AND status = 'ACTIVE'", (trip_code,))
+    cur.execute(
+        "SELECT * FROM trips WHERE trip_code = %s AND status IN ('ACTIVE', 'COMPLETED')",
+        (trip_code,),
+    )
     trip = cur.fetchone()
     if trip is None:
         return
@@ -252,7 +259,7 @@ def settle_trip(conn, trip_code: str) -> None:
                 settled_at = CURRENT_TIMESTAMP,
                 verification_hash = %s,
                 driver_batta_amount = %s
-          WHERE trip_code = %s AND status = 'ACTIVE'""",
+          WHERE trip_code = %s AND status IN ('ACTIVE', 'COMPLETED')""",
         (settlement.verification_hash, settlement.driver_batta, trip_code),
     )
 

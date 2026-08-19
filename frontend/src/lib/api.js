@@ -99,10 +99,41 @@ async function postForm(path, form) {
   return parseResponse(res);
 }
 
+async function requestBlob(path) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const url = `${API_BASE_URL}${path}`;
+  const res = await fetch(url, { method: "GET", headers });
+
+  // Same expired-session handling as `request()` — clear token and bounce to
+  // /login unless the call was the login attempt itself.
+  if (res.status === 401) {
+    if (getToken()) setToken(null);
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
+    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+  }
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const payload = await res.json();
+      if (payload?.error) message = payload.error;
+    } catch {
+      // non-JSON error body; fall back to the generic message
+    }
+    throw new ApiError(message, res.status);
+  }
+  return res.blob();
+}
+
 export const api = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: "POST", body }),
   put: (path, body) => request(path, { method: "PUT", body }),
   del: (path) => request(path, { method: "DELETE" }),
   postForm,
+  blob: requestBlob,
 };

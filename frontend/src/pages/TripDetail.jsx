@@ -72,7 +72,9 @@ export default function TripDetailPage() {
   const s = trip?.settlement;
   const canSettle =
     user?.role === "trip_manager" || user?.role === "super_admin";
-  const showSettle = canSettle && trip?.status === "ACTIVE";
+  const showSettle =
+    canSettle &&
+    (trip?.status === "ACTIVE" || trip?.status === "COMPLETED");
 
   function dueBadge() {
     if (!s || s.net_balance === 0) return null;
