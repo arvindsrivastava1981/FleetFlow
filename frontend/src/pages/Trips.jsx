@@ -19,23 +19,21 @@ export default function TripsPage() {
     user?.role === "trip_manager" || user?.role === "super_admin";
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap justify-between items-center gap-2">
-        <h2 className="text-lg font-extrabold text-slate-900">Trips</h2>
+    <div className="space-y-5">
+      <div className="page-head">
+        <div>
+          <h2 className="page-title">Active Trips</h2>
+          <p className="page-sub">All your dispatch trips and their live spend.</p>
+        </div>
         {canCreate && (
-          <Link
-            to="/trips/new"
-            className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-bold px-4 py-2 rounded-xl transition shadow"
-          >
+          <Link to="/trips/new" className="btn-primary">
             + Add New Trip
           </Link>
         )}
       </div>
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
-          {error}
-        </div>
-      )}
+
+      {error && <div className="alert alert-error">{error}</div>}
+
       <div className="space-y-3">
         {trips.map((t) => {
           const active = t.status === "ACTIVE";
@@ -43,34 +41,32 @@ export default function TripsPage() {
             <Link
               key={t.trip_code}
               to={`/trips/${t.trip_code}`}
-              className={`block bg-white border ${
-                active ? "border-sky-300 ring-2 ring-sky-100" : "border-slate-200"
-              } rounded-2xl p-5 shadow-sm hover:shadow-md transition`}
+              className={`card card-hover block p-5 ${
+                active ? "border-brand-200 ring-1 ring-brand-100" : ""
+              }`}
             >
-              <div className="flex flex-wrap justify-between gap-3 items-start">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-slate-900">{t.trip_code}</h3>
+                    <h3 className="font-bold text-ink-900">{t.trip_code}</h3>
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        active
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-slate-200 text-slate-700"
+                      className={`badge ${
+                        active ? "badge-success" : "badge-neutral"
                       }`}
                     >
                       {t.status}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p className="mt-1 text-sm text-ink-500">
                     {t.vehicle_no} · {t.driver_name}
                   </p>
                 </div>
                 {t.stats && (
                   <div className="text-right">
-                    <p className="text-sm font-extrabold text-slate-800">
+                    <p className="font-extrabold text-ink-900">
                       ₹{(t.stats.total_approved || 0).toLocaleString("en-IN")}
                     </p>
-                    <p className="text-[10px] text-slate-400">
+                    <p className="text-xs text-ink-400">
                       {t.stats.expense_count || 0} expenses
                     </p>
                   </div>
@@ -80,8 +76,14 @@ export default function TripsPage() {
           );
         })}
         {!trips.length && !error && (
-          <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">
-            No trips yet.
+          <div className="empty card">
+            <p className="text-3xl">🚚</p>
+            <p className="mt-2 font-medium text-ink-500">No trips yet.</p>
+            {canCreate && (
+              <Link to="/trips/new" className="btn-primary btn-sm mt-4">
+                Start your first trip
+              </Link>
+            )}
           </div>
         )}
       </div>

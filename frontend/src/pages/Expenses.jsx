@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
+
+function StatusBadge({ status }) {
+  if (status === "APPROVED") return <span className="badge badge-success">APPROVED</span>;
+  if (status === "REJECTED") return <span className="badge badge-danger">REJECTED</span>;
+  return <span className="badge badge-warning">PENDING</span>;
+}
 
 export default function ExpensesPage() {
   const [trips, setTrips] = useState([]);
@@ -27,19 +32,22 @@ export default function ExpensesPage() {
   }, [selected]);
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-extrabold text-slate-900">Expense Ledger</h2>
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
-          {error}
-        </div>
-      )}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-        <label className="font-bold text-slate-700 block text-sm mb-2">Select Trip</label>
+    <div className="space-y-5">
+      <div>
+        <h2 className="page-title">Expense Ledger</h2>
+        <p className="page-sub">
+          Select a trip to review its cleared and flagged expenses.
+        </p>
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="card-pad">
+        <label className="label">Select Trip</label>
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="w-full md:w-1/2 border rounded-lg p-2 bg-slate-50 text-sm"
+          className="input md:w-1/2"
         >
           <option value="">— Choose a trip —</option>
           {trips.map((t) => (
@@ -50,49 +58,45 @@ export default function ExpensesPage() {
         </select>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left">
-          <thead className="bg-slate-50 border-b border-slate-200">
+      <div className="table-wrap">
+        <table className="table">
+          <thead>
             <tr>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Type</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Amount</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Flagged</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Flagged</th>
             </tr>
           </thead>
           <tbody>
             {expenses.map((e) => (
-              <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-3 text-xs font-bold text-slate-800">{e.exp_type}</td>
-                <td className="p-3 text-xs text-slate-600">₹{e.amount}</td>
-                <td className="p-3 text-xs">
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      e.manager_status === "APPROVED"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : e.manager_status === "REJECTED"
-                        ? "bg-rose-100 text-rose-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {e.manager_status}
-                  </span>
+              <tr key={e.id}>
+                <td className="font-semibold text-ink-800">{e.exp_type}</td>
+                <td>
+                  ₹{(Number(e.amount) || 0).toLocaleString("en-IN")}
                 </td>
-                <td className="p-3 text-xs">
-                  {e.is_flagged ? <span className="font-bold text-rose-600">⚠️ Yes</span> : <span className="text-slate-300">No</span>}
+                <td>
+                  <StatusBadge status={e.manager_status} />
+                </td>
+                <td>
+                  {e.is_flagged ? (
+                    <span className="badge badge-danger">⚠️ Yes</span>
+                  ) : (
+                    <span className="text-ink-300">No</span>
+                  )}
                 </td>
               </tr>
             ))}
             {!expenses.length && selected && (
               <tr>
-                <td colSpan="4" className="p-6 text-center text-xs text-slate-400">
+                <td colSpan="4" className="empty">
                   No expenses on this trip.
                 </td>
               </tr>
             )}
             {!expenses.length && !selected && (
               <tr>
-                <td colSpan="4" className="p-6 text-center text-xs text-slate-400">
+                <td colSpan="4" className="empty">
                   Select a trip to view its ledger.
                 </td>
               </tr>

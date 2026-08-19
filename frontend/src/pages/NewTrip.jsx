@@ -108,7 +108,7 @@ export default function NewTripPage() {
   }
 
   function fieldClass(hasError) {
-    return `border rounded-lg p-2 bg-slate-50 ${
+    return `input ${
       hasError ? "border-rose-400" : ""
     }`;
   }
@@ -119,15 +119,15 @@ export default function NewTripPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center gap-2">
-        <h2 className="text-lg font-extrabold text-slate-900">Start New Trip</h2>
+        <h2 className="page-title">Start New Trip</h2>
       </div>
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
+        <div className="alert alert-error">
           {error}
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div className="card-pad">
         <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
           <select
             value={form.vehicle_id}
@@ -137,7 +137,7 @@ export default function NewTripPage() {
               set("vehicle_id", vid);
               set("vehicle_no", v?.vehicle_number || "");
             }}
-            className="border rounded-lg p-2 bg-slate-50"
+            className="input"
             required
           >
             <option value="">Select Vehicle</option>
@@ -156,7 +156,7 @@ export default function NewTripPage() {
               set("driver_user_id", uid);
               set("driver_name", d?.full_name || "");
             }}
-            className="border rounded-lg p-2 bg-slate-50"
+            className="input"
           >
             <option value="">Select Driver</option>
             {activeDrivers.map((d) => (
@@ -234,14 +234,14 @@ export default function NewTripPage() {
             <button
               type="submit"
               disabled={busy}
-              className="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2 px-4 rounded-xl transition shadow disabled:opacity-50"
+              className="btn-primary py-2 px-4 rounded-xl transition shadow disabled:opacity-50"
             >
               {busy ? "Creating…" : "Start Trip"}
             </button>
             <button
               type="button"
               onClick={() => navigate("/trips")}
-              className="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-2 px-4 rounded-xl"
+              className="btn-secondary py-2 px-4 rounded-xl"
             >
               Cancel
             </button>

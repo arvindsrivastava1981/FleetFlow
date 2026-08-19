@@ -32,41 +32,31 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <div className="space-y-4 max-w-lg">
+    <div className="max-w-lg space-y-5">
       <div>
-        <h2 className="text-lg font-extrabold text-slate-900">Change Password</h2>
-        <p className="text-xs text-slate-500">
-          Update the password for your account.
-        </p>
+        <h2 className="page-title">Change Password</h2>
+        <p className="page-sub">Update the password for your account.</p>
       </div>
 
-      {message && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl p-4">
-          {message}
-        </div>
-      )}
-      {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
-          {error}
-        </div>
-      )}
+      {message && <div className="alert alert-success">{message}</div>}
+      {error && <div className="alert alert-error">{error}</div>}
 
       <form
         onSubmit={onSubmit}
-        className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4"
+        className="card-pad space-y-4"
       >
         <div>
-          <label className="text-xs font-bold text-slate-700">Current Password</label>
+          <label className="label">Current Password</label>
           <input
             type="password"
             value={form.current_password}
             onChange={(e) => set("current_password", e.target.value)}
             required
-            className="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"
+            className="input"
           />
         </div>
         <div>
-          <label className="text-xs font-bold text-slate-700">New Password</label>
+          <label className="label">New Password</label>
           <input
             type="password"
             value={form.new_password}
@@ -74,24 +64,24 @@ export default function ChangePasswordPage() {
             required
             minLength={4}
             placeholder="At least 4 characters"
-            className="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"
+            className="input"
           />
         </div>
         <div>
-          <label className="text-xs font-bold text-slate-700">Confirm New Password</label>
+          <label className="label">Confirm New Password</label>
           <input
             type="password"
             value={form.confirm_password}
             onChange={(e) => set("confirm_password", e.target.value)}
             required
             minLength={4}
-            className="w-full border rounded-lg p-2.5 bg-slate-50 text-sm"
+            className="input"
           />
         </div>
         <button
           type="submit"
           disabled={busy}
-          className="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 rounded-xl transition shadow disabled:opacity-50"
+          className="btn-primary w-full"
         >
           {busy ? "Updating…" : "Change Password"}
         </button>

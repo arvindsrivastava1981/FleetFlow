@@ -99,7 +99,7 @@ async function sendReceipt(e) {
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center gap-2">
         <div>
-          <h2 className="text-lg font-extrabold text-slate-900">Driver WhatsApp Simulator</h2>
+          <h2 className="page-title">Driver WhatsApp Simulator</h2>
           <p className="text-xs text-slate-500">
             Chat-style simulator · driver sends expense receipts to the VahanKhata bot
           </p>
@@ -110,13 +110,13 @@ async function sendReceipt(e) {
       </div>
 
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">{error}</div>
+        <div className="alert alert-error">{error}</div>
       )}
       {toast && (
-        <div className="bg-sky-50 border border-sky-200 text-sky-800 text-sm rounded-xl p-3">{toast}</div>
+        <div className="bg-brand-50 border border-sky-200 text-sky-800 text-sm rounded-xl p-3">{toast}</div>
       )}
 {!trip ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">
+        <div className="empty card">
           You have no active trip right now. A trip manager will assign one before your next dispatch.
         </div>
       ) : (
@@ -216,7 +216,7 @@ async function sendReceipt(e) {
                   <select
                     value={form.exp_type}
                     onChange={(e) => onField("exp_type", e.target.value)}
-                    className="w-full text-xs border rounded-lg p-2 bg-slate-50 outline-none"
+                    className="w-full text-xs input outline-none"
                   >
                     {EXPENSE_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -232,7 +232,7 @@ async function sendReceipt(e) {
                     value={form.amount}
                     onChange={(e) => onField("amount", e.target.value)}
                     placeholder="e.g. 2500"
-                    className="w-full text-xs border rounded-lg p-2 bg-slate-50 outline-none"
+                    className="w-full text-xs input outline-none"
                   />
                 </div>
                 {isFuelOrDef && (
@@ -243,7 +243,7 @@ async function sendReceipt(e) {
                         type="number" step="0.01" value={form.liters}
                         onChange={(e) => onField("liters", e.target.value)}
                         placeholder="e.g. 30"
-                        className="w-full text-xs border rounded-lg p-2 bg-slate-50 outline-none"
+                        className="w-full text-xs input outline-none"
                       />
                     </div>
                     <div>
@@ -252,7 +252,7 @@ async function sendReceipt(e) {
                         type="number" step="0.01" value={form.rate}
                         onChange={(e) => onField("rate", e.target.value)}
                         placeholder="e.g. 90.50"
-                        className="w-full text-xs border rounded-lg p-2 bg-slate-50 outline-none"
+                        className="w-full text-xs input outline-none"
                       />
                     </div>
                   </>
@@ -263,14 +263,14 @@ async function sendReceipt(e) {
                     type="number" step="1" value={form.odometer}
                     onChange={(e) => onField("odometer", e.target.value)}
                     placeholder="e.g. 103650"
-                    className="w-full text-xs border rounded-lg p-2 bg-slate-50 outline-none"
+                    className="w-full text-xs input outline-none"
                   />
                 </div>
               </div>
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition disabled:opacity-50"
+                className="w-full btn-success text-xs py-2.5 rounded-xl transition disabled:opacity-50"
               >
                 {busy ? "Sending…" : "📤 Send receipt"}
               </button>
@@ -280,7 +280,7 @@ async function sendReceipt(e) {
             </form>
           </div>
 
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3 h-fit">
+          <div className="card-pad space-y-3 h-fit">
             <h3 className="text-sm font-extrabold text-slate-800">Active Trip</h3>
             <div className="grid grid-cols-2 gap-2.5 text-center">
               <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
@@ -291,7 +291,7 @@ async function sendReceipt(e) {
                 <span className="text-[9px] uppercase font-bold text-slate-500 block">Vehicle</span>
                 <span className="text-xs font-bold text-slate-800">{trip.vehicle_no}</span>
               </div>
-              <div className="bg-sky-50 border border-sky-200 p-2.5 rounded-xl text-sky-800">
+              <div className="bg-brand-50 border border-sky-200 p-2.5 rounded-xl text-sky-800">
                 <span className="text-[9px] uppercase font-bold block">Owner Cash In</span>
                 <span className="text-xs font-bold">₹{fmtRs(trip.advance_amount)}</span>
               </div>

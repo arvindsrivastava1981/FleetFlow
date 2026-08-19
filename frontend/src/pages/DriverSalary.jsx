@@ -35,20 +35,20 @@ export default function DriverSalaryPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-extrabold text-slate-900">Driver Salary</h2>
+        <h2 className="page-title">Driver Salary</h2>
         <p className="text-xs text-slate-500">
           Read-only view of your batta allowance and settlement earnings.
         </p>
       </div>
 
       {error && (
-        <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
+        <div className="alert alert-error">
           {error}
         </div>
       )}
 
       {!data && !error && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-400">
+        <div className="empty card">
           Loading your salary…
         </div>
       )}
@@ -57,11 +57,11 @@ export default function DriverSalaryPage() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Stat label="Total Driver Salary" value={totals.total_batta || 0} cls="bg-emerald-50" />
-            <Stat label="Total Payable to You" value={totals.total_payable || 0} cls="bg-sky-50" />
+            <Stat label="Total Payable to You" value={totals.total_payable || 0} cls="bg-brand-50" />
             <Stat label="Total Refund to Fleet" value={totals.total_refund || 0} cls="bg-amber-50" />
             <StatusStat label="Trips" value={`${trips.length} trips`} />
           </div>
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <div className="card-pad">
             <h3 className="text-sm font-extrabold text-slate-800 mb-1">Batta Profile</h3>
             <p className="text-xs text-slate-500">
               Type: <span className="font-bold text-slate-700">{profile.batta_type || "FIXED_TRIP"}</span>
@@ -74,8 +74,8 @@ export default function DriverSalaryPage() {
               / trip
             </p>
           </div>
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full text-left">
+          <div className="table-wrap">
+            <table className="table">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
                   <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Trip</th>

@@ -24,7 +24,15 @@ import Layout from "./components/Layout.jsx";
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="p-10 text-center text-slate-500">Loading…</div>;
+  if (loading)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-ink-50">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-9 w-9 animate-spin rounded-full border-4 border-ink-200 border-t-brand-600" />
+          <p className="text-sm text-ink-500">Loading VahanKhata…</p>
+        </div>
+      </div>
+    );
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
@@ -32,13 +40,15 @@ function ProtectedRoute({ children, roles }) {
 
 function NotFound() {
   return (
-    <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl shadow-sm">
-      <p className="text-6xl font-black text-slate-300">404</p>
-      <h2 className="text-lg font-extrabold text-slate-900 mt-3">Page Not Found</h2>
-      <p className="text-xs text-slate-500 mt-1">The page you are looking for does not exist.</p>
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <p className="text-7xl font-black tracking-tight text-brand-200">404</p>
+      <h2 className="mt-4 text-xl font-bold text-ink-900">Page Not Found</h2>
+      <p className="mt-1 text-sm text-ink-500">
+        The page you are looking for does not exist.
+      </p>
       <Link
         to="/dashboard"
-        className="inline-block mt-6 bg-sky-600 hover:bg-sky-500 text-white text-sm font-bold px-4 py-2 rounded-xl transition shadow"
+        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
       >
         Go to Dashboard
       </Link>

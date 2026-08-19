@@ -46,60 +46,54 @@ export default function BillingPage() {
   const fleet = data?.fleet;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-extrabold text-slate-900">Billing &amp; Subscription</h2>
-        <p className="text-xs text-slate-500">
-          Manage your plan and add extra vehicle slots.
-        </p>
+        <h2 className="page-title">Billing &amp; Subscription</h2>
+        <p className="page-sub">Manage your plan and add extra vehicle slots.</p>
       </div>
-      {error && (
-        <p className="text-xs text-rose-600 font-semibold bg-rose-50 border border-rose-200 rounded-lg p-3">
-          {error}
-        </p>
-      )}
+      {error && <div className="alert alert-error">{error}</div>}
       {!data && !error && (
-        <p className="text-xs text-slate-400">Loading billing info…</p>
+        <div className="empty card">
+          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-ink-200 border-t-brand-600" />
+          <p className="mt-3">Loading billing info…</p>
+        </div>
       )}
       {fleet && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="card-pad grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>
-            <p className="text-[10px] font-bold uppercase text-slate-500">Fleet</p>
-            <p className="text-sm font-bold text-slate-800">{fleet.name}</p>
+            <p className="stat-label">Fleet</p>
+            <p className="mt-1 text-sm font-bold text-ink-800">{fleet.name}</p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-slate-500">Subscription</p>
-            <p className="text-sm font-bold text-slate-800">
+            <p className="stat-label">Subscription</p>
+            <p className="mt-1 text-sm font-bold text-ink-800">
               {(fleet.subscription_status || "TRIAL").replace(/_/g, " ").toUpperCase()}
             </p>
           </div>
           <div>
-            <p className="text-[10px] font-bold uppercase text-slate-500">Vehicle Slots</p>
-            <p className="text-sm font-bold text-slate-800">
+            <p className="stat-label">Vehicle Slots</p>
+            <p className="mt-1 text-sm font-bold text-ink-800">
               {fleet.vehicle_count} / {fleet.vehicle_limit}
             </p>
           </div>
         </div>
       )}
       {data?.plans && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {data.plans.map((p) => (
-            <div
-              key={p.code}
-              className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col gap-3"
-            >
+            <div key={p.code} className="card flex flex-col gap-3 p-5">
               <div>
-                <p className="text-sm font-extrabold text-slate-900">{p.name}</p>
-                <p className="text-xs text-slate-500">{p.description}</p>
-                <p className="text-2xl font-black text-slate-900 mt-2">
+                <p className="font-extrabold text-ink-900">{p.name}</p>
+                <p className="text-sm text-ink-500">{p.description}</p>
+                <p className="mt-2 text-3xl font-black text-ink-900">
                   ₹{p.price.toLocaleString("en-IN")}
-                  <span className="text-xs text-slate-500 font-semibold"> / {p.period}</span>
+                  <span className="text-sm font-semibold text-ink-500"> / {p.period}</span>
                 </p>
               </div>
               <button
                 onClick={() => subscribe(p.code)}
                 disabled={busy === p.code}
-                className="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold py-2.5 rounded-xl transition disabled:opacity-50"
+                className={`${p.code === "TRIAL" ? "btn-secondary" : "btn-primary"} mt-auto w-full`}
               >
                 {p.code === "TRIAL" ? "Start Trial" : "Pay Now"}
               </button>
@@ -109,18 +103,14 @@ export default function BillingPage() {
       )}
 
       {fleet && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex items-center justify-between gap-3">
+        <div className="card-pad flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-slate-800">Extra Vehicle Slot</p>
-            <p className="text-xs text-slate-500">
+            <p className="font-bold text-ink-800">Extra Vehicle Slot</p>
+            <p className="text-sm text-ink-500">
               Add one more vehicle capacity — ₹{fleet.vehicle_slot_price?.toLocaleString("en-IN")}
             </p>
           </div>
-          <button
-            onClick={buySlot}
-            disabled={busy === "slot"}
-            className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition disabled:opacity-50"
-          >
+          <button onClick={buySlot} disabled={busy === "slot"} className="btn-secondary">
             Buy Slot
           </button>
         </div>

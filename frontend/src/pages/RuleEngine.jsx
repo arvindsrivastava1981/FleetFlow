@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 
 const BADGES = {
-  FUEL: "bg-amber-100 text-amber-800",
-  TOLL: "bg-rose-100 text-rose-800",
+  FUEL: "badge-warning",
+  TOLL: "badge-danger",
   REPAIR: "bg-orange-100 text-orange-800",
-  CHALLAN: "bg-rose-100 text-rose-800",
-  DEF: "bg-indigo-100 text-indigo-800",
+  CHALLAN: "badge-danger",
+  DEF: "badge-brand",
 };
 
 export default function RuleEnginePage() {
@@ -22,8 +22,8 @@ export default function RuleEnginePage() {
 
   if (error) {
     return (
-      <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
-        <p className="text-xs text-rose-600 font-semibold">{error}</p>
+      <div className="card-pad">
+        <p className="text-sm text-rose-700">{error}</p>
       </div>
     );
   }
@@ -31,32 +31,28 @@ export default function RuleEnginePage() {
   const entries = Object.entries(rules || {});
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-lg font-extrabold text-slate-900">Rule Engine</h2>
-        <p className="text-xs text-slate-500">
+        <h2 className="page-title">Rule Engine</h2>
+        <p className="page-sub">
           Automated checks applied to every expense claim, grouped by expense type.
         </p>
       </div>
       {entries.length === 0 && (
-        <p className="text-xs text-slate-400">Loading rules…</p>
+        <div className="empty card">
+          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-ink-200 border-t-brand-600" />
+          <p className="mt-3">Loading rules…</p>
+        </div>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {entries.map(([type, items]) => (
-          <div
-            key={type}
-            className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
-          >
-            <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                BADGES[type] || "bg-slate-100 text-slate-700"
-              }`}
-            >
+          <div key={type} className="card-pad">
+            <span className={`badge ${BADGES[type] || "badge-neutral"}`}>
               {type}
             </span>
-            <ul className="list-disc list-inside mt-3 space-y-1.5">
+            <ul className="mt-3 list-inside list-disc space-y-1.5">
               {items.map((rule, idx) => (
-                <li key={idx} className="text-xs text-slate-600 leading-relaxed">
+                <li key={idx} className="text-sm leading-relaxed text-ink-600">
                   {rule}
                 </li>
               ))}
