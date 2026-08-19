@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const EXPENSE_TYPES = [
   "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
@@ -8,6 +9,7 @@ const EXPENSE_TYPES = [
 
 export default function TripDetailPage() {
   const { tripCode } = useParams();
+  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [expType, setExpType] = useState("FUEL");
@@ -16,6 +18,7 @@ export default function TripDetailPage() {
   const [rate, setRate] = useState("");
   const [odometer, setOdometer] = useState("");
   const [busy, setBusy] = useState(false);
+  const [settleBusy, setSettleBusy] = useState(false);
 
   function load() {
     setError("");
@@ -51,9 +54,25 @@ export default function TripDetailPage() {
     }
   }
 
+  async function settleTrip() {
+    setSettleBusy(true);
+    setError("");
+    try {
+      await api.post(`/api/v1/trips/${tripCode}/settle`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSettleBusy(false);
+    }
+  }
+
   const trip = data?.trip;
   const expenses = data?.expenses || [];
   const s = trip?.settlement;
+  const canSettle =
+    user?.role === "trip_manager" || user?.role === "super_admin";
+  const showSettle = canSettle && trip?.status === "ACTIVE";
 
   function dueBadge() {
     if (!s || s.net_balance === 0) return null;
@@ -84,6 +103,26 @@ export default function TripDetailPage() {
       {error && (
         <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl p-4">
           {error}
+        </div>
+      )}
+
+      {showSettle && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-extrabold text-slate-800">
+              Ready to settle this trip?
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              All expenses must be APPROVED or REJECTED first. Settling closes the trip and locks the settlement ledger.
+            </p>
+          </div>
+          <button
+            onClick={settleTrip}
+            disabled={settleBusy}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl transition shadow disabled:opacity-50"
+          >
+            {settleBusy ? "Settling…" : "✓ Settle Trip"}
+          </button>
         </div>
       )}
 

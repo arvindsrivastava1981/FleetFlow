@@ -4,6 +4,7 @@ import LoginPage from "./pages/Login.jsx";
 import DashboardPage from "./pages/Dashboard.jsx";
 import TripsPage from "./pages/Trips.jsx";
 import TripDetailPage from "./pages/TripDetail.jsx";
+import NewTripPage from "./pages/NewTrip.jsx";
 import ExpensesPage from "./pages/Expenses.jsx";
 import FleetsPage from "./pages/admin/Fleets.jsx";
 import UsersPage from "./pages/admin/Users.jsx";
@@ -62,6 +63,16 @@ export default function App() {
           <ProtectedRoute>
             <Layout>
               <TripDetailPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trips/new"
+        element={
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
+            <Layout>
+              <NewTripPage />
             </Layout>
           </ProtectedRoute>
         }
