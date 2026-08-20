@@ -1,4 +1,3 @@
-import PublicNav from "./PublicNav";
 import { app } from "../config.js";
 
 const FOOTER_COLUMNS = [

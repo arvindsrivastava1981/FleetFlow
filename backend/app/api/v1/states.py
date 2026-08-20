@@ -1,4 +1,4 @@
-"""Reference endpoint exposing the canonical Indian state list to the SPA.
+"""Reference endpoint exposing the canonical Indian state list to clients.
 
 The driver-submitted fuel expense needs a fueling-state dropdown; this returns
 the shared, server-authoritative list so the driver picks a valid state_code

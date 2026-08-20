@@ -12,6 +12,6 @@ schemas/constants
 services : Business rules engine + WhatsApp/OCR/PDF/audit integrations
 middleware : CSRF, auth dependency wiring
 
-There is no server-rendered HTML layer. All UI lives in the React SPA
-(`frontend/dist`, served by `main.py`); the backend returns JSON only.
+There is no server-rendered HTML layer. All UI lives in separate web-client
+services; the backend returns JSON only.
 """

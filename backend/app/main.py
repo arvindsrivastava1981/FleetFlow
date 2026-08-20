@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
 from backend.app.api import (
     api_v1,
@@ -21,8 +17,8 @@ app = FastAPI(
 )
 
 # ---- CORS -------------------------------------------------------------------
-# Allow browser requests from the hosted frontend (VahanKhata on Render) so the
-# SPA can call these APIs cross-origin. Local dev origins are included for
+# Allow browser requests from the hosted web client (VahanKhata on Render) so
+# clients can call these APIs cross-origin. Local dev origins are included for
 # convenience; wildcard is intentionally NOT used so credentials are never
 # leaked to arbitrary origins.
 CORS_ALLOWED_ORIGINS = [
@@ -68,31 +64,6 @@ app.include_router(webhook.router)
 def healthz() -> dict:
     """Liveness + DB reachability probe for Render/Docker health checks."""
     return {"status": "ok", **healthcheck()}
-
-
-# ---- Static SPA mount + client-route fallback -------------------------------
-# The React SPA is compiled to `frontend/dist` and mounted at `/`. Client-side
-# (Vite/BrowserRouter) routes like /login, /dashboard and /trips/:code have NO
-# server-side HTML, so a hard refresh / direct hit to any of those paths must be
-# answered with the SPA `index.html` for React Router to take over — otherwise
-# the browser gets a 404. Mounting order matters: the concrete `/api/v1` and
-# `/healthz` routes are registered ABOVE this, so they always win; the mount and
-# the GET-only catch-all below only serve paths the API doesn't own. Non-GET
-# requests (e.g. POST to a removed legacy HTML route) intentionally fall through
-# the GET-only catch-all to the 405/404 handler rather than returning the SPA.
-_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-if _DIST.is_dir():
-    app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
-
-    @app.get("/{full_path:path}", response_model=None, include_in_schema=False)
-    def _spa_fallback(full_path: str) -> FileResponse | HTMLResponse:
-        candidate = (_DIST / full_path).resolve()
-        # Serve real static files (favicon, etc.) if present, but never allow
-        # escaping the dist dir via `..`.
-        if candidate.is_file() and _DIST.resolve() in candidate.parents:
-            return FileResponse(candidate)
-        # Everything else is a client-side route -> return the SPA shell.
-        return HTMLResponse((_DIST / "index.html").read_bytes())
 
 
 # ---- Global error handlers ---------------------------------------------------

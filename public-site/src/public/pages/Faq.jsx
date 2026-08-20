@@ -8,7 +8,7 @@ const FAQS = [
     a: "No. Drivers send fuel and receipt photos straight to WhatsApp. FleetFlow reads the message, runs fuel benchmarking, and routes it for approval — no driver training or logins needed.",
   },
   {
-    q: "How does balta settlement actually work?",
+    q: "How does batta settlement actually work?",
     a: "You set a batta profile (fixed, per-km, daily or none) per driver. When a trip is created, the cash advance posts automatically; at settlement the driver gives consent and the batta & salary post to the ledger, producing a clear, auditable record.",
   },
   {

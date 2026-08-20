@@ -150,10 +150,9 @@ async def _handle_validation_error(request: Request,
 async def _handle_http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     # ---- Routing-miss noise guard -------------------------------------------
     # A 404 (path not registered server-side or a missing static asset) and a
-    # 405 (a valid-looking path but a method that isn't registered, e.g. a POST
-    # to a removed GET-only SPA route) are normal, frequent web traffic — the
-    # SPA catch-all and the static-assets mount both provoke them for junk and
-    # probe requests, and the JSON API raises them via ApiError (a separate,
+    # 405 (a valid-looking path but a method that isn't registered) are normal,
+    # frequent web traffic — probe and junk requests provoke them constantly,
+    # and the JSON API raises them via ApiError (a separate,
     # always-logged handler) in every real call. Persisting every one of these
     # floods `error_logs` with thousands of meaningless rows and hides the real
     # defects. We keep the exact same HTTP response for the client; we just stop

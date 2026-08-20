@@ -147,7 +147,7 @@ def get_current_user(request: Request) -> dict | None:
     """Return the bound user dict {user_id, username, role} or None.
 
     Accepts auth from either the session cookie (browser) or a Bearer header
-    (React SPA, mobile). This keeps the single in-memory session store shared
+    (web client, mobile). This keeps the single in-memory session store shared
     by both transport paths.
     """
     token = request.cookies.get(AUTH_COOKIE) or _bearer_token_from_request(request)
@@ -161,7 +161,7 @@ def is_authorized_user(request: Request) -> bool:
 def require_json_auth(request: Request) -> JSONResponse | None:
     """Return a 401 JSON response if unauthenticated, else None.
 
-    For /api/v1/* endpoints consumed by React / mobile. We never return the
+    For /api/v1/* endpoints consumed by web/mobile clients. We never return the
     browser-style 303 redirect here — a client-side fetch() cannot follow one
     cleanly and would misreport the response.
     """

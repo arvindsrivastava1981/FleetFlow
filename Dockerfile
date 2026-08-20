@@ -1,20 +1,10 @@
-#── Stage 1: build the Vite/React SPA ─────────────────────────────────────────
-FROM node:20-slim AS frontend-builder
-
-WORKDIR /frontend
-
-# Copy dependency manifests first for layer caching, then the source.
-COPY frontend/package*.json ./
-# NOTE: do NOT add --omit=optional — rollup/esbuild ship their native binaries as
-# optional dependencies; omitting them breaks the production build.
-RUN npm ci --no-audit --no-fund
-
-COPY frontend/ ./
-# Compile the static SPA. Vite outputs to frontend/dist (Tailwind pre-built via
-# PostCSS — no CDN at runtime). Cache-busted by Vite's content-hashed assets.
-RUN npm run build
-
-#── Stage 2: Python runtime that serves the API + mounted SPA ──────────────────
+#── Single stage: Python runtime serving ONLY the JSON API ────────────────────
+# The React SPA (frontend/dist) is NOT built or copied here. It is deployed as a
+# separate Render Static Site ("vahankhata-app", see render.yaml), so this image
+# must never contain frontend/dist — otherwise backend/app/main.py would enable
+# its conditional SPA fallback and serve index.html for unknown paths (e.g. a
+# stray GET /sss would return the SPA shell instead of a 404). Keeping the API
+# image SPA-free also makes builds faster and the image smaller.
 FROM python:3.12-slim
 
 # Prevent Python from writing .pyc files and buffer stdout/stderr
@@ -34,13 +24,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application source code
+# Copy application source code (frontend/dist is excluded via .dockerignore).
 COPY . .
-
-# Copy the compiled SPA into the expected location. backend/app/main.py resolves
-# `frontend/dist` relative to the repo root (/app), so this must land at
-# /app/frontend/dist for the catch-all SPA fallback to activate.
-COPY --from=frontend-builder /frontend/dist ./frontend/dist
 
 # Expose Render default port
 EXPOSE 10000

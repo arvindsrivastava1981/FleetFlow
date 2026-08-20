@@ -23,13 +23,13 @@ class AuthUser(BaseModel):
 
 
 class AuthMe(BaseModel):
-    """`GET /auth/me` — no `data` wrapper (SPA reads `user` directly)."""
+    """`GET /auth/me` — no `data` wrapper (client reads `user` directly)."""
 
     user: AuthUser
 
 
 class LoginResult(BaseModel):
-    """`POST /auth/login` — no `data` wrapper (SPA reads token/user)."""
+    """`POST /auth/login` — no `data` wrapper (client reads token/user)."""
 
     token: str
     user: AuthUser

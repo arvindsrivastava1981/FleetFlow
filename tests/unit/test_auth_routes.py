@@ -33,38 +33,32 @@ def test_healthz_public():
     assert resp.json()["status"] == "ok"
 
 
-def test_removed_legacy_create_trip_route_returns_spa_index():
-    """The server-rendered route was removed; JSON API is the only backend surface.
+def test_removed_legacy_create_trip_route_returns_404():
+    """The server-rendered route was removed; JSON API is the only backend surface."""
 
-    The path is no longer a backend route. The SPA catch-all only handles GET, so
-    a POST to a removed path returns 405 Method Not Allowed — never backend HTML.
-    """
     resp = client.post("/create-trip", data=CREATE_TRIP_BODY)
-    assert resp.status_code == 405
+    assert resp.status_code == 404
 
 
-def test_removed_legacy_simulate_whatsapp_returns_spa_index():
+def test_removed_legacy_simulate_whatsapp_returns_404():
     resp = client.post("/simulate-whatsapp", data=SIMULATE_BODY)
-    assert resp.status_code == 405
+    assert resp.status_code == 404
 
 
-def test_removed_legacy_action_expense_returns_spa_index():
+def test_removed_legacy_action_expense_returns_404():
     resp = client.get("/action-expense?id=1&action=APPROVE")
-    assert resp.status_code == 200
-    assert "text/html" in resp.headers["content-type"]
+    assert resp.status_code == 404
 
 
-def test_removed_legacy_settle_trip_returns_spa_index():
+def test_removed_legacy_settle_trip_returns_404():
     resp = client.get("/settle-trip?trip_code=TRIP-101")
-    assert resp.status_code == 200
-    assert "text/html" in resp.headers["content-type"]
+    assert resp.status_code == 404
 
 
-def test_removed_legacy_login_page_serves_spa():
-    """`/login` is a client-side React route; the backend serves the SPA index."""
+def test_removed_legacy_login_page_returns_404():
+    """`/login` is a client-side React route; the backend no longer serves it."""
     resp = client.get("/login")
-    assert resp.status_code == 200
-    assert "text/html" in resp.headers["content-type"]
+    assert resp.status_code == 404
 
 
 # ---------------------------------------------------------------------------#

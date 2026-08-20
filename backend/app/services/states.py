@@ -3,7 +3,7 @@ fuel-band lookup, and the fuel expense dropdown.
 
 This is the single source of truth for the ``state_code`` values stored on
 `trips` / `expenses` and referenced by `fuel_benchmarks`. Keeping it here
-(Server Authoritative) let the API hand the exact list to the SPA dropdown, so
+(Server Authoritative) let the API hand the exact list to the client dropdown, so
 the driver can pick the fueling state and the engine can look up its band.
 """
 
