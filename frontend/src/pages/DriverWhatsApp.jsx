@@ -23,6 +23,7 @@ function fmtRs(n) {
 export default function DriverWhatsAppPage() {
   const [trip, setTrip] = useState(null);
   const [expenses, setExpenses] = useState([]);
+  const [cashInHand, setCashInHand] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
@@ -44,6 +45,7 @@ export default function DriverWhatsAppPage() {
       .then((d) => {
         const t = d?.trip;
         setTrip(t || null);
+        setCashInHand(d?.cash_in_hand ?? 0);
         if (t?.trip_code) {
           setForm((f) => ({ ...f, trip_code: t.trip_code }));
           return api.get(`/api/v1/trips/${t.trip_code}`);
@@ -148,7 +150,7 @@ async function sendReceipt(e) {
                   <strong>{trip.vehicle_no}</strong>.
                 </p>
                 <p className="text-slate-600">
-                  Owner Cash In: <strong className="text-emerald-700">₹{fmtRs(trip.advance_amount)}</strong>
+                  Owner Cash In: <strong className="text-emerald-700">₹{fmtRs(cashInHand)}</strong>
                 </p>
                 <p className="text-[10px] text-slate-400">Send a diesel or bill photo here.</p>
               </div>

@@ -134,27 +134,28 @@ def insert_fleet(
     owner_name: str,
     phone: str,
     email: str | None = None,
-    subscription_plan: str = "MONTHLY",
 ) -> int:
     """Create a new fleet starting its 15-day trial on the TRIAL plan.
 
-    Returns the new fleet id. The 15-day trial clock starts now.
+    Returns the new fleet id. The 15-day trial clock starts now. The plan is
+    always resolved to the TRIAL ``subscription_plans`` row via ``plan_id`` — the
+    single source of truth (plan code/price derive from that FK via JOIN).
     """
     cur = conn.cursor()
     cur.execute(
         """
         INSERT INTO fleets
-            (owner_name, phone, email, subscription_plan,
+            (owner_name, phone, email,
              plan_id, subscription_status,
              trial_started_at, trial_ends_at, vehicle_limit)
         VALUES
-            (%s, %s, %s, %s,
+            (%s, %s, %s,
              (SELECT id FROM subscription_plans WHERE code = 'TRIAL'),
              'TRIAL', CURRENT_TIMESTAMP,
              CURRENT_TIMESTAMP + INTERVAL '15 days', 1)
         RETURNING id
         """,
-        (owner_name, phone, email, subscription_plan),
+        (owner_name, phone, email),
     )
     return cur.fetchone()["id"]
 
@@ -256,7 +257,6 @@ def start_trial_subscription(conn, fleet_id: int) -> None:
         """
         UPDATE fleets
            SET plan_id = (SELECT id FROM subscription_plans WHERE code = 'TRIAL'),
-               subscription_plan = 'TRIAL',
                subscription_status = 'TRIAL',
                vehicle_limit = (SELECT vehicle_limit FROM subscription_plans WHERE code = 'TRIAL'),
                trial_started_at = CURRENT_TIMESTAMP,

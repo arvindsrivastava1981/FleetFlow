@@ -41,10 +41,9 @@ def admin_kpis(conn) -> dict:
 
     cur.execute(
         """SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name,
-                  t.advance_amount,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status = 'APPROVED' THEN
-                          (CASE WHEN e.exp_type = 'GOODS_SALE'
+                          (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
                                 THEN COALESCE(e.approved_amount, e.amount)
                                 ELSE -COALESCE(e.approved_amount, e.amount) END)
                       ELSE 0 END
@@ -53,14 +52,11 @@ def admin_kpis(conn) -> dict:
              LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
             WHERE t.status IN ('ACTIVE', 'COMPLETED')
-            GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name, t.advance_amount
+            GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name
             ORDER BY t.id"""
     )
     float_rows = cur.fetchall()
-    outstanding_float = sum(
-        (row["advance_amount"] or 0) + (row["approved_net"] or 0)
-        for row in float_rows
-    )
+    outstanding_float = sum((row["approved_net"] or 0) for row in float_rows)
 
     return {
         "active_trips": active_trips,
@@ -104,8 +100,8 @@ def manager_kpis(conn, manager_id: int | None = None) -> dict:
     pending_escalations = cur.fetchone()["c"]
 
     cur.execute(
-        f"SELECT COALESCE(SUM(advance_amount), 0) AS total "
-        f"FROM trips WHERE created_at >= CURRENT_DATE{scope_sql}",
+        f"SELECT COALESCE(SUM(COALESCE(approved_amount, amount)), 0) AS total "
+        f"FROM expenses WHERE exp_type = 'CASH_ADVANCE' AND created_at >= CURRENT_DATE{scope_sql}",
         scope_params,
     )
     advances_today = cur.fetchone()["total"]
@@ -168,8 +164,7 @@ def open_escalations_detail(
         f"""SELECT e.id, e.trip_code, e.exp_type, e.amount, e.liters, e.rate,
                   e.odometer, e.station_name, e.is_flagged, e.flag_reason,
                   e.manager_status, e.created_at,
-                  u.full_name AS driver_name, t.vehicle_no,
-                  t.advance_amount, t.driver_batta_amount
+                  u.full_name AS driver_name, t.vehicle_no
              FROM expenses e
              LEFT JOIN trips t ON t.trip_code = e.trip_code
              LEFT JOIN users u ON u.id = t.driver_user_id
@@ -190,7 +185,7 @@ def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
     scope_params = (manager_id,) if manager_id else ()
     cur.execute(
         f"""SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name, t.start_odo,
-                  t.current_odo, t.advance_amount, t.driver_batta_amount,
+                  t.current_odo,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status IN ('APPROVED','PENDING')
                            THEN COALESCE(e.approved_amount, e.amount) ELSE 0 END
@@ -200,7 +195,7 @@ def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
                   ), 0) AS pending_n,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status = 'APPROVED' THEN
-                          (CASE WHEN e.exp_type = 'GOODS_SALE'
+                          (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
                                 THEN COALESCE(e.approved_amount, e.amount)
                                 ELSE -COALESCE(e.approved_amount, e.amount) END)
                       ELSE 0 END
@@ -210,7 +205,7 @@ def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
             WHERE t.status = 'ACTIVE'{scope_sql}
             GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name, t.start_odo,
-                     t.current_odo, t.advance_amount, t.driver_batta_amount
+                     t.current_odo
             ORDER BY t.id""",
         scope_params,
     )
@@ -219,10 +214,7 @@ def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
         # Align with the settlement engine: net_balance = advance + goods −
         # (road expenses + driver batta). `approved_net` is goods − road, so the
         # resolved trip batta is credited here to match compute_settlement.
-        batta = r.get("driver_batta_amount")
-        r["remaining_advance"] = (
-            (r["advance_amount"] or 0) + (r["approved_net"] or 0) - (batta or 0)
-        )
+        r["remaining_advance"] = (r["approved_net"] or 0)
     return rows
 
 
@@ -236,10 +228,9 @@ def settlement_ready_trips(conn, manager_id: int | None = None) -> list[dict]:
     scope_params = (manager_id,) if manager_id else ()
     cur.execute(
         f"""SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name,
-                  t.advance_amount, t.driver_batta_amount,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status = 'APPROVED' THEN
-                          (CASE WHEN e.exp_type = 'GOODS_SALE'
+                          (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
                                 THEN COALESCE(e.approved_amount, e.amount)
                                 ELSE -COALESCE(e.approved_amount, e.amount) END)
                       ELSE 0 END
@@ -248,20 +239,16 @@ def settlement_ready_trips(conn, manager_id: int | None = None) -> list[dict]:
              LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
             WHERE t.status = 'ACTIVE'{scope_sql}
-            GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name, t.advance_amount,
-                     t.driver_batta_amount
-           HAVING COALESCE(SUM(CASE WHEN e.manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) = 0
+            GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name
+            HAVING COALESCE(SUM(CASE WHEN e.manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) = 0
             ORDER BY t.id""",
         scope_params,
     )
     rows = cur.fetchall()
     for r in rows:
-        batta = r.get("driver_batta_amount")
-        r["returnable"] = (
-            (r["advance_amount"] or 0)
-            + (r["approved_net"] or 0)
-            - (batta or 0)
-        )
+        # returnable = (CASH_ADVANCE + GOODS_SALE) - (road expenses) - DRIVER_SALARY,
+        # i.e. approved_net (which now includes both credits).
+        r["returnable"] = (r["approved_net"] or 0)
     return rows
 
 
@@ -356,3 +343,20 @@ def approved_cash_net(conn, trip_code: str) -> float:
         (trip_code,),
     )
     return cur.fetchone()["net"]
+
+
+def driver_cash_advance_total(conn, trip_code: str) -> float:
+    """Sum of approved CASH_ADVANCE ledger rows for a trip.
+
+    With advance normalized out of `trips`, the cash the owner put in front is
+    read from the unified-expenses ledger (CASH_ADVANCE rows) - the single
+    source of truth for the driver cash-in-hand KPI.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT COALESCE(SUM(COALESCE(approved_amount, amount)), 0) AS total "
+        "FROM expenses WHERE trip_code = %s AND exp_type = 'CASH_ADVANCE' "
+        "AND manager_status = 'APPROVED'",
+        (trip_code,),
+    )
+    return cur.fetchone()["total"]

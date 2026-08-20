@@ -146,7 +146,7 @@ def manager_onboarding_email_context(
     """
     from backend.app.services.audit.cash import DEFAULT_DRIVER_BATTA as _default_batta
 
-    plan_name = (fleet.get("plan_name") or fleet.get("subscription_plan") or "Trial").strip()
+    plan_name = (fleet.get("plan_name") or "Trial").strip()
     return {
         "to_email": fleet.get("email") or "",
         "manager_name": manager_full_name,

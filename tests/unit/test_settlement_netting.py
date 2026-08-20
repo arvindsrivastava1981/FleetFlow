@@ -24,14 +24,23 @@ def _exp(exp_type="FUEL", amount=100.0, approved_amount=None,
     }
 
 
+def _advance(amount: float) -> dict:
+    """A CASH_ADVANCE ledger row (auto-posted at trip creation)."""
+    return _exp(exp_type="CASH_ADVANCE", amount=amount, liters=0.0)
+
+
+def _batta(amount: float) -> dict:
+    """A DRIVER_SALARY ledger row (auto-posted at trip creation)."""
+    return _exp(exp_type="DRIVER_SALARY", amount=amount, liters=0.0)
+
+
 def _trip(**kw) -> dict:
+    # Trips carry no cash columns: advance & batta live in the expenses ledger.
     base = {
         "trip_code": "TRIP-101",
-        "advance_amount": 10000.0,
         "start_odo": 100000.0,
         "end_odo": 100500.0,
         "current_odo": 100500.0,
-        "driver_batta_amount": DEFAULT_DRIVER_BATTA,
     }
     base.update(kw)
     return base
@@ -63,11 +72,10 @@ def test_pending_and_rejected_expenses_excluded():
     assert s.expense_buckets["FUEL"] == 1000.0
 
 
-# ---- 2. GOODS_SALE credits to Cr; CHALLAN debits to Dr -------------------
 def test_goods_sale_credits_to_cr():
     """GOODS_SALE increases total_cr, never the debit buckets."""
-    expenses = [_exp(exp_type="GOODS_SALE", amount=8000.0)]
-    s = compute_settlement(_trip(advance_amount=10000.0), expenses)
+    expenses = [_advance(10000.0), _exp(exp_type="GOODS_SALE", amount=8000.0)]
+    s = compute_settlement(_trip(), expenses)
     assert s.goods_income == 8000.0
     assert s.total_cr == 18000.0          # advance + goods sale
     assert s.expense_buckets.get("GOODS_SALE", 0) == 0.0  # not a debit bucket
@@ -84,7 +92,7 @@ def test_challan_debits_to_dr():
 
 def test_advance_plus_batta_refund_scenario():
     """Advance-only trip (no expenses) -> driver refunds to fleet."""
-    s = compute_settlement(_trip(advance_amount=10000.0), [])
+    s = compute_settlement(_trip(), [_advance(10000.0), _batta(DEFAULT_DRIVER_BATTA)])
     assert s.total_driver_credits == 2500.0      # just batta
     assert s.net_balance == pytest.approx(7500.0)
     assert s.is_driver_refund is True
@@ -94,8 +102,12 @@ def test_advance_plus_batta_refund_scenario():
 
 def test_fully_settled_when_balanced():
     """When Cr == Dr the status is FULLY SETTLED."""
-    expenses = [_exp(exp_type="FUEL", amount=2500.0, liters=25.0)]
-    s = compute_settlement(_trip(advance_amount=5000.0), expenses)
+    expenses = [
+        _advance(5000.0),
+        _batta(2500.0),
+        _exp(exp_type="FUEL", amount=2500.0, liters=25.0),
+    ]
+    s = compute_settlement(_trip(), expenses)
     # 5000 (advance) == 2500 (fuel) + 2500 (batta) -> zero
     assert s.net_balance == 0.0
     assert s.status_label_en == "FULLY SETTLED"
@@ -103,13 +115,23 @@ def test_fully_settled_when_balanced():
     assert s.is_driver_refund is False
 
 
-# ---- 3. driver_batta_amount = 0.00 handling ------------------------------
-def test_zero_batta_when_driver_batta_amount_zero():
-    """A 0.00 batta (e.g. batta_type 'NONE') must not fall back to default."""
-    s = compute_settlement(_trip(advance_amount=1000.0, driver_batta_amount=0.00), [])
+# ---- Zero-batta handling (no DRIVER_SALARY ledger row) ---------------------
+def test_zero_batta_when_no_salary_ledger_row():
+    """A driver with batta_type 'NONE' posts no DRIVER_SALARY -> 0.00."""
+    s = compute_settlement(_trip(), [_advance(1000.0)])
     assert s.driver_batta == 0.0
     assert s.total_driver_credits == 0.0
     assert s.net_balance == 1000.0
+
+
+def test_no_advance_posts_zero_credit():
+    """No CASH_ADVANCE ledger row -> advance is 0 (no negative/fallback)."""
+    s = compute_settlement(_trip(), [_batta(2500.0)])
+    assert s.advance_amount == 0.0
+    assert s.total_cr == 0.0
+    assert s.total_driver_credits == 2500.0
+    assert s.net_balance == -2500.0
+
 
 
 def test_resolve_trip_batta_none_profile_returns_zero():
@@ -126,7 +148,7 @@ def test_resolve_trip_batta_defaults_when_no_profile():
     assert resolve_trip_batta({"batta_type": "FIXED_TRIP", "default_batta_rate": None}) == DEFAULT_DRIVER_BATTA
 
 
-# ---- 4. Division-by-zero protection on avg_kml ---------------------------
+# ---- Division-by-zero protection on avg_kml --------------------------------
 def test_avg_kml_none_when_no_fuel():
     s = compute_settlement(_trip(), [])
     assert s.avg_kml is None
@@ -149,7 +171,7 @@ def test_avg_kml_computed_from_fuel_liters():
     assert s.avg_kml == 20.0  # 500 km / 25 L
 
 
-# ---- 5. Hash determinism / sensitivity -----------------------------------
+# ---- Hash determinism / sensitivity ----------------------------------------
 def test_verification_hash_deterministic():
     trip = _trip()
     expenses = [_exp(exp_type="FUEL", amount=100.0)]
@@ -160,10 +182,11 @@ def test_verification_hash_deterministic():
 
 
 def test_verification_hash_changes_when_input_changes():
-    base = _trip(advance_amount=10000.0)
-    expenses = []
-    h1 = compute_settlement(base, expenses).verification_hash
-    h2 = compute_settlement(_trip(advance_amount=15000.0), expenses).verification_hash
+    base = _trip()
+    e1 = [_advance(10000.0)]
+    e2 = [_advance(15000.0)]
+    h1 = compute_settlement(base, e1).verification_hash
+    h2 = compute_settlement(base, e2).verification_hash
     assert h1 != h2
 
 
@@ -172,7 +195,7 @@ def test_settlement_result_type():
     assert isinstance(s, SettlementResult)
 
 
-# ---- Batta profile normalisation (users.py `_normalise_batta`) ------------
+# ---- Batta profile normalisation (users.py `_normalise_batta`) --------------
 def test_normalise_batta_defaults():
     from backend.app.db.queries.users import _normalise_batta
     assert _normalise_batta(None, None) == ("FIXED_TRIP", 2500.00)

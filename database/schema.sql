@@ -42,9 +42,7 @@ CREATE TABLE IF NOT EXISTS fleets (
     owner_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) UNIQUE NOT NULL,
     email VARCHAR(150),
-    subscription_plan VARCHAR(50) DEFAULT 'STARTER_PACK',
     plan_id BIGINT REFERENCES subscription_plans(id),
-    plan_rate NUMERIC(10, 2) DEFAULT 799.00,
     subscription_status VARCHAR(20) DEFAULT 'TRIAL'
         CHECK (subscription_status IN ('TRIAL','ACTIVE','PAST_DUE','CANCELLED','EXPIRED')),
     trial_started_at TIMESTAMPTZ,
@@ -121,7 +119,6 @@ CREATE TABLE IF NOT EXISTS trips (
     vehicle_id BIGINT REFERENCES vehicles(id) ON DELETE SET NULL,
     vehicle_no VARCHAR(20) NOT NULL,
     driver_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
-    advance_amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     start_odo NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     current_odo NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     end_odo NUMERIC(10, 2),
@@ -129,7 +126,6 @@ CREATE TABLE IF NOT EXISTS trips (
         CHECK (status IN ('ACTIVE', 'COMPLETED', 'SETTLED', 'CANCELLED')),
     origin VARCHAR(100),
     destination VARCHAR(100),
-    driver_batta_amount NUMERIC(10, 2) DEFAULT 2500.00,
     verification_hash VARCHAR(32),
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -151,15 +147,15 @@ CREATE INDEX IF NOT EXISTS idx_trips_trip_code ON trips(trip_code);
 CREATE INDEX IF NOT EXISTS idx_trips_status ON trips(status);
 -- ----------------------------------------------------------------------------
 -- 6. EXPENSES
---    trip_id is the SOLE foreign key (ON DELETE CASCADE). trip_code is retained
---    purely as an indexed lookup column (NOT NULL) with no FK against
---    trips(trip_code) — the trip identity is owned by trip_id.
---    reviewed_by / reviewed_at capture the manager audit trail.
+--    trip_id is the primary FK (ON DELETE CASCADE). trip_code is retained as an
+--    indexed lookup column AND is FK-constrained to trips(trip_code), so a
+--    mismatched/renamed code can never silently orphan an expense. reviewed_by /
+--    reviewed_at capture the manager audit trail.
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS expenses (
     id BIGSERIAL PRIMARY KEY,
     trip_id BIGINT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-    trip_code VARCHAR(50) NOT NULL,
+    trip_code VARCHAR(50) NOT NULL REFERENCES trips(trip_code) ON DELETE CASCADE,
     exp_type VARCHAR(20) NOT NULL
         CHECK (exp_type IN ('FUEL', 'DEF', 'TOLL', 'REPAIR', 'CHALLAN', 'MISC', 'GOODS_BUY', 'GOODS_SALE', 'CASH_ADVANCE', 'DRIVER_SALARY')),
     amount NUMERIC(10, 2) NOT NULL CHECK (amount >= 0),

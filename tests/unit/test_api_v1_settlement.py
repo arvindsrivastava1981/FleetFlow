@@ -52,6 +52,16 @@ def _exp(exp_type="FUEL", amount=100.0, approved_amount=None,
     }
 
 
+
+def _advance(amount: float) -> dict:
+    """A CASH_ADVANCE ledger row (auto-posted at trip creation)."""
+    return _exp(exp_type="CASH_ADVANCE", amount=amount, liters=0.0)
+
+
+def _batta(amount: float) -> dict:
+    """A DRIVER_SALARY ledger row (auto-posted at trip creation)."""
+    return _exp(exp_type="DRIVER_SALARY", amount=amount, liters=0.0)
+
 def _trip(**kw) -> dict:
     base = {
         "id": 1,
@@ -122,12 +132,14 @@ def resolve_db(monkeypatch):
 def test_trip_detail_settlement_mirrors_compute_settlement(client, resolve_db):
     """The API settlement dict equals the engine's result for the same input."""
     expenses = [
+        _advance(20000.0),
+        _batta(DEFAULT_DRIVER_BATTA),
         _exp(exp_type="GOODS_SALE", amount=30000.0),
         _exp(exp_type="FUEL", amount=5000.0, liters=50.0),
         _exp(exp_type="REPAIR", amount=2000.0, approved_amount=1500.0),
         _exp(exp_type="CHALLAN", amount=1000.0),
     ]
-    trip = _trip(advance_amount=20000.0)
+    trip = _trip()
     expected = compute_settlement(trip, expenses)
 
     resolve_db(_mock_db_cursor(trip, expenses))
@@ -157,8 +169,12 @@ def test_trip_detail_settlement_mirrors_compute_settlement(client, resolve_db):
 
 def test_trip_detail_fully_settled_when_net_zero(client, resolve_db):
     """net_balance == 0 produces status FULLY SETTLED and no refund direction."""
-    expenses = [_exp(exp_type="FUEL", amount=2500.0, liters=25.0)]
-    trip = _trip(advance_amount=5000.0)
+    expenses = [
+        _advance(5000.0),
+        _batta(2500.0),
+        _exp(exp_type="FUEL", amount=2500.0, liters=25.0),
+    ]
+    trip = _trip()
 
     resolve_db(_mock_db_cursor(trip, expenses))
     resp = client.get("/api/v1/trips/TRIP-101")
@@ -171,12 +187,13 @@ def test_trip_detail_fully_settled_when_net_zero(client, resolve_db):
 
 
 def test_driver_overview_cash_in_hand_subtracts_batta(client, resolve_db):
-    """Driver cash-in-hand = advance + approved net - driver batta."""
-    trip = _trip(advance_amount=10000.0, driver_user_id=2)
+    """Driver cash-in-hand = cash advance total + approved net (ledger)."""
+    trip = _trip(driver_user_id=2)
     # fetchone sequence: get_active_trip_for_driver -> trip dict;
-    # driver_today_logged -> {"total": ...}; approved_cash_net -> {"net": ...}.
+    # driver_today_logged -> {"total": ...}; driver_cash_advance_total ->
+    # {"total": ...}; approved_cash_net -> {"net": ...}.
     db_obj = _mock_multi_cursor(
-        trip, {"total": 0.0}, {"net": -2000.0},
+        trip, {"total": 0.0}, {"total": 10000.0}, {"net": -2000.0},
     )
     driver_user = {"user_id": 2, "username": "driver", "role": "driver"}
     resolve_db(db_obj, user=driver_user)
@@ -185,8 +202,8 @@ def test_driver_overview_cash_in_hand_subtracts_batta(client, resolve_db):
 
     assert resp.status_code == 200
     body = resp.json()["data"]
-    # advance 10000 + (-2000) - batta 2500
-    assert body["cash_in_hand"] == pytest.approx(10000.0 - 2000.0 - DEFAULT_DRIVER_BATTA)
+    # advance 10000 + (-2000) = 8000
+    assert body["cash_in_hand"] == pytest.approx(10000.0 - 2000.0)
 
 
 def test_trip_detail_forbids_other_managers_trip(client, resolve_db):

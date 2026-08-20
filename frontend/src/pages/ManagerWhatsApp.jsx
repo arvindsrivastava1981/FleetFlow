@@ -127,9 +127,7 @@ export default function ManagerWhatsAppPage() {
                       {e.driver_name ? ` · ${e.driver_name}` : ""}
                     </p>
                     <p className="text-[10px] text-slate-700 mt-0.5">
-                      <span className="text-sky-700">Owner Cash In ₹{fmtRs(e.advance_amount)}</span>
-                      <span className="mx-1">•</span>
-                      <span className="text-violet-700">Driver Salary ₹{fmtRs(e.driver_batta_amount)}</span>
+                      <span className="text-rose-700">Claimed ₹{fmtRs(e.amount)}</span>
                       {e.liters ? ` · ${e.liters}L @ ₹${e.rate}/L` : ""}
                       {e.odometer ? ` · Odo ${e.odometer} KM` : ""}
                     </p>

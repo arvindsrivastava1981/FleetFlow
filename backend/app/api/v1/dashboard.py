@@ -9,6 +9,7 @@ from backend.app.db.queries.dashboards import (
     active_trip_progress,
     admin_kpis,
     approved_cash_net,
+    driver_cash_advance_total,
     driver_today_logged,
     manager_kpis,
     open_escalations,
@@ -50,9 +51,8 @@ def api_dashboard_overview(request: Request):
                     driver_today_logged(conn, trip_code) if trip_code else 0.0
                 ),
                 "cash_in_hand": (
-                    (trip["advance_amount"] or 0.0)
+                    driver_cash_advance_total(conn, trip_code)
                     + approved_cash_net(conn, trip_code)
-                    - float(trip.get("driver_batta_amount") or 2500.00)
                 )
                 if trip_code
                 else 0.0,

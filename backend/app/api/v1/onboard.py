@@ -83,7 +83,7 @@ async def api_onboard_fleet(request: Request):
                 status_code=409,
                 content={"error": "fleet with this phone exists", "code": "DUP_PHONE"},
             )
-        fleet_id = insert_fleet(conn, owner_name, phone, email, plan_code)
+        fleet_id = insert_fleet(conn, owner_name, phone, email)
         start_trial_subscription(conn, fleet_id)
         log_fleet_billing_event(
             conn, fleet_id, "TRIAL_START", plan_code="TRIAL",

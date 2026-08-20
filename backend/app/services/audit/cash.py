@@ -56,22 +56,24 @@ def _get_effective_amount(expense: dict) -> float:
 
 
 def compute_settlement(trip: dict, expenses: list[dict]) -> SettlementResult:
-    """Compute the full Dr/Cr settlement for a trip from its expenses."""
-    advance = round(float(trip.get("advance_amount") or 0.0), 2)
+    """Compute the full Dr/Cr settlement for a trip from its expenses.
 
+    Cash advance and driver batta are read SOLELY from the unified-expenses
+    ledger (CASH_ADVANCE / DRIVER_SALARY rows) — the single source of truth.
+    There is no trip-column fallback.
+    """
     # Strict definition: only manager-APPROVED rows enter the settlement math.
     approved = [e for e in expenses if e.get("manager_status") == "APPROVED"]
 
     # 1. Cash Advance (credit) & Driver Salary/batta (debit) from the auto-posted
-    #    ledger entries. Fall back to the trip columns for legacy rows.
+    #    ledger entries — the single source of truth.
     adv_from_ledger = [
         _get_effective_amount(e) for e in approved if e.get("exp_type") == "CASH_ADVANCE"
     ]
     batta_from_ledger = [
         _get_effective_amount(e) for e in approved if e.get("exp_type") == "DRIVER_SALARY"
     ]
-    if adv_from_ledger:
-        advance = round(sum(adv_from_ledger), 2)
+    advance = round(sum(adv_from_ledger), 2)
 
     # 1. Goods Income (Credit) — cash the driver collected / returned via sales.
     goods_income = round(sum(
@@ -92,11 +94,9 @@ def compute_settlement(trip: dict, expenses: list[dict]) -> SettlementResult:
     total_road_expenses = round(sum(expense_buckets.values()), 2)
 
     # 3. Driver Batta — from the DRIVER_SALARY ledger entry (auto-posted at
-    #    trip creation). Falls back to the trip column / flat rate for legacy.
-    raw_batta = trip.get("driver_batta_amount")
-    driver_batta = round(float(raw_batta), 2) if raw_batta is not None else DEFAULT_DRIVER_BATTA
-    if batta_from_ledger:
-        driver_batta = round(sum(batta_from_ledger), 2)
+    #    trip creation). The ledger is the only source; a driver who opted out
+    #    of batta simply has no DRIVER_SALARY row and yields 0.00.
+    driver_batta = round(sum(batta_from_ledger), 2)
 
     # 4. Balancing.
     total_cr = round(advance + goods_income, 2)

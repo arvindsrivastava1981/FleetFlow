@@ -164,12 +164,10 @@ async def api_create_trip(request: Request):
             conn,
             fleet_id,
             vehicle_no,
-            advance_amount,
             start_odo,
             created_by=user.get("user_id"),
             driver_user_id=driver_user_id,
             vehicle_id=vehicle_id,
-            driver_batta_amount=driver_batta_amount,
         )
         # Auto-post the two unified-ledger legs for this trip: Cash Advance (credit
         # to driver) and Driver Salary/batta (debit). They are fixed provisions, so

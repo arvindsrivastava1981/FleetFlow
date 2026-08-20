@@ -109,3 +109,60 @@ DROP TRIGGER IF EXISTS trg_trips_updated_at ON trips;
 ALTER TABLE trips DROP COLUMN IF EXISTS driver_name;
 ALTER TABLE trips DROP COLUMN IF EXISTS driver_phone;
 
+-- ----------------------------------------------------------------------------
+-- NORMALIZATION (2026-08): remove denormalized plan columns from `fleets`.
+--   * `subscription_plan` (code string) and `plan_id` (FK) both named the plan.
+--     `plan_id` is the single source of truth; code/price derive via JOIN.
+--   * `plan_rate` duplicated `subscription_plans.price` (reachable via plan_id).
+-- ----------------------------------------------------------------------------
+ALTER TABLE fleets DROP COLUMN IF EXISTS subscription_plan;
+ALTER TABLE fleets DROP COLUMN IF EXISTS plan_rate;
+
+-- ----------------------------------------------------------------------------
+-- NORMALIZATION (2026-08): enforce expenses.trip_code integrity with a real FK.
+--   trip_id remains the primary FK; trip_code is retained as a lookup column but
+--   is now FK-constrained to trips(trip_code) so it can never silently orphan.
+--   Idempotent: dropping the constraint keeps re-runs a no-op.
+-- ----------------------------------------------------------------------------
+ALTER TABLE expenses DROP CONSTRAINT IF EXISTS expenses_trip_code_fkey;
+ALTER TABLE expenses
+    ADD CONSTRAINT expenses_trip_code_fkey
+        FOREIGN KEY (trip_code) REFERENCES trips(trip_code) ON DELETE CASCADE;
+
+-- ----------------------------------------------------------------------------
+-- NORMALIZATION (2026-08): dedupe cash advance & driver batta into the ledger.
+--
+--   trips.advance_amount and trips.driver_batta_amount duplicated the
+--   CASH_ADVANCE / DRIVER_SALARY expense rows that are now auto-posted at trip
+--   creation. For trips created BEFORE the auto-post (legacy rows), materialize
+--   the equivalent ledger rows here so the unified-expenses ledger becomes the
+--   single source of truth, then drop the denormalized columns.
+-- ----------------------------------------------------------------------------
+INSERT INTO expenses
+    (trip_id, trip_code, exp_type, amount, approved_amount, liters, rate,
+     odometer, is_flagged, flag_reason, manager_status, created_at)
+SELECT t.id, t.trip_code, 'CASH_ADVANCE', t.advance_amount, t.advance_amount,
+       0, 0, 0, FALSE, NULL, 'APPROVED', t.created_at
+  FROM trips t
+ WHERE t.advance_amount IS NOT NULL AND t.advance_amount <> 0
+   AND NOT EXISTS (
+       SELECT 1 FROM expenses e
+        WHERE e.trip_code = t.trip_code AND e.exp_type = 'CASH_ADVANCE'
+   );
+
+INSERT INTO expenses
+    (trip_id, trip_code, exp_type, amount, approved_amount, liters, rate,
+     odometer, is_flagged, flag_reason, manager_status, created_at)
+SELECT t.id, t.trip_code, 'DRIVER_SALARY', t.driver_batta_amount, t.driver_batta_amount,
+       0, 0, 0, FALSE, NULL, 'APPROVED', t.created_at
+  FROM trips t
+ WHERE t.driver_batta_amount IS NOT NULL AND t.driver_batta_amount <> 0
+   AND NOT EXISTS (
+       SELECT 1 FROM expenses e
+        WHERE e.trip_code = t.trip_code AND e.exp_type = 'DRIVER_SALARY'
+   );
+
+-- Drop the denormalized columns now that the ledger is authoritative.
+ALTER TABLE trips DROP COLUMN IF EXISTS advance_amount;
+ALTER TABLE trips DROP COLUMN IF EXISTS driver_batta_amount;
+

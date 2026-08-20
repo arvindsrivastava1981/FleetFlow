@@ -103,8 +103,8 @@ updates `vehicle_limit` and `next_billing_date` (+1 / +12 months).
    - `driver_user_id` must resolve to a driver user → else `400 UNKNOWN_DRIVER`
 3. Resolve tenant: `_resolve_trip_fleet(user)` = `users.fleet_id`, fallback default fleet → none = `400 NO_FLEET`.
 4. **One active trip per fleet:** `active_trip_exists(conn, fleet_id)` → `409 ACTIVE_TRIP_EXISTS`.
-5. `get_driver_batta_profile(driver_user_id)` → `driver_batta_amount = resolve_trip_batta(...)`.
-6. `insert_trip(fleet_id, vehicle_no, advance_amount, start_odo, created_by=manager, driver_user_id, vehicle_id, driver_batta_amount)`. Driver name/phone are derived from `users` via `driver_user_id` JOIN — no longer stored denormalized on `trips`.
+5. `get_driver_batta_profile(driver_user_id)` → `driver_batta_amount = resolve_trip_batta(...)`, used to **auto-post the `DRIVER_SALARY` ledger row** (advance is posted as `CASH_ADVANCE`); both live in the `expenses` ledger, not on `trips`.
+6. `insert_trip(fleet_id, vehicle_no, start_odo, created_by=manager, driver_user_id, vehicle_id)` then auto-posts `CASH_ADVANCE`/`DRIVER_SALARY` expense rows. Driver name/phone and advance/batta are **not** stored on `trips` — identity derives from `users` via `driver_user_id` JOIN, cash figures live in the ledger.
 7. → **`201 {"trip_code": "…", "status": "ACTIVE"}`** ✅ live.
 
 **Operational loop follows:** driver submits fuel/expense receipts (`/api/v1/expenses` via Driver (WhatsApp)) → manager approves/deducts (`/expenses/{id}/action`) → settlement computed → **`POST /api/v1/trips/{code}/settle`** (no pending expenses) → settled PDF.

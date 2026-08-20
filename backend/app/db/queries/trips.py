@@ -160,12 +160,10 @@ def insert_trip(
     conn,
     fleet_id: int | None,
     vehicle_no: str,
-    advance_amount: float,
     start_odo: float,
     created_by: int | None = None,
     driver_user_id: int | None = None,
     vehicle_id: int | None = None,
-    driver_batta_amount: float | None = None,
 ) -> str:
     """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first.
 
@@ -176,23 +174,23 @@ def insert_trip(
     *created_by* is the trip_manager who started the trip; *driver_user_id*
     links the trip to a driver user so drivers can see their own trips.
     *vehicle_id* links the trip to the vehicle selected from the dropdown.
-    *driver_batta_amount* is the resolved batta snapshotted from the driver's
-    profile at creation (None -> DB default ₹2,500).
 
-    driver_name and driver_phone are NOT stored here — they are derived at
-    read time via JOIN with users on driver_user_id.
+    driver_name / driver_phone / advance / batta are NOT stored here: driver
+    identity is derived via JOIN with users on driver_user_id, and cash advance
+    + driver batta are posted as CASH_ADVANCE / DRIVER_SALARY expense rows by
+    the route (single-source ledger), not duplicated on the trip row.
     """
     trip_code = next_trip_code(conn, vehicle_no)
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO trips
                (fleet_id, trip_code, vehicle_id, vehicle_no,
-                advance_amount, start_odo, current_odo, status,
-                created_by, driver_user_id, driver_batta_amount)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s, %s)""",
+                start_odo, current_odo, status,
+                created_by, driver_user_id)
+           VALUES (%s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
         (fleet_id, trip_code, vehicle_id, vehicle_no,
-         advance_amount, start_odo, start_odo,
-         created_by, driver_user_id, driver_batta_amount),
+         start_odo, start_odo,
+         created_by, driver_user_id),
     )
     return trip_code
 
@@ -311,11 +309,10 @@ def settle_trip(conn, trip_code: str, manager_id: int | None = None, end_odo: fl
                 completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
                 settled_at = CURRENT_TIMESTAMP,
                 verification_hash = %s,
-                driver_batta_amount = %s,
                 manager_consent_by = COALESCE(manager_consent_by, %s),
                 manager_consent_at = COALESCE(manager_consent_at, CURRENT_TIMESTAMP)
           WHERE trip_code = %s AND status IN ('ACTIVE', 'COMPLETED')""",
-        (closing_odo, settlement.verification_hash, settlement.driver_batta, manager_id, trip_code),
+        (closing_odo, settlement.verification_hash, manager_id, trip_code),
     )
 
 

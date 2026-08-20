@@ -110,7 +110,6 @@ async def api_create_fleet(request: Request):
     owner_name = str(body.get("owner_name", "")).strip()
     phone = str(body.get("phone", "")).strip()
     email = body.get("email") or None
-    plan = str(body.get("subscription_plan", "MONTHLY")).upper()
     if not owner_name or not phone:
         return _bad("owner_name and phone are required", "MISSING_FIELDS")
     with get_db() as conn:
@@ -119,9 +118,7 @@ async def api_create_fleet(request: Request):
                 status_code=409,
                 content={"error": "fleet with this phone exists", "code": "DUP_PHONE"},
             )
-        new_id = insert_fleet(
-            conn, owner_name, phone, email.strip() if email else None, plan
-        )
+        new_id = insert_fleet(conn, owner_name, phone, email.strip() if email else None)
         # In-place switch: when a trip_manager creates a fleet, it becomes
         # their active fleet so vehicles they create resolve into it
         # (get_user_fleet_id), and billing/trips follow the same tenant.
