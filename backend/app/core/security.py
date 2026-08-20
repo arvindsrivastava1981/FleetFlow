@@ -7,7 +7,7 @@ import threading
 import time
 
 from fastapi import Depends, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse
 
 from backend.app.core.config import settings
 
@@ -78,29 +78,6 @@ def is_valid_token(token: str | None) -> bool:
 
 def is_authorized_user(request: Request) -> bool:
     return get_current_user(request) is not None
-
-
-def require_auth(request: Request, login_url: str = "/login") -> RedirectResponse | None:
-    """Return a 303 redirect if unauthenticated, else None.
-
-    Router usage:
-        guard = require_auth(request)
-        if guard:
-            return guard
-    """
-    if not is_authorized_user(request):
-        return RedirectResponse(url=login_url, status_code=303)
-    return None
-
-
-def require_role(request: Request, *roles: str) -> RedirectResponse | None:
-    """Return a 303 redirect if unauthenticated or role not in *roles*."""
-    user = get_current_user(request)
-    if user is None:
-        return RedirectResponse(url="/login", status_code=303)
-    if user["role"] not in roles:
-        return RedirectResponse(url="/dashboard", status_code=303)
-    return None
 
 
 # ---------------------------------------------------------------------------#
@@ -181,21 +158,6 @@ def is_authorized_user(request: Request) -> bool:
     return get_current_user(request) is not None
 
 
-def require_auth(request: Request, login_url: str = "/login") -> RedirectResponse | None:
-    """Return a 303 redirect if unauthenticated, else None.
-
-    HTML pages keep redirecting to the login page; JSON callers should use
-    `require_json_auth` instead so fetch()/axios get a real 401 status code.
-    Router usage:
-        guard = require_auth(request)
-        if guard:
-            return guard
-    """
-    if not is_authorized_user(request):
-        return RedirectResponse(url=login_url, status_code=303)
-    return None
-
-
 def require_json_auth(request: Request) -> JSONResponse | None:
     """Return a 401 JSON response if unauthenticated, else None.
 
@@ -255,19 +217,3 @@ def verify_razorpay_webhook(body: bytes, signature: str | None, timestamp: str |
     signed_bytes = f"{body.decode('utf-8', errors='ignore')}|{timestamp}".encode()
     expected = hmac.new(secret.encode(), signed_bytes, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature)
-
-
-# Dependency alias so routers read cleanly as `request: Request = Depends(_auth)`.
-def _auth(request: Request) -> Request:
-    guard = require_auth(request)
-    if guard is not None:
-        raise UnauthorizedRedirect(guard)
-    return request
-
-
-class UnauthorizedRedirect(Exception):
-    """Marker exception carrying the redirect response for dependency handling."""
-
-    def __init__(self, response: RedirectResponse) -> None:
-        self.response = response
-        super().__init__()

@@ -25,9 +25,9 @@
 - **Fleet picker:** `POST /api/v1/users` accepts optional `fleet_id` when `role=="trip_manager"` (G1).
 - **Billing health:** `GET /api/v1/fleets/{fid}/billing` (Super Admin) returns status + effective limits + audit ledger (G6).
 
-## Route Guards — two auth paths (do not confuse them)
-- **HTML pages** (`/login`, `/trips`, `/admin`, `/manager`, `/driver`, `/`, …): use `security.require_auth` / `require_role` → they return **303 → /login** (browser redirect; correct for page navigation).
-- **`/api/v1/*` JSON endpoints**: use `security.require_json_auth` / `require_json_role` → they return **401/403 with a JSON body** (`{"error", "code"}`). Never a 303 — client fetch()/axios cannot consume redirects.
+## Route Guards — single JSON auth path
+- **`/api/v1/*` JSON endpoints**: use `security.require_json_auth` / `require_json_role` → they return **401/403 with a JSON body** (`{"error", "code"}`). Never a 303 redirect — client fetch()/axios cannot consume redirects, and public marketing pages must never be yanked to `/login`.
+- **Legacy redirect guards removed:** `security.require_auth` / `require_role` (303 → `/login`) and the `_auth`/`UnauthorizedRedirect` helpers have been **deleted** as dead code — the legacy HTML routers that used them are no longer registered. All live routes are JSON-guarded only.
 - **Auth sources:** a request is authenticated by the `ff_auth_session` cookie **OR** an `Authorization: Bearer <token>` header (both resolve through the same in-memory session store). `get_current_user()` checks both. This is how web + mobile share one backend.
 - **CSRF:** single-use `validate_csrf_token()` is only consumed on HTML form POSTs. `/api/v1/*` JSON mutations do **NOT** consume a single-use token (React parallel requests would race); they rely on Bearer-in-header + JSON content-type. Do not add CSRF consumption to api_v1 endpoints.
 
@@ -64,8 +64,8 @@
 
 ## Routes
 > Migration complete: every route now lives in `backend/app/api/*` (guarded by
-> `require_auth` — unauthenticated → 303 `/login` — except the public `/login`
-> page and `/healthz`). There is no separate prototype surface anymore.
+> `require_json_auth`/`require_json_role` → 401/403 JSON). There is no separate
+> prototype surface and no server-side HTML redirect to `/login` anymore.
 
 ### `backend/app/api/*` (security-hardened, all -guarded unless noted)
 - `GET /login`, `POST /login`, `GET /logout` — `api/auth.py`: TTL sessions via `create_session`, per-IP brute-force lockout, secure cookie (httponly, samesite=lax). Wrong password → `303 /login?error=1`. `GET /login` is public.
