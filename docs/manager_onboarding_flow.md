@@ -162,8 +162,11 @@ TRIP MANAGER                          (login → /billing)
   (`fleet_feature()`) + vehicle gate (`fleet_can_add_vehicles()`) producing
   distinct `NOT_ENTITLED` vs `VEHICLE_LIMIT` reasons (fixes G3).
 - **`POST /api/v1/fleets/onboard`** (`onboard.py`) — transactional onboarding
-  wizard: fleet + owner manager + trial (+ optional vehicle/driver), returns
-  inline `payment_url` for paid plans (fixes G2, inline subscription).
+  wizard: fleet + owner manager + trial (+ optional vehicle/driver, with batta &
+  tank-capacity profile), dispatches the owner's **welcome email** (same
+  `send_manager_onboarding_email_sync` path as `POST /api/v1/users`), returns
+  inline `payment_url` for paid plans + `email_queued` (fixes G2, inline
+  subscription + the G8 welcome-email gap on the wizard).
 - **`POST /api/v1/users`** — optional `fleet_id` picker for `trip_manager`
   creation (fixes G1).
 - **`GET /api/v1/fleets/{fid}/billing`** — Super Admin billing/entitlement

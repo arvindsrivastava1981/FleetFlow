@@ -3,6 +3,13 @@ import { useAuth } from "../context/AuthContext.jsx";
 
 const SECTIONS = [
   {
+    title: "Onboarding",
+    roles: ["super_admin"],
+    links: [
+      { to: "/onboard", label: "Onboard Firm", icon: "🏗️", roles: ["super_admin"] },
+    ],
+  },
+  {
     title: "Operations",
     links: [
       { to: "/dashboard", label: "My Dashboard", icon: "📊" },
@@ -28,7 +35,6 @@ const SECTIONS = [
     title: "System & Reports",
     roles: ["super_admin"],
     links: [
-      { to: "/onboard", label: "Onboard Firm", icon: "🏗️", roles: ["super_admin"] },
       { to: "/users", label: "Users", icon: "👤", roles: ["super_admin"] },
       { to: "/benchmarks", label: "Fuel Benchmarks", icon: "⛽", roles: ["super_admin"] },
     ],
