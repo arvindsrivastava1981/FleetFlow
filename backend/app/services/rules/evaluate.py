@@ -53,8 +53,16 @@ class RuleVerdict:
 def evaluate_expense(expense: RuleInput) -> RuleVerdict:
     """Return the flag verdict + human reason for a single expense line.
 
-    Mirrors the original branching order (FUEL math -> band -> tank -> mileage,
-    then TOLL/REPAIR/CHALLAN/DEF/GOODS) with the band fix applied.
+    FUEL checks run in order (short-circuit on first flag):
+      1. Math integrity (amount ≈ liters × rate, within MATH_TOLERANCE).
+      2. Price band — the rate must fall inside the per-fueling-state benchmark
+         band (expense.band, defaulting to DEFAULT_BAND = BENCHMARK_PRICE ± 8%).
+         The flag reason names the state that band belongs to (`band_state_code`).
+      3. Tank capacity (liters ≤ TANK_CAPACITY).
+      4. Odometer rollback vs previous reading + mileage floor
+         (km/L ≥ MILEAGE_FLOOR_KML = EXPECTED_KML × 0.7).
+    Then TOLL / REPAIR / CHALLAN / DEF / GOODS rules follow.
+    Mirrors the original branching order with per-state band + state-aware labels.
     """
     exp_type = expense.exp_type
 # ---- FUEL -----------------------------------------------------------

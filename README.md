@@ -16,7 +16,7 @@ Commercial fleet operators lose **up to 15% of margin** to fragmented, opaque tr
 
 * **Zero-App WhatsApp Flow:** Drivers log receipts, odometers, and repair photos directly on WhatsApp in <5 seconds.
 * **Contextual Anomaly Engine:**
-  * **Fuel Rate Cross-Check:** Flags rates outside benchmark bands (₹90.5/L baseline ±8%).
+  * **Fuel Rate Cross-Check:** Flags rates outside the fueling-state's live benchmark band (±8% tolerance). Falls back to a global ₹90.50/L baseline when no state or benchmark exists.
   * **Tank Capacity Overflow:** Blocks volume claims greater than physical vehicle capacity (e.g., >350L).
   * **Mileage Skimming Detection:** Calculates real-time $\text{km/L}$ deltas across consecutive odometer submissions and flags drops below threshold (e.g., <2.8 km/L).
   * **Toll Verification:** Automatically flags cash toll claims on 100% FASTag-mandated corridors.
