@@ -9,6 +9,14 @@ const HERO_PAINS = [
   "Challans, repairs and cash advances lost in notebooks",
 ];
 
+// Stats shown in the hero's mock "FleetFlow Dashboard" card.
+const HERO_STATS = [
+  { label: "Active trips", value: "1,248", cls: "bg-brand-50" },
+  { label: "Expenses logged", value: "₹4.2L", cls: "bg-emerald-50" },
+  { label: "Fuel saved", value: "₹38K", cls: "bg-amber-50" },
+  { label: "Settled clean", value: "96%", cls: "bg-sky-50" },
+];
+
 const FEATURES = [
   ["🧾", "brand", "WhatsApp expense intake", "Drivers send fuel & receipt photos to WhatsApp. FleetFlow reads them, auto-flags overpriced or off-route fuel, and routes them for approval."],
   ["📊", "emerald", "Live fuel benchmarking", "Every petrol/DEF purchase is checked against per-state fuel bands, catching overbilling before it's paid — not at month-end."],
