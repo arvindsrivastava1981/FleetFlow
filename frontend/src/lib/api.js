@@ -53,7 +53,7 @@ export class UnauthorizedError extends ApiError {
   }
 }
 
-async function request(path, { method = "GET", body, navigateOnUnauthorized = true } = {}) {
+async function request(path, { method = "GET", body } = {}) {
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const token = getToken();
@@ -66,16 +66,12 @@ async function request(path, { method = "GET", body, navigateOnUnauthorized = tr
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
-  // Expired / invalid session: clear the local token and bounce to /login
-  // (unless the caller explicitly opts out via `navigateOnUnauthorized: false`,
-  // e.g. the boot-time /me probe — see AuthContext). We skip the login endpoint
-  // itself (a wrong-password 401 must NOT redirect the page) and skip while
-  // already on /login to avoid a redirect loop.
+  // On 401 (expired / invalid session): clear the local token so subsequent
+  // calls don't keep sending a dead token, and surface an UnauthorizedError.
+  // No automatic page redirect here — gating / redirecting is handled by the
+  // caller (e.g. ProtectedRoute) so public pages never get yanked to /login.
   if (res.status === 401 && !path.includes("/auth/login")) {
     if (getToken()) setToken(null);
-    if (navigateOnUnauthorized && window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
     throw new UnauthorizedError();
   }
 
@@ -96,13 +92,11 @@ async function postForm(path, form) {
     body: new URLSearchParams(form).toString(),
   });
 
-  // Same expired-session handling as `request()` — clear token and bounce to
-  // /login unless the call was the login attempt itself.
+  // On 401 (expired / invalid session): clear the local token. No automatic
+  // page redirect — the caller decides what to do.
   if (res.status === 401 && !path.includes("/auth/login")) {
     if (getToken()) setToken(null);
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
+    throw new UnauthorizedError();
   }
 
   return parseResponse(res);
@@ -116,13 +110,10 @@ async function requestBlob(path) {
   const url = `${API_BASE_URL}${path}`;
   const res = await fetch(url, { method: "GET", headers });
 
-  // Same expired-session handling as `request()` — clear token and bounce to
-  // /login unless the call was the login attempt itself.
+  // On 401 (expired / invalid session): clear the local token. No automatic
+  // page redirect — the caller decides what to do.
   if (res.status === 401) {
     if (getToken()) setToken(null);
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
     throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
   }
   if (!res.ok) {
@@ -140,7 +131,6 @@ async function requestBlob(path) {
 
 export const api = {
   get: (path) => request(path),
-  getOpts: (path, opts) => request(path, opts),
   post: (path, body) => request(path, { method: "POST", body }),
   put: (path, body) => request(path, { method: "PUT", body }),
   del: (path) => request(path, { method: "DELETE" }),
