@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
 from backend.app.api import (
     api_v1,
@@ -41,16 +37,10 @@ app.add_middleware(
 )
 
 # ---- No-cache guard ----------------------------------------------------------
-# Force every response (backend APIs, SPA HTML, hashed assets, webhook callbacks)
-# to bypass HTTP caches entirely: `no-store` forbids storing the response anywhere,
-# which guarantees the latest deployed page + backend code is always served in
-# production. Applied as the outermost middleware so it wraps ALL routes and
-# mounted sub-apps.
-_HTML_NO_CACHE = {
-    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-    "Pragma": "no-cache",
-    "Expires": "0",
-}
+# Force every response (backend APIs, webhook callbacks) to bypass HTTP caches
+# entirely: `no-store` forbids storing the response anywhere, which guarantees
+# the latest backend code is always served in production. Applied as the
+# outermost middleware so it wraps ALL routes and mounted sub-apps.
 
 
 @app.middleware("http")
@@ -63,10 +53,9 @@ async def _no_cache_everything(request: Request, call_next):
 
 
 # ---- Routers (JSON API only) ------------------------------------------------
-# All UI is served by the React SPA (`frontend/dist` mounted below). The backend
-# exposes only the `/api/v1` JSON API and the Razorpay webhook callback. The
-# legacy server-rendered HTML routers were removed; their JSON equivalents live
-# in `api_v1.py`.
+# The backend exposes only the `/api/v1` JSON API and the Razorpay webhook
+# callback. The legacy server-rendered HTML routers and static SPA mount were
+# removed; their JSON equivalents live in `api_v1.py`.
 app.include_router(api_v1.router)
 app.include_router(webhook.router)
 
@@ -75,61 +64,6 @@ app.include_router(webhook.router)
 def healthz() -> dict:
     """Liveness + DB reachability probe for Render/Docker health checks."""
     return {"status": "ok", **healthcheck()}
-
-
-# ---- Static SPA mount (Phase 1) ---------------------------------------------
-# Serve the compiled Vite/React frontend from `frontend/dist/` at "/" when it
-# exists. Client-side routes (e.g. /trips/TRIP-101, /dashboard) fall back to
-# index.html so React Router can resolve them without 404s.
-#
-# Note: define this AFTER all API routes so explicit API paths (incl. the
-# `/billing/webhook` callback) always win over the catch-all SPA fallback.
-_FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
-_STATIC_INDEX = _FRONTEND_DIST / "index.html"
-
-if _FRONTEND_DIST.is_dir() and _STATIC_INDEX.is_file():
-    # Serve hashed assets (files that genuinely exist) directly.
-    app.mount(
-        "/assets",
-        StaticFiles(directory=str(_FRONTEND_DIST / "assets")),
-        name="spa-assets",
-    )
-
-    def _serve_index() -> HTMLResponse:
-        return HTMLResponse(
-            _STATIC_INDEX.read_text(encoding="utf-8"),
-            status_code=200,
-            headers=_HTML_NO_CACHE,
-        )
-
-    # Explicit root route: Starlette's `/{path:path}` converter does NOT reliably
-    # match the bare `/`, which previously caused the logged `GET / → 404` /
-    # `HEAD / → 404`. Register `/` directly so the index is always served.
-    @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False, response_model=None)
-    def spa_root() -> HTMLResponse:
-        return _serve_index()
-
-    @app.get("/{path:path}", response_class=HTMLResponse, include_in_schema=False, response_model=None)
-    def spa_fallback(request: Request, path: str):
-        """Serve real static files, else fall back to the SPA index.html.
-
-        Cache strategy:
-        - `index.html` (and every HTML document) returns `Cache-Control:
-          no-store, no-cache, must-revalidate, max-age=0` so the browser never
-          stores it and always serves the newest build on reload.
-        - For non-HTML static files (hashed JS/CSS/fonts) we also send
-          `no-store` too and rely on Vite's content-hashed filenames for
-          cache-busting: a changed build produces a new filename, so the new
-          asset is always fetched with no stale-UI risk. The outer no-cache
-          middleware guarantees no layer (browser, CDN, render proxy) caches
-          any response.
-        """
-        if path and (_FRONTEND_DIST / path).is_file():
-            return FileResponse(
-                _FRONTEND_DIST / path,
-                headers=_HTML_NO_CACHE,
-            )
-        return _serve_index()
 
 
 # ---- Global error handlers ---------------------------------------------------

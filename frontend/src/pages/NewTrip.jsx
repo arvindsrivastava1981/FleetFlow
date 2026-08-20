@@ -7,7 +7,6 @@ const PLATE_REGEX = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
 
 const emptyForm = {
   vehicle_no: "",
-  driver_name: "",
   advance_amount: "0",
   start_odo: "0",
   vehicle_id: "",
@@ -78,16 +77,11 @@ export default function NewTripPage() {
     setBusy(true);
     setError("");
     try {
-      const selectedDriver = drivers.find(
-        (x) => String(x.id) === String(form.driver_user_id)
-      );
       const payload = {
         vehicle_no: String(form.vehicle_id)
           ? vehicles.find((v) => String(v.id) === String(form.vehicle_id))
             ?.vehicle_number || form.vehicle_no
           : form.vehicle_no,
-        driver_name: form.driver_name,
-        driver_phone: selectedDriver?.phone || "",
         advance_amount: Number(form.advance_amount || 0),
         start_odo: Number(form.start_odo || 0),
         vehicle_id: form.vehicle_id ? Number(form.vehicle_id) : null,
@@ -171,9 +165,7 @@ export default function NewTripPage() {
               value={form.driver_user_id}
               onChange={(e) => {
                 const uid = e.target.value;
-                const d = drivers.find((x) => String(x.id) === String(uid));
                 set("driver_user_id", uid);
-                set("driver_name", d?.full_name || "");
               }}
               className="input"
               required

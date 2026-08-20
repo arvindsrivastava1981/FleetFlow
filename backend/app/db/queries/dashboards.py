@@ -40,7 +40,8 @@ def admin_kpis(conn) -> dict:
     leakage_prevented = cur.fetchone()["saved"]
 
     cur.execute(
-        """SELECT t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount,
+        """SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name,
+                  t.advance_amount,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status = 'APPROVED' THEN
                           (CASE WHEN e.exp_type = 'GOODS_SALE'
@@ -49,9 +50,10 @@ def admin_kpis(conn) -> dict:
                       ELSE 0 END
                   ), 0) AS approved_net
              FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
             WHERE t.status IN ('ACTIVE', 'COMPLETED')
-            GROUP BY t.id, t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount
+            GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name, t.advance_amount
             ORDER BY t.id"""
     )
     float_rows = cur.fetchall()
@@ -166,9 +168,11 @@ def open_escalations_detail(
         f"""SELECT e.id, e.trip_code, e.exp_type, e.amount, e.liters, e.rate,
                   e.odometer, e.station_name, e.is_flagged, e.flag_reason,
                   e.manager_status, e.created_at,
-                  t.driver_name, t.vehicle_no, t.advance_amount, t.driver_batta_amount
+                  u.full_name AS driver_name, t.vehicle_no,
+                  t.advance_amount, t.driver_batta_amount
              FROM expenses e
              LEFT JOIN trips t ON t.trip_code = e.trip_code
+             LEFT JOIN users u ON u.id = t.driver_user_id
             WHERE (e.is_flagged = TRUE OR e.manager_status = 'PENDING'){scope_sql}
             ORDER BY e.id DESC LIMIT %s""",
         params,
@@ -185,7 +189,7 @@ def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
     scope_sql = " AND t.created_by = %s" if manager_id else ""
     scope_params = (manager_id,) if manager_id else ()
     cur.execute(
-        f"""SELECT t.trip_code, t.vehicle_no, t.driver_name, t.start_odo,
+        f"""SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name, t.start_odo,
                   t.current_odo, t.advance_amount, t.driver_batta_amount,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status IN ('APPROVED','PENDING')
@@ -202,9 +206,10 @@ def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
                       ELSE 0 END
                   ), 0) AS approved_net
              FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
             WHERE t.status = 'ACTIVE'{scope_sql}
-            GROUP BY t.id, t.trip_code, t.vehicle_no, t.driver_name, t.start_odo,
+            GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name, t.start_odo,
                      t.current_odo, t.advance_amount, t.driver_batta_amount
             ORDER BY t.id""",
         scope_params,
@@ -230,8 +235,8 @@ def settlement_ready_trips(conn, manager_id: int | None = None) -> list[dict]:
     scope_sql = " AND t.created_by = %s" if manager_id else ""
     scope_params = (manager_id,) if manager_id else ()
     cur.execute(
-        f"""SELECT t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount,
-                  t.driver_batta_amount,
+        f"""SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name,
+                  t.advance_amount, t.driver_batta_amount,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status = 'APPROVED' THEN
                           (CASE WHEN e.exp_type = 'GOODS_SALE'
@@ -240,9 +245,10 @@ def settlement_ready_trips(conn, manager_id: int | None = None) -> list[dict]:
                       ELSE 0 END
                   ), 0) AS approved_net
              FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
             WHERE t.status = 'ACTIVE'{scope_sql}
-            GROUP BY t.id, t.trip_code, t.vehicle_no, t.driver_name, t.advance_amount,
+            GROUP BY t.id, t.trip_code, t.vehicle_no, u.full_name, t.advance_amount,
                      t.driver_batta_amount
            HAVING COALESCE(SUM(CASE WHEN e.manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) = 0
             ORDER BY t.id""",

@@ -8,8 +8,6 @@ client = TestClient(app, follow_redirects=False)
 
 CREATE_TRIP_BODY = {
     "vehicle_no": "UP32MA1234",
-    "driver_name": "Test Driver",
-    "driver_phone": "9999999999",
     "advance_amount": "25000",
     "start_odo": "100000",
 }

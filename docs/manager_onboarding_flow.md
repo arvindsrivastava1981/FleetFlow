@@ -99,13 +99,12 @@ updates `vehicle_limit` and `next_billing_date` (+1 / +12 months).
 1. Guard: role must be `trip_manager` / `super_admin`.
 2. Validate payload:
    - `vehicle_no` required + matches plate regex → else `400 INVALID_PLATE`
-   - `driver_name` required
    - `advance_amount >= 0`, `start_odo >= 0`
-   - `driver_phone` valid **10-digit** (starts `6`-`9`, length 10) → `400 INVALID_PHONE`
+   - `driver_user_id` must resolve to a driver user → else `400 UNKNOWN_DRIVER`
 3. Resolve tenant: `_resolve_trip_fleet(user)` = `users.fleet_id`, fallback default fleet → none = `400 NO_FLEET`.
 4. **One active trip per fleet:** `active_trip_exists(conn, fleet_id)` → `409 ACTIVE_TRIP_EXISTS`.
 5. `get_driver_batta_profile(driver_user_id)` → `driver_batta_amount = resolve_trip_batta(...)`.
-6. `insert_trip(fleet_id, vehicle_no, driver_name, driver_phone, advance_amount, start_odo, created_by=manager, driver_user_id, vehicle_id, driver_batta_amount)`.
+6. `insert_trip(fleet_id, vehicle_no, advance_amount, start_odo, created_by=manager, driver_user_id, vehicle_id, driver_batta_amount)`. Driver name/phone are derived from `users` via `driver_user_id` JOIN — no longer stored denormalized on `trips`.
 7. → **`201 {"trip_code": "…", "status": "ACTIVE"}`** ✅ live.
 
 **Operational loop follows:** driver submits fuel/expense receipts (`/api/v1/expenses` via Driver (WhatsApp)) → manager approves/deducts (`/expenses/{id}/action`) → settlement computed → **`POST /api/v1/trips/{code}/settle`** (no pending expenses) → settled PDF.

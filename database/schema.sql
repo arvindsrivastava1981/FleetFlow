@@ -121,8 +121,6 @@ CREATE TABLE IF NOT EXISTS trips (
     vehicle_id BIGINT REFERENCES vehicles(id) ON DELETE SET NULL,
     vehicle_no VARCHAR(20) NOT NULL,
     driver_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
-    driver_name VARCHAR(100) NOT NULL,
-    driver_phone VARCHAR(20) NOT NULL,
     advance_amount NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     start_odo NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
     current_odo NUMERIC(10, 2) NOT NULL DEFAULT 0.00,

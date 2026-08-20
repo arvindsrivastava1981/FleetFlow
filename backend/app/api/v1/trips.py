@@ -128,14 +128,13 @@ async def api_create_trip(request: Request):
         return _bad("body must be a JSON object")
 
     vehicle_no = str(body.get("vehicle_no", "")).strip().upper()
-    driver_name = str(body.get("driver_name", "")).strip()
     advance_amount = float(body.get("advance_amount", 0.0))
     start_odo = float(body.get("start_odo", 0.0))
     vehicle_id = body.get("vehicle_id") or None
     driver_user_id = body.get("driver_user_id") or None
 
-    if not vehicle_no or not driver_name:
-        return _bad("vehicle_no and driver_name are required", "MISSING_FIELDS")
+    if not vehicle_no:
+        return _bad("vehicle_no is required", "MISSING_FIELDS")
     if advance_amount < 0 or start_odo < 0:
         return _bad(
             "advance_amount and start_odo must be non-negative", "INVALID_NUMBER"
@@ -155,30 +154,21 @@ async def api_create_trip(request: Request):
                     "code": "ACTIVE_TRIP_EXISTS",
                 },
             )
+        # Driver name, phone, and batta are all resolved from the users table
+        # via driver_user_id — the client sends only the ID.
         driver = get_driver_batta_profile(conn, driver_user_id)
         if not driver:
             return _bad("unknown driver selected", "UNKNOWN_DRIVER")
-        # Driver phone is derived from the selected driver's user profile, not
-        # captured as a separate manual input (mirrors the UI, which no longer
-        # shows a "Driver Phone" field).
-        driver_phone = str(driver.get("phone") or "").strip()
-        digits = _re.sub(r"\D", "", driver_phone)
-        if not (_re.match(r"^[6-9][0-9]{9}$", digits)):
-            return _bad(
-                "selected driver has no valid phone on file", "INVALID_PHONE"
-            )
         driver_batta_amount = resolve_trip_batta(driver)
         trip_code = insert_trip(
             conn,
             fleet_id,
             vehicle_no,
-            driver_name,
-            driver_phone,
             advance_amount,
             start_odo,
             created_by=user.get("user_id"),
             driver_user_id=driver_user_id,
-                        vehicle_id=vehicle_id,
+            vehicle_id=vehicle_id,
             driver_batta_amount=driver_batta_amount,
         )
         # Auto-post the two unified-ledger legs for this trip: Cash Advance (credit

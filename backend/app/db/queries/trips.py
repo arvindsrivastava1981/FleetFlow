@@ -22,23 +22,37 @@ def active_trip_exists(conn, fleet_id: int | None = None) -> bool:
 
 
 def get_all_trips(conn) -> list[dict]:
-    """All trips, active first then newest-created first."""
+    """All trips, active first then newest-created first, with driver info."""
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM trips ORDER BY CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC"
+        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+             FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
+            ORDER BY CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC"""
     )
     return cur.fetchall()
 
 
 def get_trip_by_code(conn, trip_code: str) -> dict | None:
     cur = conn.cursor()
-    cur.execute("SELECT * FROM trips WHERE trip_code = %s", (trip_code,))
+    cur.execute(
+        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+             FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
+            WHERE t.trip_code = %s""",
+        (trip_code,),
+    )
     return cur.fetchone()
 
 
 def get_latest_active_trip(conn) -> dict | None:
     cur = conn.cursor()
-    cur.execute("SELECT * FROM trips WHERE status = 'ACTIVE' ORDER BY id DESC LIMIT 1")
+    cur.execute(
+        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+             FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
+            WHERE t.status = 'ACTIVE' ORDER BY t.id DESC LIMIT 1"""
+    )
     return cur.fetchone()
 
 
@@ -51,18 +65,29 @@ def get_latest_active_trip_for_user(conn, user_id: int | None, role: str) -> dic
     cur = conn.cursor()
     if role == "trip_manager":
         cur.execute(
-            "SELECT * FROM trips WHERE created_by = %s AND status = 'ACTIVE' "
-            "ORDER BY id DESC LIMIT 1",
+            """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+                 FROM trips t
+                 LEFT JOIN users u ON u.id = t.driver_user_id
+                WHERE t.created_by = %s AND t.status = 'ACTIVE'
+                ORDER BY t.id DESC LIMIT 1""",
             (user_id,),
         )
     elif role == "driver":
         cur.execute(
-            "SELECT * FROM trips WHERE driver_user_id = %s AND status = 'ACTIVE' "
-            "ORDER BY id DESC LIMIT 1",
+            """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+                 FROM trips t
+                 LEFT JOIN users u ON u.id = t.driver_user_id
+                WHERE t.driver_user_id = %s AND t.status = 'ACTIVE'
+                ORDER BY t.id DESC LIMIT 1""",
             (user_id,),
         )
     else:  # super_admin
-        cur.execute("SELECT * FROM trips WHERE status = 'ACTIVE' ORDER BY id DESC LIMIT 1")
+        cur.execute(
+            """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+                 FROM trips t
+                 LEFT JOIN users u ON u.id = t.driver_user_id
+                WHERE t.status = 'ACTIVE' ORDER BY t.id DESC LIMIT 1"""
+        )
     return cur.fetchone()
 
 
@@ -135,8 +160,6 @@ def insert_trip(
     conn,
     fleet_id: int | None,
     vehicle_no: str,
-    driver_name: str,
-    driver_phone: str,
     advance_amount: float,
     start_odo: float,
     created_by: int | None = None,
@@ -155,16 +178,19 @@ def insert_trip(
     *vehicle_id* links the trip to the vehicle selected from the dropdown.
     *driver_batta_amount* is the resolved batta snapshotted from the driver's
     profile at creation (None -> DB default ₹2,500).
+
+    driver_name and driver_phone are NOT stored here — they are derived at
+    read time via JOIN with users on driver_user_id.
     """
     trip_code = next_trip_code(conn, vehicle_no)
     cur = conn.cursor()
     cur.execute(
         """INSERT INTO trips
-               (fleet_id, trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
+               (fleet_id, trip_code, vehicle_id, vehicle_no,
                 advance_amount, start_odo, current_odo, status,
                 created_by, driver_user_id, driver_batta_amount)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s, %s)""",
-        (fleet_id, trip_code, vehicle_id, vehicle_no, driver_name, driver_phone,
+           VALUES (%s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s, %s)""",
+        (fleet_id, trip_code, vehicle_id, vehicle_no,
          advance_amount, start_odo, start_odo,
          created_by, driver_user_id, driver_batta_amount),
     )
@@ -177,36 +203,46 @@ def get_trips_for_user(conn, user_id: int, role: str) -> list[dict]:
     - super_admin: all trips
     - trip_manager: trips they created (created_by = user_id)
     - driver: trips assigned to them (driver_user_id = user_id)
+
+    Joins users to resolve driver_name / driver_phone from the users table
+    (no longer denormalized on trips).
     """
     cur = conn.cursor()
+    base = """
+        SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+          FROM trips t
+          LEFT JOIN users u ON u.id = t.driver_user_id
+    """
     if role == "super_admin":
         cur.execute(
-            "SELECT * FROM trips ORDER BY "
-            "CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC"
+            base + " ORDER BY CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC"
         )
         return cur.fetchall()
     if role == "trip_manager":
         cur.execute(
-            "SELECT * FROM trips WHERE created_by = %s ORDER BY "
-            "CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC",
+            base + " WHERE t.created_by = %s ORDER BY "
+            "CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC",
             (user_id,),
         )
         return cur.fetchall()
     # driver
     cur.execute(
-        "SELECT * FROM trips WHERE driver_user_id = %s ORDER BY "
-        "CASE WHEN status = 'ACTIVE' THEN 0 ELSE 1 END, id DESC",
+        base + " WHERE t.driver_user_id = %s ORDER BY "
+        "CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC",
         (user_id,),
     )
     return cur.fetchall()
 
 
 def get_active_trip_for_driver(conn, user_id: int) -> dict | None:
-    """Latest ACTIVE trip assigned to *user_id* (driver view)."""
+    """Latest ACTIVE trip assigned to *user_id* (driver view), with driver info."""
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM trips WHERE driver_user_id = %s AND status = 'ACTIVE' "
-        "ORDER BY id DESC LIMIT 1",
+        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+             FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
+            WHERE t.driver_user_id = %s AND t.status = 'ACTIVE'
+            ORDER BY t.id DESC LIMIT 1""",
         (user_id,),
     )
     return cur.fetchone()
@@ -216,8 +252,11 @@ def get_active_trip_for_manager(conn, user_id: int) -> dict | None:
     """Latest ACTIVE trip created by *user_id* (trip_manager view)."""
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM trips WHERE created_by = %s AND status = 'ACTIVE' "
-        "ORDER BY id DESC LIMIT 1",
+        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+             FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
+            WHERE t.created_by = %s AND t.status = 'ACTIVE'
+            ORDER BY t.id DESC LIMIT 1""",
         (user_id,),
     )
     return cur.fetchone()
@@ -244,7 +283,10 @@ def settle_trip(conn, trip_code: str, manager_id: int | None = None, end_odo: fl
     """
     cur = conn.cursor()
     cur.execute(
-        "SELECT * FROM trips WHERE trip_code = %s AND status IN ('ACTIVE', 'COMPLETED')",
+        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+             FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
+            WHERE t.trip_code = %s AND t.status IN ('ACTIVE', 'COMPLETED')""",
         (trip_code,),
     )
     trip = cur.fetchone()

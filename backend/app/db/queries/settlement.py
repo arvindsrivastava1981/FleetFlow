@@ -5,24 +5,29 @@ def get_settled_trips(conn, role: str = "super_admin", user_id: int | None = Non
     """Return trips with status SETTLED visible to the caller.
 
     trip_manager only sees trips they created; driver only their assigned ones;
-    super_admin sees all.
+    super_admin sees all. Driver info is resolved via JOIN to users.
     """
     cur = conn.cursor()
+    base = """
+        SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+          FROM trips t
+          LEFT JOIN users u ON u.id = t.driver_user_id
+    """
     if role == "trip_manager":
         cur.execute(
-            "SELECT * FROM trips WHERE status = 'SETTLED' AND created_by = %s "
-            "ORDER BY settled_at DESC",
+            base + " WHERE t.status = 'SETTLED' AND t.created_by = %s "
+            "ORDER BY t.settled_at DESC",
             (user_id,),
         )
     elif role == "driver":
         cur.execute(
-            "SELECT * FROM trips WHERE status = 'SETTLED' AND driver_user_id = %s "
-            "ORDER BY settled_at DESC",
+            base + " WHERE t.status = 'SETTLED' AND t.driver_user_id = %s "
+            "ORDER BY t.settled_at DESC",
             (user_id,),
         )
     else:
         cur.execute(
-            "SELECT * FROM trips WHERE status = 'SETTLED' ORDER BY settled_at DESC"
+            base + " WHERE t.status = 'SETTLED' ORDER BY t.settled_at DESC"
         )
     return cur.fetchall()
 
@@ -30,5 +35,11 @@ def get_settled_trips(conn, role: str = "super_admin", user_id: int | None = Non
 def get_trip_settlement_data(conn, trip_code: str) -> dict | None:
     """Return full settlement data for a specific trip code."""
     cur = conn.cursor()
-    cur.execute("SELECT * FROM trips WHERE trip_code = %s AND status = 'SETTLED'", (trip_code,))
+    cur.execute(
+        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
+             FROM trips t
+             LEFT JOIN users u ON u.id = t.driver_user_id
+            WHERE t.trip_code = %s AND t.status = 'SETTLED'""",
+        (trip_code,),
+    )
     return cur.fetchone()

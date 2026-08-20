@@ -102,3 +102,10 @@ CREATE INDEX IF NOT EXISTS idx_fleet_events_created_at ON fleet_billing_events(c
 -- created trg_trips_updated_at, but `trips` has NO updated_at column, so any
 -- `UPDATE trips` (e.g. /settle) raised: record "new" has no field "updated_at".
 DROP TRIGGER IF EXISTS trg_trips_updated_at ON trips;
+-- Drop denormalized driver columns from trips (2026-08). driver_name and
+-- driver_phone are now derived from the users table via driver_user_id JOIN
+-- at query time. The columns are safe to drop: driver_user_id FK already
+-- existed and all reader queries have been updated.
+ALTER TABLE trips DROP COLUMN IF EXISTS driver_name;
+ALTER TABLE trips DROP COLUMN IF EXISTS driver_phone;
+
