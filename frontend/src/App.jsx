@@ -21,6 +21,18 @@ import ReportsPage from "./pages/Reports.jsx";
 import DriverWhatsAppPage from "./pages/DriverWhatsApp.jsx";
 import ManagerWhatsAppPage from "./pages/ManagerWhatsApp.jsx";
 import Layout from "./components/Layout.jsx";
+import PublicLayout from "./public/PublicLayout.jsx";
+import HomePage from "./public/pages/Home.jsx";
+import AboutPage from "./public/pages/About.jsx";
+import WhyUsPage from "./public/pages/WhyUs.jsx";
+import FeaturesPage from "./public/pages/Features.jsx";
+import PricingPage from "./public/pages/Pricing.jsx";
+import FaqPage from "./public/pages/Faq.jsx";
+import ContactPage from "./public/pages/Contact.jsx";
+import PrivacyPage from "./public/pages/Privacy.jsx";
+import TermsPage from "./public/pages/Terms.jsx";
+import SecurityPage from "./public/pages/Security.jsx";
+import CookiesPage from "./public/pages/Cookies.jsx";
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -64,6 +76,20 @@ export default function App() {
         path="/login"
         element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
+
+      {/* ---- Public marketing pages (no auth) ---- */}
+      <Route path="/" element={<PublicLayout><HomePage /></PublicLayout>} />
+      <Route path="/about" element={<PublicLayout><AboutPage /></PublicLayout>} />
+      <Route path="/why-us" element={<PublicLayout><WhyUsPage /></PublicLayout>} />
+      <Route path="/features" element={<PublicLayout><FeaturesPage /></PublicLayout>} />
+      <Route path="/pricing" element={<PublicLayout><PricingPage /></PublicLayout>} />
+      <Route path="/faq" element={<PublicLayout><FaqPage /></PublicLayout>} />
+      <Route path="/contact" element={<PublicLayout><ContactPage /></PublicLayout>} />
+      <Route path="/privacy" element={<PublicLayout><PrivacyPage /></PublicLayout>} />
+      <Route path="/terms" element={<PublicLayout><TermsPage /></PublicLayout>} />
+      <Route path="/security" element={<PublicLayout><SecurityPage /></PublicLayout>} />
+      <Route path="/cookies" element={<PublicLayout><CookiesPage /></PublicLayout>} />
+      <Route path="/request-demo" element={<PublicLayout><ContactPage /></PublicLayout>} />
       <Route
         path="/dashboard"
         element={
@@ -254,7 +280,6 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
       <Route path="/manager" element={<Navigate to="/dashboard" replace />} />
       <Route path="/driver" element={<Navigate to="/dashboard" replace />} />

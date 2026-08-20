@@ -1,0 +1,90 @@
+@tailwind components;
+
+/* =========================================================================
+   Public marketing theme layer (FleetFlow / VahanKhata)
+   Centralised CSS variables + reusable marketing primitives.
+   Everything here flows from the `brand`(indigo)/`ink`(slate) design tokens
+   so the whole public site re-themes from ONE place (see
+   /frontend/tailwind.config.js theme.extend.colors).
+   ========================================================================= */
+
+:root {
+  --market-bg: #f8fafc;           /* ink-50    */
+  --market-surface: #ffffff;      /* white     */
+  --market-ink: #0f172a;          /* ink-900   */
+  --market-muted: #64748b;        /* ink-500   */
+  --market-line: #e2e8f0;         /* ink-200   */
+  --market-brand: #4f46e5;        /* brand-600 */
+  --market-brand-strong: #4338ca; /* brand-700 */
+  --market-brand-deep: #1e1b4b;   /* brand-950 */
+  --market-success: #059669;      /* emerald-600 */
+}
+
+@layer components {
+  /* Wide, centred content column */
+  .market-wrap {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
+  }
+
+  /* Section vertical rhythm */
+  .market-section {
+    @apply py-16 sm:py-24;
+  }
+
+  /* Eyebrow label above section titles */
+  .market-eyebrow {
+    @apply inline-flex items-center gap-2 rounded-full border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand-700;
+  }
+
+  /* Big section title */
+  .market-title {
+    @apply mt-4 text-balance text-3xl font-extrabold tracking-tight text-ink-900 sm:text-4xl lg:text-[2.75rem] lg:leading-[1.1];
+  }
+
+  .market-lead {
+    @apply mx-auto mt-4 max-w-2xl text-pretty text-base leading-relaxed text-ink-600 sm:text-lg;
+  }
+
+  /* Gradient headline accent */
+  .market-grad-text {
+    background: linear-gradient(120deg, #4f46e5 0%, #7c3aed 55%, #db2777 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Primary marketing button */
+  .market-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-60;
+  }
+  .market-btn-brand {
+    @apply market-btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800;
+  }
+  .market-btn-ghost {
+    @apply market-btn border border-ink-300 bg-white text-ink-800 hover:border-ink-400 hover:text-ink-950;
+  }
+  .market-btn-dark {
+    @apply market-btn bg-white/10 text-white ring-1 ring-inset ring-white/20 backdrop-blur hover:bg-white/20;
+  }
+
+  /* Card base for marketing sections */
+  .market-card {
+    @apply rounded-2xl border border-ink-200 bg-white shadow-sm transition;
+  }
+  .market-card-hover {
+    @apply market-card hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lg;
+  }
+
+  /* Soft brand gradient band */
+  .market-band {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 55%, #4338ca 100%);
+  }
+
+  /* Subtle grid texture used in hero bands */
+  .market-grid {
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+}
