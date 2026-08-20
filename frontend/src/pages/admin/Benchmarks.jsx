@@ -16,6 +16,7 @@ export default function BenchmarksPage() {
   const [editingId, setEditingId] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   function load() {
     api
@@ -84,6 +85,19 @@ export default function BenchmarksPage() {
     });
   }
 
+  async function syncLive() {
+    setSyncing(true);
+    setError("");
+    try {
+      await api.post("/api/v1/benchmarks/sync-live", {});
+      load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <h2 className="page-title">Fuel Benchmarks</h2>
@@ -114,6 +128,26 @@ export default function BenchmarksPage() {
             )}
           </div>
         </form>
+      </div>
+
+      <div className="card-pad flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-extrabold text-slate-800">
+            Live State Rates
+          </h3>
+          <p className="text-[11px] text-slate-500 mt-1">
+            Pull today's state-level diesel prices into the benchmarks. Falls
+            back to a maintained snapshot if the live source is unavailable.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={syncLive}
+          disabled={syncing}
+          className="btn-primary py-2 px-4 rounded-xl transition shadow disabled:opacity-50"
+        >
+          {syncing ? "Fetching…" : "Fetch Live Rates"}
+        </button>
       </div>
 
       <div className="table-wrap">

@@ -12,6 +12,15 @@ from backend.app.services.rules.constants import (
     MILEAGE_FLOOR_KML,
     TANK_CAPACITY,
 )
+from backend.app.services.states import STATE_NAME_BY_CODE
+
+
+def _state_label(state_code: str | None) -> str:
+    """Human label for a fueling state, e.g. ``UP / Uttar Pradesh``."""
+    if not state_code:
+        return "default"
+    name = STATE_NAME_BY_CODE.get(state_code.upper())
+    return f"{state_code} / {name}" if name else state_code.upper()
 
 
 @dataclass(frozen=True)
@@ -27,6 +36,7 @@ class RuleInput:
     total_diesel_liters: float = 0.0
     total_def_liters: float = 0.0
     band: FuelBand = DEFAULT_BAND
+    band_state_code: str | None = None
 
 
 @dataclass(frozen=True)
@@ -64,7 +74,8 @@ def evaluate_expense(expense: RuleInput) -> RuleVerdict:
             return RuleVerdict(
                 True,
                 f"Rate ₹{expense.rate}/L outside benchmark band "
-                f"(₹{expense.band.min_price:.2f} - {expense.band.max_price:.2f})",
+                f"(₹{expense.band.min_price:.2f} - {expense.band.max_price:.2f}) "
+                f"for fueling state {_state_label(expense.band_state_code)}",
             )
 
         # Rule 3: Tank overflow

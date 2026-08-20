@@ -170,6 +170,7 @@ def insert_trip(
     created_by: int | None = None,
     driver_user_id: int | None = None,
     vehicle_id: int | None = None,
+    state_code: str | None = None,
 ) -> str:
     """Insert a new ACTIVE trip. Caller checks `active_trip_exists` first.
 
@@ -180,6 +181,8 @@ def insert_trip(
     *created_by* is the trip_manager who started the trip; *driver_user_id*
     links the trip to a driver user so drivers can see their own trips.
     *vehicle_id* links the trip to the vehicle selected from the dropdown.
+    *state_code* captures the operating state (derived from the vehicle plate)
+    so the rules engine can pick a per-state fuel benchmark band.
 
     driver_name / driver_phone / advance / batta are NOT stored here: driver
     identity is derived via JOIN with users on driver_user_id, and cash advance
@@ -192,11 +195,11 @@ def insert_trip(
         """INSERT INTO trips
                (fleet_id, trip_code, vehicle_id, vehicle_no,
                 start_odo, current_odo, status,
-                created_by, driver_user_id)
-           VALUES (%s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s)""",
+                created_by, driver_user_id, state_code)
+           VALUES (%s, %s, %s, %s, %s, %s, 'ACTIVE', %s, %s, %s)""",
         (fleet_id, trip_code, vehicle_id, vehicle_no,
          start_odo, start_odo,
-         created_by, driver_user_id),
+         created_by, driver_user_id, state_code),
     )
     return trip_code
 

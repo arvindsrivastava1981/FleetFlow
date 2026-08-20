@@ -31,6 +31,7 @@ from backend.app.db.queries.expenses import (
 )
 from backend.app.services.audit.cash import compute_settlement, resolve_trip_batta
 from backend.app.services.pdf.settlement import build_settlement_pdf
+from backend.app.services.state import state_code_from_plate
 
 from backend.app.api.v1.deps import (
     _bad,
@@ -151,6 +152,11 @@ async def api_create_trip(request: Request):
     if not _PLATE_RE.match(vehicle_no):
         return _bad("invalid license plate", "INVALID_PLATE")
 
+    # The operating state is derived from the vehicle plate's 2-letter RTO
+    # prefix (e.g. UP32TA1234 -> UP). It drives the per-state fuel benchmark
+    # band the rules engine uses for this trip's fuel expenses.
+    state_code = state_code_from_plate(vehicle_no)
+
     with get_db() as conn:
         fleet_id = _resolve_trip_fleet(conn, user)
         if fleet_id is None:
@@ -177,6 +183,7 @@ async def api_create_trip(request: Request):
             created_by=user.get("user_id"),
             driver_user_id=driver_user_id,
             vehicle_id=vehicle_id,
+            state_code=state_code,
         )
         # Auto-post the two unified-ledger legs for this trip: Cash Advance (credit
         # to driver) and Driver Salary/batta (debit). They are fixed provisions, so

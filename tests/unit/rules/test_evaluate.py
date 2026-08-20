@@ -116,3 +116,28 @@ def test_goods_stay_below_flag_lid():
     # Goods buys/sales are never auto-flagged; they await manager review.
     assert not evaluate_expense(RuleInput(exp_type="GOODS_BUY", amount=9000.0)).flagged
     assert not evaluate_expense(RuleInput(exp_type="GOODS_SALE", amount=12000.0)).flagged
+
+
+def test_band_reason_names_fueling_state():
+    # A TS truck refueling in TS: a legit high TS rate stays in the TS band.
+    mp_band = derive_band(103.82, 0.08)  # Telangana ~103.82
+    verdict = evaluate_expense(
+        fuel(rate=103.80, amount=3114.0, band=mp_band, band_state_code="TS")
+    )
+    assert not verdict.flagged
+
+    # Same rate judged against the (wrong) home-state band -> flagged, and the
+    # reason names the fueling state so the manager sees which band applied.
+    home_up = derive_band(95.36, 0.08)
+    verdict = evaluate_expense(
+        fuel(rate=103.80, amount=3114.0, band=home_up, band_state_code="TS")
+    )
+    assert verdict.flagged
+    assert "benchmark band" in verdict.reason
+    assert "TS" in verdict.reason
+
+
+def test_default_band_reason_when_no_state():
+    verdict = evaluate_expense(fuel(rate=99.0, amount=2970.0, band=BAND))
+    assert verdict.flagged
+    assert "default" in verdict.reason

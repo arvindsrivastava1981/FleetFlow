@@ -11,6 +11,7 @@ from backend.app.api.v1 import (
     fleets,
     onboard,
     rules,
+    states,
     trips,
     users,
     vehicles,
@@ -32,6 +33,7 @@ _DOMAIN_ROUTERS = (
     rules.router,
     onboard.router,
     whatsapp.router,
+    states.router,
 )
 
 for _r in _DOMAIN_ROUTERS:

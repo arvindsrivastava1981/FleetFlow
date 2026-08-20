@@ -40,9 +40,15 @@ export default function DriverWhatsAppPage() {
     odometer: "",
     liters: "",
     rate: "",
+    state_code: "",
   });
+  const [states, setStates] = useState([]);
   const isFuelOrDef = form.exp_type === "FUEL" || form.exp_type === "DEF";
   const threadRef = useRef(null);
+
+  useEffect(() => {
+    api.get("/api/v1/states").then(setStates).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api
@@ -52,7 +58,11 @@ export default function DriverWhatsAppPage() {
         setTrip(t || null);
         setCashInHand(d?.cash_in_hand ?? 0);
         if (t?.trip_code) {
-          setForm((f) => ({ ...f, trip_code: t.trip_code }));
+          setForm((f) => ({
+            ...f,
+            trip_code: t.trip_code,
+            state_code: f.state_code || t.state_code || "",
+          }));
           return api.get(`/api/v1/trips/${t.trip_code}`);
         }
         return null;
@@ -86,6 +96,7 @@ async function sendReceipt(e) {
         odometer: Number(form.odometer || 0),
         liters: Number(form.liters || 0),
         rate: Number(form.rate || 0),
+        state_code: form.state_code || undefined,
       };
       const res = await api.post("/api/v1/expenses", payload);
       setToast(
@@ -266,6 +277,21 @@ async function sendReceipt(e) {
                         placeholder="e.g. 90.50"
                         className="w-full text-xs input outline-none"
                       />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Fueling State</label>
+                      <select
+                        value={form.state_code}
+                        onChange={(e) => onField("state_code", e.target.value)}
+                        className="w-full text-xs input outline-none"
+                      >
+                        <option value="">Select state</option>
+                        {states.map((s) => (
+                          <option key={s.code} value={s.code}>
+                            {s.code} · {s.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </>
                 )}

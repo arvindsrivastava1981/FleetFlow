@@ -30,3 +30,8 @@ jinja2>=3.1.0
 
 # Async Utilities
 anyio>=4.3.0
+
+# Live fuel-price scraping (optional; the sync endpoint falls back to a static
+# snapshot when these are absent)
+beautifulsoup4>=4.12.0
+lxml>=5.0.0

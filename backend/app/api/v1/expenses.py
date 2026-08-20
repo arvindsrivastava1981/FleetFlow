@@ -11,7 +11,9 @@ from backend.app.db.queries.expenses import (
     get_expense_trip_code,
     insert_expense,
 )
+from backend.app.db.queries.benchmarks import get_benchmark_price_and_tolerance
 from backend.app.db.queries.trips import get_trip_by_code, trip_status, update_trip_odometer
+from backend.app.services.rules.bands import DEFAULT_BAND, derive_band
 from backend.app.services.rules.constants import GOODS_TYPES
 from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
 
@@ -68,6 +70,10 @@ async def api_create_expense(request: Request):
     odometer = float(body.get("odometer") or 0.0)
     liters = float(body.get("liters") or 0.0)
     rate = float(body.get("rate") or 0.0)
+    # Fueling state the driver picks for this purchase (e.g. MP when a UP truck
+    # refuels in Madhya Pradesh). Drives the fuel band below; falls back to the
+    # trip's state when omitted.
+    state_code = str(body.get("state_code") or "").strip().upper() or None
 
     if exp_type not in JSON_EXPENSE_TYPES:
         return _bad("invalid expense type", "INVALID_EXPENSE_TYPE")
@@ -90,6 +96,17 @@ async def api_create_expense(request: Request):
             is_flagged = False
             flag_reason = None
         else:
+            # Resolve the per-state fuel band. The driver-submitted `state_code`
+            # (fueling state) takes precedence; fall back to the trip's operating
+            # state, then the global default band. This way a UP truck refueling
+            # in MP is judged against MP's benchmark, not its home state.
+            band = DEFAULT_BAND
+            band_state = state_code or (trip or {}).get("state_code")
+            if band_state:
+                benchmark = get_benchmark_price_and_tolerance(conn, band_state)
+                if benchmark is not None:
+                    price, tol_fraction = benchmark
+                    band = derive_band(price, tol_fraction)
             verdict = evaluate_expense(
                 RuleInput(
                     exp_type=exp_type,
@@ -97,6 +114,8 @@ async def api_create_expense(request: Request):
                     liters=liters,
                     rate=rate,
                     odometer=odometer,
+                    band=band,
+                    band_state_code=band_state,
                 )
             )
             manager_status = "PENDING" if verdict.flagged or exp_type in GOODS_TYPES else "APPROVED"
@@ -113,6 +132,7 @@ async def api_create_expense(request: Request):
             is_flagged=is_flagged,
             flag_reason=flag_reason,
             manager_status=manager_status,
+            state_code=state_code,
         )
         if odometer > 0:
             update_trip_odometer(conn, trip_code, odometer)

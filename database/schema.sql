@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS trips (
         CHECK (status IN ('ACTIVE', 'COMPLETED', 'SETTLED', 'CANCELLED')),
     origin VARCHAR(100),
     destination VARCHAR(100),
+    state_code VARCHAR(10), -- operating state for the trip, derived from origin
     verification_hash VARCHAR(32),
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -164,6 +165,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     rate NUMERIC(8, 2) DEFAULT 0.00,
     odometer NUMERIC(10, 2) DEFAULT 0.00,
     station_name VARCHAR(255),
+    state_code VARCHAR(10), -- fueling state chosen by the driver (per-purchase); drives the fuel band
     is_flagged BOOLEAN NOT NULL DEFAULT FALSE,
     flag_reason TEXT,
     manager_status VARCHAR(20) NOT NULL DEFAULT 'PENDING'
@@ -186,7 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_expenses_is_flagged ON expenses(is_flagged);
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS fuel_benchmarks (
     id SERIAL PRIMARY KEY,
-    state_code VARCHAR(10) NOT NULL,
+    state_code VARCHAR(10) NOT NULL UNIQUE,
     state_name VARCHAR(50) NOT NULL,
     benchmark_price_per_liter NUMERIC(6, 2) NOT NULL,
     tolerance_pct NUMERIC(5, 2) DEFAULT 8.00, -- percentage points (e.g. 8.00%)
