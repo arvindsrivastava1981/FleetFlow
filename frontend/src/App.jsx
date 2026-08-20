@@ -283,16 +283,7 @@ export default function App() {
       <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
       <Route path="/manager" element={<Navigate to="/dashboard" replace />} />
       <Route path="/driver" element={<Navigate to="/dashboard" replace />} />
-      <Route
-        path="*"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <NotFound />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
