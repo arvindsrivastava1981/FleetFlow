@@ -14,6 +14,7 @@ from backend.app.api.v1 import (
     trips,
     users,
     vehicles,
+    whatsapp,
 )
 
 router = APIRouter()
@@ -30,6 +31,7 @@ _DOMAIN_ROUTERS = (
     billing.router,
     rules.router,
     onboard.router,
+    whatsapp.router,
 )
 
 for _r in _DOMAIN_ROUTERS:

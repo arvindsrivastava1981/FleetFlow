@@ -128,7 +128,7 @@ Left-nav sections **Operations → Fleet & Assets → System & Reports → Accou
 | 4 | New Trip `/trips/new` | `GET /api/v1/vehicles`, `GET /api/v1/drivers`, `POST /api/v1/trips` | Prefill vehicle/driver dropdowns; start trip (auto trip_code) | No client-side plate/phone/non-neg validation — errors only after submit (backend `400/409`). |
 | 5 | Trip Detail `/trips/:tripCode` | `GET /api/v1/trips/{code}`, `POST /api/v1/expenses`, `POST /api/v1/trips/{code}/settle` | View/expense log; **Settle Trip** button shown when `status` is `ACTIVE` **or `COMPLETED`** | Route guard has **no `roles`** — any authenticated role can deep-link `/trips/:code`; settle button is UI-restricted but a driver could still submit expenses through this form. |
 | 6 | Expense Ledger `/expenses` | `GET /api/v1/trips`, `GET /api/v1/trips/{code}` | Pick trip → view ledger w/ flagged/status badges | — |
-| 7 | WhatsApp Escalations `/whatsapp-manager` | `GET /api/v1/whatsapp/escalations`, `POST /api/v1/expenses/{id}/action` | Chat-thread flagged/pending feed; inline Approve/Deduct | **Mindmap gap:** `GET /api/v1/whatsapp/escalations` is not documented in the Routes section; the UI Layout section still quotes legacy `/simulate-whatsapp` + `/action-expense`. |
+| 7 | WhatsApp Escalations `/whatsapp-manager` | `GET /api/v1/whatsapp/escalations`, `POST /api/v1/expenses/{id}/action` | Chat-thread flagged/pending feed; inline Approve/Deduct | In-app feed path; the real bot inbound shares the same routes via the single webhook (`/api/v1/whatsapp/webhook`, `api/v1/whatsapp.py`). |
 | 8 | Settled Trips `/settlements` | `GET /api/v1/settlements`, link `GET /api/v1/settlements/{code}/pdf` | PDF listing (super_admin sees all fleets) | — |
 | 9 | Billing `/billing` | `GET /api/v1/billing/overview`, `POST /api/v1/billing/subscribe`, `POST /api/v1/billing/vehicle-slot` | Plan view, subscribe (Razorpay redirect), buy slot | Billing/subscribe checks fleet entitlement — see accessibility note. |
 | 10 | Rule Engine `/rule-engine` | `GET /api/v1/rules` | Read-only anomaly-rule cards; benchmark config linked from Fleet/System | — |
@@ -150,7 +150,7 @@ Same **Operations → Fleet & Assets → Account** sections (no System & Reports
 | 4 | New Trip `/trips/new` | `GET /api/v1/vehicles`, `GET /api/v1/drivers`, `POST /api/v1/trips` | Start trip (dropdowns from own vehicles + active drivers) | Same client-validation gap as Super Admin. |
 | 5 | Trip Detail `/trips/:tripCode` | `GET /api/v1/trips/{code}`, `POST /api/v1/expenses`, `POST /api/v1/trips/{code}/settle` | Expense log + Settle Trip | — |
 | 6 | Expense Ledger `/expenses` | `GET /api/v1/trips`, `GET /api/v1/trips/{code}` | Active-trip ledger | — |
-| 7 | WhatsApp Escalations `/whatsapp-manager` | `GET /api/v1/whatsapp/escalations`, `POST /api/v1/expenses/{id}/action` | Approve/Deduct flagged expenses | Same mindmap-gap note as Super Admin. |
+| 7 | WhatsApp Escalations `/whatsapp-manager` | `GET /api/v1/whatsapp/escalations`, `POST /api/v1/expenses/{id}/action` | Approve/Deduct flagged expenses | Same in-app feed as Super Admin (scoped to own fleet); shared via the single webhook. |
 | 8 | Settled Trips `/settlements` | `GET /api/v1/settlements`, `.../{code}/pdf` | Own settled-trip PDFs | — |
 | 9 | Billing `/billing` | `GET /api/v1/billing/overview`, `POST /api/v1/billing/subscribe`, `POST /api/v1/billing/vehicle-slot` | Their fleet's plan/slots | — |
 | 10 | Rule Engine `/rule-engine` | `GET /api/v1/rules` | Explainers | — |
@@ -185,11 +185,9 @@ Left-nav **Operations → Account** only. Billing and Rule Engine are **not** sh
 - ✅ **SPA 404 catch-all added** — `path="*"` renders a `NotFound` page under `Layout` (unknown URLs no longer render blank).
 - ✅ **401 auto-redirect to `/login`** added in `frontend/src/lib/api.js` (`request`/`postForm`): any non-login endpoint returning `401` clears the local token and bounces to `/login` (skips `/auth/login` so a wrong-password flow isn't disturbed, and skips when already on `/login`).
 
-## UI Layout — 3-Column Dual-WhatsApp Architecture (`GET /`)
-`grid grid-cols-1 lg:grid-cols-12 gap-4`, 3 equal `lg:col-span-4` columns:
-1. **Driver WhatsApp** — chat-style simulator where the driver "sends" expense receipts (form posts to `/simulate-whatsapp`).
-2. **Manager WhatsApp Escalation** — chat thread showing only flagged expenses with inline Approve/Deduct quick-reply links (posts to `/action-expense`).
-3. **Expense Ledger** — trip summary card, financial metrics (Claimed/Approved/Flagged/Cash in Hand), read-only ledger table, and the 1-click Settlement PDF action.
+## UI Layout — WhatsApp now = TWO role-scoped simulators + ONE real webhook
+- **In-app simulators** (already shipped): `DriverWhatsApp.jsx` (`/whatsapp-driver`, driver-only) posts receipts to `POST /api/v1/expenses`; `ManagerWhatsApp.jsx` (`/whatsapp-manager`, trip_manager/super_admin) shows the flagged feed from `GET /api/v1/whatsapp/escalations` and approves/deducts via `POST /api/v1/expenses/{id}/action`. The legacy `/simulate-whatsapp` and `/action-expense` HTML routes were removed (return 404/405).
+- **One bot number, one webhook** (`backend/app/api/v1/whatsapp.py`): `GET/POST /api/v1/whatsapp/webhook` is the single Meta Cloud entrypoint. The sender's WhatsApp number is normalized to `+91` (`services/whatsapp.normalise_number`) and resolved to a `users` row (`get_user_by_phone`), then `classify_sender` routes the payload to the driver (expense intake) or manager (escalation approval) dialect — the JSON flows above are the same logic over WhatsApp. `POST /api/v1/whatsapp/send` is the best-effort outbound hook. No-op (quick 200) until `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_ID` / `WEBHOOK_VERIFY_TOKEN` are wired.
 
 ## System Invariants
 - Vehicle Plate Regex: `^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$`
@@ -214,7 +212,7 @@ Left-nav **Operations → Account** only. Billing and Rule Engine are **not** sh
 
 > Source of truth for the roadmap: `docs/implementation_plan.md`. These are **not yet implemented**; do not assume they exist. Plan the work as: **Phase A → B → C → D → E → F**.
 
-- **G1 — Real WhatsApp Cloud API** (`POST /whatsapp/webhook`): inbound media + outbound message templates + session binding by WhatsApp number. Today only the browser simulator (`/simulate-whatsapp`) exists. Needs `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_ID`, `WEBHOOK_VERIFY_TOKEN` env vars.
+- **G1 — Real WhatsApp Cloud API** (`POST /api/v1/whatsapp/webhook`): inbound media + outbound message templates + session binding by WhatsApp number. The single-webhook router + `+91` number→role binding + outbound stub exist (`backend/app/api/v1/whatsapp.py`, `services/whatsapp`); still needs the live Meta Graph send call + media/OCR intake. Requires `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_ID`, `WEBHOOK_VERIFY_TOKEN` env vars.
 - **G2 — AI OCR / Vision receipt parsing**: extract Amount, Liters, Rate, Pump Name, Odometer from fuel receipts + odometer photos. No OCR library/model wired; `raw_receipt_text`/`receipt_image_url` columns exist but are never populated.
 - **G3 — Dual-photo evidence protocol + EXIF check** for REPAIR (damaged-part photo + mechanic invoice, EXIF metadata validation). Currently UI-hint text only.
 - **G4 — State-dynamic fuel benchmark**: drive the ±8% band from `fuel_benchmarks` per trip/state instead of the global `BENCHMARK_PRICE`.
@@ -225,13 +223,13 @@ Left-nav **Operations → Account** only. Billing and Rule Engine are **not** sh
 - **G9 — Live WhatsApp bot verification replies** to driver.
 - **G10 — Mandatory dashboard-odometer photo at fuel entry** (server-enforced, not just hint).
 - **G11 — Anti-fraud EXIF/metadata tamper check + verified parts** for repairs.
-- **G12 — Explicit manager confirmation for any deduction** (labor-protection) — mostly satisfied by existing `/action-expense`; extend confirmation message language.
+- **G12 — Explicit manager confirmation for any deduction** (labor-protection) — mostly satisfied by existing `POST /api/v1/expenses/{id}/action`; extend confirmation message language.
 - **G13 — Product-doc artifacts** (ROI/unit-economics tables, competitive matrix, DPDPA privacy statement) — optional additions to `README.md`; no code needed.
 
 ### Implementation phases (from docs/implementation_plan.md)
 - **Phase A — Rules/data-model upgrades:** benchmark-aware `evaluate_rules()`, corridor toll rule, dual-photo/odometer enforcement, EXIF check (no external creds).
 - **Phase B — DB schema:** add `toll_corridors`, new `expenses` columns (`corridor`, `evidence_photos`, `exif_ok`); update `schema.sql` + `incremental.sql`, seed `toll_corridors`.
-- **Phase C — WhatsApp Cloud API:** webhook route, media receive, outbound templates, inbound trip init.
+- **Phase C — WhatsApp Cloud API:** webhook route, media receive, outbound templates, inbound trip init. (*Webhook route + `+91` number→role routing + outbound stub landed pre-Phase C in `api/v1/whatsapp.py` / `services/whatsapp`; remaining is the live Meta Graph send + media/OCR intake.*)
 - **Phase D — OCR pipeline:** OCR dep + post-processing, persist `raw_receipt_text`, odometer cross-check.
 - **Phase E — UX:** bilingual/audio confirmations, driver verification slip.
 - **Phase F — Tests & docs:** unit tests for new rules/OCR; update `README.md`, `docs/product_details.md`, and this file.

@@ -38,6 +38,20 @@ def get_user_by_username(conn, username: str) -> dict | None:
     return cur.fetchone()
 
 
+def get_user_by_phone(conn, phone: str) -> dict | None:
+    """Return the single user bound to a normalized WhatsApp *phone* (or None).
+
+    Used by the single WhatsApp webhook (backend/app/api/v1/whatsapp.py) to
+    resolve a sender's number to a ``users`` row and thereby their role, so one
+    bot number can route drivers' receipt messages to the expense-intake flow
+    and managers' quick-reply payloads to the escalation-approval flow. Pass a
+    normalized ``+91XXXXXXXXXX`` value (see ``services/whatsapp.normalise_number``).
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM users WHERE phone = %s", (phone,))
+    return cur.fetchone()
+
+
 def get_user_by_id(conn, user_id: int) -> dict | None:
     cur = conn.cursor()
     cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
