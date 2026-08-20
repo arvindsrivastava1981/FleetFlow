@@ -136,7 +136,16 @@ CREATE TABLE IF NOT EXISTS trips (
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMPTZ,
-    settled_at TIMESTAMPTZ
+    settled_at TIMESTAMPTZ,
+    -- Settlement consent trail (Option 1): the manager consents implicitly when
+    -- they settle the trip; the driver consents explicitly (via WhatsApp). Both
+    -- timestamps are server-authoritative (DB CURRENT_TIMESTAMP) and the actor
+    -- ids are resolved server-side from the authenticated identity — never a
+    -- client-supplied value — so the printed voucher consent block is auditable.
+    manager_consent_by BIGINT REFERENCES users(id),
+    manager_consent_at TIMESTAMPTZ,
+    driver_consent_by BIGINT REFERENCES users(id),
+    driver_consent_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_trips_fleet_id ON trips(fleet_id);

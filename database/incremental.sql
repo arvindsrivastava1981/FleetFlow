@@ -72,6 +72,16 @@ ALTER TABLE users
         CHECK (fleet_role IN ('owner', 'manager', 'branch_head', 'driver')),
     ADD COLUMN IF NOT EXISTS onboarding_email_at TIMESTAMPTZ;
 
+-- Settlement consent trail on trips (Option 1): manager consents implicitly at
+-- settle time, the driver consents explicitly via WhatsApp. Timestamps are DB-
+-- authoritative and the actor ids come from the authenticated identity, so the
+-- bilingual PDF consent block is auditable. Idempotent for pre-existing DBs.
+ALTER TABLE trips
+    ADD COLUMN IF NOT EXISTS manager_consent_by BIGINT REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS manager_consent_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS driver_consent_by BIGINT REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS driver_consent_at TIMESTAMPTZ;
+
 -- Append-only billing audit ledger: plan changes, extra slots, trial starts.
 CREATE TABLE IF NOT EXISTS fleet_billing_events (
     id BIGSERIAL PRIMARY KEY,

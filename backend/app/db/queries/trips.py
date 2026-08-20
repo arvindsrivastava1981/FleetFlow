@@ -223,17 +223,21 @@ def get_active_trip_for_manager(conn, user_id: int) -> dict | None:
     return cur.fetchone()
 
 
-def settle_trip(conn, trip_code: str) -> None:
-    """Mark a trip SETTLED and persist the settlement verification fingerprint.
+def settle_trip(conn, trip_code: str, manager_id: int | None = None) -> None:
+    """Mark a trip SETTLED, persist the verification fingerprint + manager consent.
 
     Only called after confirming no PENDING expenses. Uses the single-source
     netting engine to compute the deterministic verification hash + resolved
     batta, and writes them in the same transaction that flips status so a
     historical print's voucher code is stable and verifiable.
 
-    Accepts both ACTIVE and COMPLETED trips: a trip may be marked COMPLETED by
-    the driver/field flow before the manager performs the final settlement,
-    so the settle action must not be stripped for that intermediate state.
+    The manager's settlement is an implicit consent: the authenticated *manager_id*
+    (the one performing the settle) is stamped onto ``manager_consent_by/_at``
+    with a DB-authoritative timestamp, so the voucher's bilingual "Manager
+    Acceptance" line is auditable. Accepts both ACTIVE and COMPLETED trips: a
+    trip may be marked COMPLETED by the driver/field flow before the manager
+    performs the final settlement, so the settle action must not be stripped for
+    that intermediate state.
     """
     cur = conn.cursor()
     cur.execute(
@@ -258,10 +262,33 @@ def settle_trip(conn, trip_code: str) -> None:
                 completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
                 settled_at = CURRENT_TIMESTAMP,
                 verification_hash = %s,
-                driver_batta_amount = %s
+                driver_batta_amount = %s,
+                manager_consent_by = COALESCE(manager_consent_by, %s),
+                manager_consent_at = COALESCE(manager_consent_at, CURRENT_TIMESTAMP)
           WHERE trip_code = %s AND status IN ('ACTIVE', 'COMPLETED')""",
-        (settlement.verification_hash, settlement.driver_batta, trip_code),
+        (settlement.verification_hash, settlement.driver_batta, manager_id, trip_code),
     )
+
+
+def driver_consent(conn, trip_code: str, driver_id: int) -> bool:
+    """Record a driver's explicit settlement consent (idempotent).
+
+    Stamps the driver's identity + a DB-authoritative timestamp on their trip so
+    the PDF's bilingual "Driver Acceptance" line lists a real acceptance. The
+    first consent wins (``COALESCE``) — a driver cannot overwrite an earlier
+    consent, keeping the trail tamper-evident. Returns True when a NEW consent
+    was written, False when it was a no-op (already consented / trip unknown).
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """UPDATE trips
+            SET driver_consent_by = COALESCE(driver_consent_by, %s),
+                driver_consent_at = COALESCE(driver_consent_at, CURRENT_TIMESTAMP)
+          WHERE trip_code = %s AND driver_user_id = %s
+            AND driver_consent_at IS NULL""",
+        (driver_id, trip_code, driver_id),
+    )
+    return cur.rowcount > 0
 
 
 def pending_expense_count(conn, trip_code: str) -> int:

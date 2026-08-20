@@ -11,6 +11,7 @@ from __future__ import annotations
 import io
 import re
 import zlib
+from datetime import datetime
 
 from reportlab.pdfbase import pdfmetrics
 from reportlab.platypus import Paragraph, SimpleDocTemplate
@@ -162,3 +163,37 @@ def test_bi_never_emits_orphaned_slash() -> None:
     assert "/" not in _bi("", "")
     # Whitespace-only labels are treated as missing.
     assert _bi("  ", "डीजल") == "डीजल"
+
+
+def test_fmt_ts_handles_none_datetime_and_string() -> None:
+    """Timestamp formatter must never crash and return readable values."""
+    from backend.app.services.pdf.settlement import _fmt_ts
+
+    assert _fmt_ts(None) == "—"
+    assert _fmt_ts("already a string") == "already a string"
+    ts = _fmt_ts(datetime(2026, 8, 20, 14, 35))
+    assert "2026" in ts and "Aug" in ts
+
+
+def test_consent_names_attach_without_crash() -> None:
+    """Voucher with consent names must build without error (non-breaking)."""
+    pdf = build_settlement_pdf(
+        _sample_trip(
+            manager_consent_by=1,
+            manager_consent_at=datetime(2026, 8, 20, 14, 30),
+            driver_consent_by=2,
+            driver_consent_at=datetime(2026, 8, 20, 14, 35),
+        ),
+        _sample_expenses(),
+        manager_consent_name="Ajay Kumar",
+        driver_consent_name="Raju Bhai",
+    )
+    assert isinstance(pdf, bytes)
+    assert len(pdf) > 5000, "PDF must not be a stub"
+
+
+def test_consent_absent_prints_dashes() -> None:
+    """Voucher without consent data still builds and prints dashes."""
+    pdf = build_settlement_pdf(_sample_trip(), _sample_expenses())
+    assert isinstance(pdf, bytes)
+    assert len(pdf) > 5000

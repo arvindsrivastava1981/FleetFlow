@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import datetime as _dt
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -61,9 +62,28 @@ BUCKET_LABELS: dict[str, tuple[str, str]] = {
     "GOODS_BUY": ("Goods Purchased", "माल खरीद"),
 }
 
-
 def _rs(value: float) -> str:
     return f"₹{value:,.2f}"
+
+
+
+
+def _fmt_ts(ts) -> str:
+    """Format a DB timestamp (datetime or str) into a human-readable local string.
+
+    If *ts* is a datetime the output uses ``%d-%b-%Y %H:%M`` (e.g.
+    ``20-Aug-2026 14:35``). If it is a string (e.g. from a test fixture or
+    pre-formatted value), it is returned verbatim (never crash for parsing).
+    ``None`` / missing returns ``"—"``.
+    """
+    if ts is None:
+        return "—"
+    if isinstance(ts, str):
+        return ts
+    try:
+        return ts.strftime("%d-%b-%Y %H:%M")
+    except (AttributeError, TypeError):
+        return str(ts)
 
 
 def _bi(label_en: str | None, label_hi: str | None) -> str:
@@ -87,12 +107,19 @@ def _bi(label_en: str | None, label_hi: str | None) -> str:
     return "—"
 
 
-def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
+def build_settlement_pdf(
+    trip: dict,
+    expenses: list[dict],
+    manager_consent_name: str | None = None,
+    driver_consent_name: str | None = None,
+) -> bytes:
     """Render the bilingual Dr/Cr settlement voucher PDF.
 
     Delegates all arithmetic to `compute_settlement` (single source). Emits a
     double-entry ledger (Goods Sale + Advance on Cr; expense buckets + Driver
-    Batta on Dr), a net-settlement card, and a verification fingerprint footer.
+    Batta on Dr), a net-settlement card, a verification fingerprint footer, and
+    when consent data are present (Option 1) a bilingual consent block with the
+    manager's and driver's acceptance names + DB-authoritative timestamps.
     """
     s = compute_settlement(trip, expenses)
 
@@ -128,10 +155,10 @@ def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
     story.append(Paragraph(route_text, meta_style))
     story.append(Spacer(1, 12))
 
-    return _render_pdf(doc, buffer, story, styles, s)
+    return _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name)
 
 
-def _render_pdf(doc, buffer, story, styles, s) -> bytes:
+def _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name) -> bytes:
     """Build the body flowables for a `SettlementResult` ledger + footer."""
     cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
 
@@ -210,12 +237,47 @@ def _render_pdf(doc, buffer, story, styles, s) -> bytes:
     story.append(net_box)
     story.append(Spacer(1, 12))
 
+    # ---- Consent block (Option 1): manager + driver acceptance ---------
+    if manager_consent_name or driver_consent_name or trip.get("manager_consent_at") or trip.get("driver_consent_at"):
+        story.append(Paragraph(
+            "<b>CONSENT &amp; ACCEPTANCE / स्वीकृति एवं स्वीकार</b>",
+            _hi_style(styles["Heading3"]),
+        ))
+        story.append(Spacer(1, 4))
+        consent_rows = [
+            [
+                Paragraph("<b>Fleet Manager Acceptance / प्रबंधक स्वीकृति</b>", cell_style),
+                Paragraph(
+                    f"{manager_consent_name or '—'} &nbsp;|&nbsp; {_fmt_ts(trip.get('manager_consent_at'))}",
+                    cell_style,
+                ),
+                Paragraph("☐" if manager_consent_name else "—", cell_style),
+            ],
+            [
+                Paragraph("<b>Driver Acceptance / चालक स्वीकृति</b>", cell_style),
+                Paragraph(
+                    f"{driver_consent_name or '—'} &nbsp;|&nbsp; {_fmt_ts(trip.get('driver_consent_at'))}",
+                    cell_style,
+                ),
+                Paragraph("☐" if driver_consent_name else "—", cell_style),
+            ],
+        ]
+        t_consent = Table(consent_rows, colWidths=[200, 250, 30])
+        t_consent.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        story.append(t_consent)
+        story.append(Spacer(1, 12))
+
     # ---- Verification fingerprint -----------------------------------------
     story.append(Paragraph(
         f"<b>Verification Code:</b> VHK-{s.verification_hash}",
         cell_style,
     ))
-    story.append(Spacer(1, 35))
+    story.append(Spacer(1, 20))
 
     story.append(Paragraph(
         "Driver Signature: ___________________     Fleet Manager Sign-off: ___________________",

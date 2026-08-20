@@ -20,6 +20,7 @@ from backend.app.db.queries.trips import (
 )
 from backend.app.db.queries.users import (
     get_driver_batta_profile,
+    get_user_by_id,
     get_user_fleet_id,
 )
 from backend.app.db.queries.fleets import get_default_fleet
@@ -223,7 +224,7 @@ def api_settle_trip(request: Request, trip_code: str):
                     "code": "PENDING_EXPENSES",
                 },
             )
-        mark_trip_settled(conn, trip_code)
+        mark_trip_settled(conn, trip_code, manager_id=user.get("user_id"))
     return _ok({"trip_code": trip_code, "status": "SETTLED"})
 
 
@@ -258,8 +259,24 @@ def api_settlement_pdf(request: Request, trip_code: str):
         if _trip_forbidden(conn, user, trip):
             return Response("Forbidden", status_code=403)
         expenses = get_expenses_for_trip(conn, trip_code)
+        # Resolve consent actor names (Option 1): resolve the user rows for the
+        # stored manager_consent_by / driver_consent_by ids so the PDF footer can
+        # print human-readable acceptance names. None/null-consent trips print
+        # the consent lines as dash (no actor recorded yet).
+        manager_name = None
+        driver_consent_name = None
+        if trip.get("manager_consent_by"):
+            m = get_user_by_id(conn, trip["manager_consent_by"])
+            manager_name = m.get("full_name") if m else None
+        if trip.get("driver_consent_by"):
+            d = get_user_by_id(conn, trip["driver_consent_by"])
+            driver_consent_name = d.get("full_name") if d else None
 
-    pdf_bytes = build_settlement_pdf(trip, expenses)
+    pdf_bytes = build_settlement_pdf(
+        trip, expenses,
+        manager_consent_name=manager_name,
+        driver_consent_name=driver_consent_name,
+    )
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

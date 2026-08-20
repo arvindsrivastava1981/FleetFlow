@@ -40,6 +40,7 @@ from backend.app.db.queries.fleets import (
 )
 from backend.app.db.queries.trips import (
     active_trip_exists,
+    driver_consent,
     get_active_trip_for_driver,
     get_active_trip_for_manager,
     get_all_trips,
@@ -74,6 +75,7 @@ __all__ = [
     "create_user",
     "deactivate_fleet",
     "deactivate_user",
+    "driver_consent",
     "extend_billing_date",
     "fleet_phone_exists",
     "get_active_trip_for_driver",

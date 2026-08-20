@@ -25,6 +25,10 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 
 from backend.app.core.config import settings
 from backend.app.db.connection import get_db
+from backend.app.db.queries.trips import (  # noqa: PLC2701 (webhook owns driver consent)
+    driver_consent as record_driver_consent,
+    get_active_trip_for_driver,
+)
 from backend.app.db.queries.users import get_user_by_phone
 from backend.app.services.whatsapp import (
     ROLE_DRIVER,
@@ -93,6 +97,41 @@ async def whatsapp_webhook(request: Request) -> JSONResponse:
         return JSONResponse(content="ok", status_code=200)
 
     text = extract_text(payload)
+    # Route: driver consent (Option 1) — a driver explicitly accepts the
+    # settlement of their current trip by sending a consent keyword. The
+    # webhook resolves the sender (authenticated by their WhatsApp number),
+    # so the recorded identity is server-authoritative.
+    if dialect == ROLE_DRIVER and user:
+        consent_keywords = {"CONSENT", "CONFIRM", "ACCEPT", "स्वीकृत", "हाँ"}
+        if text.strip().upper() in consent_keywords or any(
+            kw in text.strip().upper() for kw in consent_keywords
+        ):
+            with get_db() as conn:
+                trip = get_active_trip_for_driver(conn, user["user_id"])
+                if trip:
+                    written = record_driver_consent(
+                        conn, trip["trip_code"], user["user_id"]
+                    )
+                    return JSONResponse(
+                        content={
+                            "received": True,
+                            "routed_to": ROLE_DRIVER,
+                            "consented": written,
+                            "trip_code": trip["trip_code"],
+                            "wa_id": wa_id,
+                        },
+                        status_code=200,
+                    )
+                return JSONResponse(
+                    content={
+                        "received": True,
+                        "routed_to": ROLE_DRIVER,
+                        "consented": False,
+                        "reason": "no_active_trip",
+                        "wa_id": wa_id,
+                    },
+                    status_code=200,
+                )
     # Surface the routing decision so operational logs/deploys can follow a
     # single message through the single-bot pipeline. The actual intake/approval
     # side-effects live in the role-scoped endpoints (expenses.py).
