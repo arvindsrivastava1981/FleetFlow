@@ -20,14 +20,14 @@ const TOKEN_KEY = "vk_token";
 
 // Base URL for the /api/v1 JSON API.
 //
-// The SPA is served same-origin by the FastAPI backend (frontend/dist is mounted
-// at "/" on the same Render container), and the must always be relative so
-// every request hits the backend that issued the session / token. A hardcoded
-// absolute fallback (e.g. http://localhost:8000) would send auth'd calls to the
-// wrong origin in production and trigger 401 "unauthorized".
+// Defaults to same-origin (""). Keep this so local `npm run dev` (which proxies
+// /api to the FastAPI backend) and the single-container Docker deploy both work.
 //
-// VITE_API_BASE_URL is supported strictly for local cross-origin dev; production
-// builds must NOT set it so relative paths are used (see vite.config.js proxy).
+// For the two-service Render setup (static SPA on vahankhata-app + API on
+// vahankhata-api), render.yaml sets VITE_API_BASE_URL=https://vahankhata-api.onrender.com
+// at build time so the static bundle calls the API cross-origin; the API's CORS
+// allowlist (backend/app/main.py) includes that SPA origin. Never hardcode a
+// local fallback here (e.g. http://localhost:8000) — it would break production.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export function getToken() {

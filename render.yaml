@@ -1,11 +1,41 @@
+# Render Blueprint for VahanKhata — two services:
+#   1) "vahankhata-app"  = Static Site that publishes the built React SPA (frontend/dist)
+#   2) "vahankhata-api"  = Web Service running the FastAPI JSON API (/api/v1/*)
+#
+# The SPA is a client-side router (React Router v6). It must call the API
+# cross-origin, so it is built with VITE_API_BASE_URL pointing at the API web
+# service, and the FastAPI web service must allow that origin via CORS.
+#
+# NOTE: Render static-site redirect/rewrite rules are configured ONLY from the
+# Render Dashboard — there is no render.yaml field for them. The static site
+# (vahankhata-app) MUST have one rewrite rule so all SPA routes serve index.html:
+#     Source: /*     Action: Rewrite     Destination: /index.html
+# (Otherwise /features, /about, /pricing, etc. return 404 instead of rendering.)
 services:
+  # ---- Static Site: the React SPA -----------------------------------------
+  - type: static
+    name: vahankhata-app
+    branch: main
+    buildCommand: cd frontend && npm ci --no-audit --no-fund && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: CI
+        value: "false"
+      # The SPA's frontend/src/lib/api.js reads this to call the API web
+      # service cross-origin (default is "" / same-origin, which would break
+      # a separately-hosted static SPA).
+      - key: VITE_API_BASE_URL
+        value: https://vahankhata-api.onrender.com
+
+  # ---- Web Service: the FastAPI JSON API ----------------------------------
   - type: web
-    name: vahankhata
+    name: vahankhata-api
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: ./
+    branch: main
     healthCheck:
-      # GET /healthz — verifies the app boots AND the DB is reachable.
+      # GET /healthz — verifies the API boots AND the DB is reachable.
       path: /healthz
     envVars:
       - key: PORT
