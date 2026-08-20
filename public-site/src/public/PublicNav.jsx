@@ -37,7 +37,7 @@ export default function PublicNav() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <a href={app("/login")} className="market-btn market-btn-ghost !px-4 !py-2">
+          <a href={app("/")} className="market-btn market-btn-ghost !px-4 !py-2">
             Log in
           </a>
           <a href="/request-demo" className="market-btn market-btn-brand !px-4 !py-2">
@@ -76,7 +76,7 @@ export default function PublicNav() {
               </a>
             ))}
             <div className="mt-3 flex flex-col gap-2 border-t border-ink-100 pt-3">
-              <a href={app("/login")} className="market-btn market-btn-ghost w-full">
+              <a href={app("/")} className="market-btn market-btn-ghost w-full">
                 Log in
               </a>
               <a href="/request-demo" className="market-btn market-btn-brand w-full">

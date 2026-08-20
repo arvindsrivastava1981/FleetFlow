@@ -16,7 +16,7 @@ const FOOTER_COLUMNS = [
     links: [
       { label: "About", to: "/about" },
       { label: "Contact", to: "/contact" },
-      { label: "Log in", to: app("/login") },
+      { label: "Log in", to: app("/") },
     ],
   },
   {

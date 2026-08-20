@@ -62,7 +62,7 @@ def _fleet_entitled(conn, fleet_id: int) -> bool:
 
 def _login_url(request: Request) -> str:
     base = str(request.base_url).rstrip("/")
-    return f"{base}/login"
+    return f"{base}/"
 
 
 def _manager_onboarding_payload(

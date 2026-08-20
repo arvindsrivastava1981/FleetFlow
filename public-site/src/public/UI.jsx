@@ -72,7 +72,7 @@ export function CTABand({
   ctaText = "Book a demo",
   ctaHref = "/request-demo",
   ghostText = "Log in",
-  ghostHref = app("/login"),
+  ghostHref = app("/"),
 }) {
   return (
     <section className="market-wrap pb-16 sm:pb-24">

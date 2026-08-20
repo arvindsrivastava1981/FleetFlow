@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
-import LoginPage from "./pages/Login.jsx";
+import LoginPage from "./pages/index.jsx";
 import DashboardPage from "./pages/Dashboard.jsx";
 import TripsPage from "./pages/Trips.jsx";
 import TripDetailPage from "./pages/TripDetail.jsx";
@@ -33,7 +33,7 @@ function ProtectedRoute({ children, roles }) {
         </div>
       </div>
     );
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
 }
@@ -42,15 +42,11 @@ export default function App() {
   const { user } = useAuth();
   return (
     <Routes>
+      {/* Login is the default entry point of the app SPA. */}
       <Route
-        path="/login"
+        path="/"
         element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />}
       />
-
-      {/* The marketing site now lives in the separate `public-site/` project.
-          The root of this SPA redirects into the app. */}
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
       <Route
         path="/dashboard"
         element={

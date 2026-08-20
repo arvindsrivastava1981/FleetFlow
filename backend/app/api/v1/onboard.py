@@ -46,7 +46,7 @@ _VALID_PLANS = ("TRIAL", "MONTHLY", "YEARLY")
 def _login_url(request: Request) -> str:
     """Derive the web login URL for the manager onboarding email."""
     base = str(request.base_url).rstrip("/")
-    return f"{base}/login"
+    return f"{base}/"
 
 
 @router.post("/fleets/onboard", response_model=Data[dict[str, Any]])

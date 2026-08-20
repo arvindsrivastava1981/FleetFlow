@@ -117,7 +117,7 @@ export default function Contact() {
               <p className="mt-1 text-sm leading-relaxed text-ink-600">
                 Already a customer? Sign in and use the in-app change-password or reach the operations team for billing.
               </p>
-              <a href={app("/login")} className="market-btn market-btn-ghost mt-4">
+              <a href={app("/")} className="market-btn market-btn-ghost mt-4">
                 Log in
               </a>
             </div>
