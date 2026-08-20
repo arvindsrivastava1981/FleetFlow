@@ -8,10 +8,18 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // On boot, validate the stored token (or a server cookie) via /me.
+  // We pass `navigateOnUnauthorized: false` because this probe runs on EVERY
+  // route, including PUBLIC pages (landing, /about, ...). If it bounced to
+  // /login on a 401, an anonymous visitor would never see the marketing pages —
+  // they'd be yanked straight to /login. We only need to know *whether* a
+  // session exists; gatekeeping (redirecting to /login) is done in ProtectedRoute
+  // for authed routes.
   useEffect(() => {
     (async () => {
       try {
-        const data = await api.get("/api/v1/auth/me");
+        const data = await api.getOpts("/api/v1/auth/me", {
+          navigateOnUnauthorized: false,
+        });
         setUser(data.user);
       } catch {
         setToken(null);
