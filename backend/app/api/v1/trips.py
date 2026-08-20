@@ -24,7 +24,11 @@ from backend.app.db.queries.users import (
     get_user_fleet_id,
 )
 from backend.app.db.queries.fleets import get_default_fleet
-from backend.app.db.queries.expenses import get_expenses_for_trip, insert_expense
+from backend.app.db.queries.expenses import (
+    get_expenses_for_trip,
+    get_ledger_expenses_for_trip,
+    insert_expense,
+)
 from backend.app.services.audit.cash import compute_settlement, resolve_trip_batta
 from backend.app.services.pdf.settlement import build_settlement_pdf
 
@@ -95,6 +99,8 @@ def api_trip_detail(request: Request, trip_code: str):
             return JSONResponse(
                 status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
             )
+        # Compute settlement from the FULL ledger (provisions are part of the
+        # arithmetic), but expose only the real driver expenses in the payload.
         expenses = get_expenses_for_trip(conn, trip_code)
         res = compute_settlement(trip, expenses)
         trip["settlement"] = {
@@ -113,7 +119,10 @@ def api_trip_detail(request: Request, trip_code: str):
             "verification_hash": res.verification_hash,
         }
 
-    return _ok({"trip": trip, "expenses": expenses})
+    return _ok({
+        "trip": trip,
+        "expenses": get_ledger_expenses_for_trip(conn, trip_code),
+    })
 @router.post("/trips", response_model=Data[CreateTripResult])
 async def api_create_trip(request: Request):
     guard = require_json_role(request, "trip_manager", "super_admin")

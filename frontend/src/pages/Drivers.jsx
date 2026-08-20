@@ -195,7 +195,7 @@ export default function DriversPage() {
                 <td className={`p-3 text-xs font-semibold ${d.batta_type === "NONE" ? "text-slate-400" : "text-emerald-700"}`}>
                   {d.batta_type === "NONE"
                     ? "—"
-                    : `₹${(Number(d.default_batta_rate) || 0).toLocaleString("en-IN")}`}
+                    : `₹${(Number(d.default_batta_rate) || 0).toLocaleString("en-IN")} ${BATTA_UNIT[d.batta_type] || BATTA_UNIT.FIXED_TRIP}`}
                 </td>
                 <td className="p-3 text-xs text-slate-600">{d.phone || "—"}</td>
                 <td className="p-3 text-xs">

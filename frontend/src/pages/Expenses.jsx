@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
 
+const PROVISION_TYPES = new Set(["CASH_ADVANCE", "DRIVER_SALARY"]);
+
 function StatusBadge({ status }) {
   if (status === "APPROVED") return <span className="badge badge-success">APPROVED</span>;
   if (status === "REJECTED") return <span className="badge badge-danger">REJECTED</span>;
@@ -27,7 +29,11 @@ export default function ExpensesPage() {
     }
     api
       .get(`/api/v1/trips/${selected}`)
-      .then((d) => setExpenses(d.expenses || []))
+      .then((d) =>
+        setExpenses(
+          (d.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type))
+        )
+      )
       .catch((e) => setError(e.message));
   }, [selected]);
 

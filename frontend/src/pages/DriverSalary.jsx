@@ -21,6 +21,13 @@ export default function DriverSalaryPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
+  const BATTA_UNIT = {
+    FIXED_TRIP: "₹/trip",
+    PER_KM: "₹/km",
+    DAILY: "₹/day",
+    NONE: "No batta",
+  };
+
   useEffect(() => {
     api
       .get("/api/v1/driver/salary")
@@ -71,7 +78,9 @@ export default function DriverSalaryPage() {
               <span className="font-bold text-slate-700">
                 ₹{(Number(profile.default_batta_rate) || 0).toLocaleString("en-IN")}
               </span>{" "}
-              / trip
+              {profile.batta_type === "NONE"
+                ? "(no batta)"
+                : (BATTA_UNIT[profile.batta_type] || BATTA_UNIT.FIXED_TRIP)}
             </p>
           </div>
           <div className="table-wrap">

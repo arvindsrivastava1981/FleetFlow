@@ -11,12 +11,22 @@ from backend.app.services.audit.cash import DEFAULT_DRIVER_BATTA, compute_settle
 MOCK_USER = {"user_id": 1, "username": "manager", "role": "super_admin"}
 
 
-def _mock_db_cursor(trip, expenses=None):
-    """Build a fake cursor+connection that yields the trip and expense rows."""
+def _mock_db_cursor(trip, expenses=None, ledger_expenses=None):
+    """Build a fake cursor+connection that yields the trip and expense rows.
+
+    The trip-detail route first fetches the FULL ledger (for settlement math) via
+    `get_expenses_for_trip`, then the filtered ledger (`get_ledger_expenses_for_trip`)
+    for the response. `ledger_expenses` defaults to expenses but omits provisions.
+    """
     expenses = expenses or []
+    if ledger_expenses is None:
+        ledger_expenses = [
+            e for e in expenses
+            if e.get("exp_type") not in ("CASH_ADVANCE", "DRIVER_SALARY")
+        ]
     cur = mock.MagicMock()
     cur.fetchone.side_effect = [trip]
-    cur.fetchall.return_value = expenses
+    cur.fetchall.side_effect = [expenses, ledger_expenses]
     conn = mock.MagicMock()
     conn.cursor.return_value = cur
     db_obj = mock.MagicMock()
@@ -146,7 +156,8 @@ def test_trip_detail_settlement_mirrors_compute_settlement(client, resolve_db):
     resp = client.get("/api/v1/trips/TRIP-101")
 
     assert resp.status_code == 200
-    s = resp.json()["data"]["trip"]["settlement"]
+    body = resp.json()["data"]
+    s = body["trip"]["settlement"]
 
     assert s["advance_amount"] == expected.advance_amount
     assert s["goods_income"] == expected.goods_income
@@ -165,6 +176,13 @@ def test_trip_detail_settlement_mirrors_compute_settlement(client, resolve_db):
     # Cross-check the two headline numbers directly against the formula.
     assert s["net_balance"] == pytest.approx(20000.0 + 30000.0 - (5000.0 + 1500.0 + 1000.0 + 2500.0))
     assert s["total_driver_credits"] == pytest.approx(5000.0 + 1500.0 + 1000.0 + 2500.0)
+
+    # The response ledger must exclude the provision legs (CASH_ADVANCE /
+    # DRIVER_SALARY) even though settlement math counts them.
+    returned_types = {e["exp_type"] for e in body["expenses"]}
+    assert "CASH_ADVANCE" not in returned_types
+    assert "DRIVER_SALARY" not in returned_types
+    assert {"GOODS_SALE", "FUEL", "REPAIR", "CHALLAN"} <= returned_types
 
 
 def test_trip_detail_fully_settled_when_net_zero(client, resolve_db):

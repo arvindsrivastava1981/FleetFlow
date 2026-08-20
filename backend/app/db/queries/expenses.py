@@ -49,9 +49,33 @@ def get_expense_trip_code(conn, expense_id: int) -> str:
 
 
 def get_expenses_for_trip(conn, trip_code: str) -> list[dict]:
-    """All expenses for a trip, newest first (for the ledger view)."""
+    """All expenses for a trip, newest first (for settlement computation).
+
+    Returns **every** row including the auto-posted `CASH_ADVANCE` /
+    `DRIVER_SALARY` provision legs — settlement math (`compute_settlement`)
+    depends on them. Use `get_ledger_expenses_for_trip` for a user-facing
+    display where provisions should be hidden.
+    """
     cur = conn.cursor()
     cur.execute(
         "SELECT * FROM expenses WHERE trip_code = %s ORDER BY id DESC", (trip_code,)
+    )
+    return cur.fetchall()
+
+
+def get_ledger_expenses_for_trip(conn, trip_code: str) -> list[dict]:
+    """Real driver expenses for a trip, newest first (for the ledger/table view).
+
+    The `CASH_ADVANCE` / `DRIVER_SALARY` rows are fixed provision legs posted at
+    trip creation — not driver expenses. They are excluded so they never surface
+    in user-facing tables or audit lists, while the full-row variant
+    `get_expenses_for_trip` remains the single source for settlement math.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM expenses "
+        "WHERE trip_code = %s AND exp_type NOT IN ('CASH_ADVANCE', 'DRIVER_SALARY') "
+        "ORDER BY id DESC",
+        (trip_code,),
     )
     return cur.fetchall()

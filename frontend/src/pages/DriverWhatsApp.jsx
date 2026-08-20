@@ -13,6 +13,11 @@ const EXPENSE_TYPES = // Quick Copy Array:
   { value: "GOODS_SALE", label: "Goods Sell (माल बिक्री)" }
 ];
 
+// Auto-posted provision ledger rows (CASH_ADVANCE / DRIVER_SALARY) are fixed
+// entries created when the trip started — not receipts the driver sent. Exclude
+// them from the chat thread and the "Receipts Logged" count.
+const PROVISION_TYPES = new Set(["CASH_ADVANCE", "DRIVER_SALARY"]);
+
 function fmtRs(n) {
   return (Number(n) || 0).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -53,7 +58,10 @@ export default function DriverWhatsAppPage() {
         return null;
       })
       .then((det) => {
-        if (det) setExpenses(det.expenses || []);
+        if (det)
+          setExpenses(
+            (det.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type))
+          );
       })
       .catch((e) => setError(e.message));
   }, []);
@@ -86,7 +94,9 @@ async function sendReceipt(e) {
         }`
       );
       const det = await api.get(`/api/v1/trips/${form.trip_code}`);
-      setExpenses(det?.expenses || []);
+      setExpenses(
+        (det?.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type))
+      );
       setForm((f) => ({ ...f, amount: "", odometer: "", liters: "", rate: "" }));
       setTimeout(() => setToast(""), 4000);
     } catch (err) {

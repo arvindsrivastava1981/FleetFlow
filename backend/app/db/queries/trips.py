@@ -94,13 +94,19 @@ def get_latest_active_trip_for_user(conn, user_id: int | None, role: str) -> dic
 def get_trip_stats_by_code(conn) -> dict[str, dict]:
     """Per-trip expense aggregates keyed by trip_code, for the trips/ listings."""
     cur = conn.cursor()
+    # Provision ledger rows (CASH_ADVANCE / DRIVER_SALARY) are fixed entries posted
+    # at trip creation — they are not driver expenses and must not inflate the trip
+    # listing's spend/count figures. Exclude them from every aggregate here.
     cur.execute(
-        """SELECT trip_code, COUNT(*) AS expense_count,
+        """SELECT trip_code,
+                  COUNT(*) AS expense_count,
                   COALESCE(SUM(amount), 0) AS total_claimed,
                   COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR (NOT is_flagged AND manager_status != 'REJECTED') THEN amount ELSE 0 END), 0) AS total_approved,
                   COALESCE(SUM(CASE WHEN is_flagged THEN amount ELSE 0 END), 0) AS flagged_amount,
                   COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
-           FROM expenses GROUP BY trip_code"""
+           FROM expenses
+          WHERE exp_type NOT IN ('CASH_ADVANCE', 'DRIVER_SALARY')
+          GROUP BY trip_code"""
     )
     return {row["trip_code"]: row for row in cur.fetchall()}
 
