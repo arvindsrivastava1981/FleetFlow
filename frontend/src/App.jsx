@@ -50,24 +50,6 @@ function ProtectedRoute({ children, roles }) {
   return children;
 }
 
-function NotFound() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <p className="text-7xl font-black tracking-tight text-brand-200">404</p>
-      <h2 className="mt-4 text-xl font-bold text-ink-900">Page Not Found</h2>
-      <p className="mt-1 text-sm text-ink-500">
-        The page you are looking for does not exist.
-      </p>
-      <Link
-        to="/dashboard"
-        className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700"
-      >
-        Go to Dashboard
-      </Link>
-    </div>
-  );
-}
-
 export default function App() {
   const { user } = useAuth();
   return (
@@ -282,8 +264,7 @@ export default function App() {
       />
       <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
       <Route path="/manager" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/driver" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<NotFound />} />
+      <Route path="/driver" element={<Navigate to="/dashboard" replace />} />      
     </Routes>
   );
 }
