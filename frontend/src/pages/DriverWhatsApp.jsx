@@ -99,7 +99,7 @@ async function sendReceipt(e) {
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between items-center gap-2">
         <div>
-          <h2 className="page-title">Driver (WhatsApp)</h2>
+          <h2 className="page-title">WhatsApp View</h2>
           <p className="text-xs text-slate-500">
             Chat-style simulator · driver sends expense receipts to the VahanKhata bot
           </p>

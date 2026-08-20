@@ -88,7 +88,7 @@ export default function ManagerWhatsAppPage() {
             <div className="flex items-center space-x-2.5">
               <div className="w-9 h-9 rounded-full bg-amber-600 flex items-center justify-center font-bold text-sm">🔔</div>
               <div>
-                <h3 className="text-sm font-bold leading-tight">Fleet Manager (WhatsApp)</h3>
+                <h3 className="text-sm font-bold leading-tight">WhatsApp View</h3>
                 <p className="text-[10px] text-amber-200">Online • Anomaly Escalations</p>
               </div>
             </div>
