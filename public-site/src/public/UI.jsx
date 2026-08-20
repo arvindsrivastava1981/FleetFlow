@@ -1,4 +1,5 @@
 import React from "react";
+import { app } from "../config.js";
 
 /** Section wrapper: eyebrow + title + lead, centred. */
 export function SectionHead({ eyebrow, title, lead, align = "center" }) {
@@ -71,7 +72,7 @@ export function CTABand({
   ctaText = "Book a demo",
   ctaHref = "/request-demo",
   ghostText = "Log in",
-  ghostHref = "/login",
+  ghostHref = app("/login"),
 }) {
   return (
     <section className="market-wrap pb-16 sm:pb-24">
