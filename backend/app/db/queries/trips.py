@@ -223,7 +223,7 @@ def get_active_trip_for_manager(conn, user_id: int) -> dict | None:
     return cur.fetchone()
 
 
-def settle_trip(conn, trip_code: str, manager_id: int | None = None) -> None:
+def settle_trip(conn, trip_code: str, manager_id: int | None = None, end_odo: float | None = None) -> None:
     """Mark a trip SETTLED, persist the verification fingerprint + manager consent.
 
     Only called after confirming no PENDING expenses. Uses the single-source
@@ -238,6 +238,9 @@ def settle_trip(conn, trip_code: str, manager_id: int | None = None) -> None:
     trip may be marked COMPLETED by the driver/field flow before the manager
     performs the final settlement, so the settle action must not be stripped for
     that intermediate state.
+
+    *end_odo* must already have been validated (>= start_odo) upstream; if
+    provided it overrides the auto-derived value from current_odo.
     """
     cur = conn.cursor()
     cur.execute(
@@ -256,9 +259,13 @@ def settle_trip(conn, trip_code: str, manager_id: int | None = None) -> None:
 
     settlement = compute_settlement(trip, approved_expenses)
 
+    # Use the caller-supplied end_odo when provided (already validated upstream),
+    # else fall back to current_odo for backwards compatibility.
+    closing_odo = end_odo if end_odo is not None else trip.get("current_odo")
+
     cur.execute(
         """UPDATE trips
-            SET status = 'SETTLED', end_odo = current_odo,
+            SET status = 'SETTLED', end_odo = %s,
                 completed_at = COALESCE(completed_at, CURRENT_TIMESTAMP),
                 settled_at = CURRENT_TIMESTAMP,
                 verification_hash = %s,
@@ -266,7 +273,7 @@ def settle_trip(conn, trip_code: str, manager_id: int | None = None) -> None:
                 manager_consent_by = COALESCE(manager_consent_by, %s),
                 manager_consent_at = COALESCE(manager_consent_at, CURRENT_TIMESTAMP)
           WHERE trip_code = %s AND status IN ('ACTIVE', 'COMPLETED')""",
-        (settlement.verification_hash, settlement.driver_batta, manager_id, trip_code),
+        (closing_odo, settlement.verification_hash, settlement.driver_batta, manager_id, trip_code),
     )
 
 

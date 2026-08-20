@@ -328,3 +328,142 @@ def test_json_mutation_parses_dict_not_coroutine(client, resolve_db):
     # The body must be read as a dict — not rejected as "body must be a JSON object".
     assert resp.status_code == 200
     assert "body must be a JSON object" not in resp.text
+
+
+# ---- Settlement validation gates (Check 4 & 5) --------------------------
+
+def test_settle_rejects_missing_end_odo(client, resolve_db):
+    """Settlement requires an explicit closing odometer reading (Check 4)."""
+    trip = _trip()
+    pending_row = {"pending_count": 0}
+    db_obj = _mock_multi_cursor(trip, pending_row)
+    resolve_db(db_obj)
+
+    resp = client.post("/api/v1/trips/TRIP-101/settle", json={})
+
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "MISSING_END_ODO"
+
+
+def test_settle_rejects_end_odo_below_start_odo(client, resolve_db):
+    """end_odo < start_odo is rejected (Check 4)."""
+    trip = _trip(start_odo=100000.0)
+    pending_row = {"pending_count": 0}
+    db_obj = _mock_multi_cursor(trip, pending_row)
+    resolve_db(db_obj)
+
+    resp = client.post(
+        "/api/v1/trips/TRIP-101/settle", json={"end_odo": 50000}
+    )
+
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID_END_ODO"
+    assert "lower than start odometer" in resp.json()["error"]
+
+
+def test_settle_rejects_fuel_efficiency_too_low(client, resolve_db):
+    """Fuel efficiency below 1.5 km/L blocks settlement (Check 5)."""
+    trip = _trip(start_odo=100000.0, end_odo=100150.0)
+    pending_row = {"pending_count": 0}
+    # 150 km on 200 L → 0.75 km/L (below 1.5 floor)
+    expenses = [_exp(exp_type="FUEL", amount=18000.0, liters=200.0)]
+    db_obj = _mock_multi_cursor(
+        trip, pending_row, fetchall_value=expenses,
+    )
+    resolve_db(db_obj)
+
+    resp = client.post(
+        "/api/v1/trips/TRIP-101/settle", json={"end_odo": 100150}
+    )
+
+    assert resp.status_code == 409
+    assert resp.json()["code"] == "FUEL_EFFICIENCY_LOW"
+    assert "0.75" in resp.json()["error"]
+
+
+def test_settle_rejects_fuel_efficiency_too_high(client, resolve_db):
+    """Fuel efficiency above 12 km/L blocks settlement (Check 5)."""
+    trip = _trip(start_odo=100000.0, end_odo=101500.0)
+    pending_row = {"pending_count": 0}
+    # 1500 km on 50 L → 30 km/L (above 12 ceiling)
+    expenses = [_exp(exp_type="FUEL", amount=4500.0, liters=50.0)]
+    db_obj = _mock_multi_cursor(
+        trip, pending_row, fetchall_value=expenses,
+    )
+    resolve_db(db_obj)
+
+    resp = client.post(
+        "/api/v1/trips/TRIP-101/settle", json={"end_odo": 101500}
+    )
+
+    assert resp.status_code == 409
+    assert resp.json()["code"] == "FUEL_EFFICIENCY_HIGH"
+    assert "30.0" in resp.json()["error"]
+
+
+def test_settle_skips_fuel_check_when_no_fuel_expenses(client, resolve_db):
+    """When avg_kml is None (no fuel), the fuel-efficiency gate is skipped.
+
+    The settle progresses past check 5 into mark_trip_settled (which will
+    exhaust our simplified mock cursor — that's expected). What matters is
+    the response code is NOT a fuel-efficiency rejection.
+    """
+    trip = _trip(start_odo=100000.0)
+    pending_row = {"pending_count": 0}
+    expenses = [_exp(exp_type="TOLL", amount=500.0)]
+    db_obj = _mock_multi_cursor(
+        trip, pending_row, fetchall_value=expenses,
+    )
+    resolve_db(db_obj)
+
+    try:
+        resp = client.post(
+            "/api/v1/trips/TRIP-101/settle", json={"end_odo": 100500}
+        )
+        code = resp.json().get("code", "")
+    except RuntimeError:
+        # settle_trip exhausts the mock cursor — the route got past both
+        # Check 4 and Check 5, which is the assertion we care about.
+        return
+
+    # If we get here (mock had enough fetchone stubs), still verify no
+    # fuel-efficiency code was raised.
+    assert code not in ("FUEL_EFFICIENCY_LOW", "FUEL_EFFICIENCY_HIGH")
+
+
+# ---- Pure-logic fuel-efficiency band tests (Check 5) --------------------
+
+def test_avg_kml_within_band_passes():
+    """500 km on 100 L → 5.0 km/L is within the 1.5–12 km/L band."""
+    from backend.app.services.audit.cash import compute_settlement
+    trip = _trip(start_odo=100000.0, end_odo=100500.0)
+    expenses = [
+        _exp(exp_type="FUEL", amount=9000.0, liters=100.0),
+    ]
+    s = compute_settlement(trip, expenses)
+    assert s.avg_kml == 5.0
+    assert 1.5 <= s.avg_kml <= 12.0
+
+
+def test_avg_kml_below_floor():
+    """500 km on 400 L → 1.25 km/L is below 1.5 floor."""
+    from backend.app.services.audit.cash import compute_settlement
+    trip = _trip(start_odo=100000.0, end_odo=100500.0)
+    expenses = [
+        _exp(exp_type="FUEL", amount=36000.0, liters=400.0),
+    ]
+    s = compute_settlement(trip, expenses)
+    assert s.avg_kml == 1.25
+    assert s.avg_kml < 1.5
+
+
+def test_avg_kml_above_ceiling():
+    """500 km on 20 L → 25.0 km/L is above 12 ceiling."""
+    from backend.app.services.audit.cash import compute_settlement
+    trip = _trip(start_odo=100000.0, end_odo=100500.0)
+    expenses = [
+        _exp(exp_type="FUEL", amount=1800.0, liters=20.0),
+    ]
+    s = compute_settlement(trip, expenses)
+    assert s.avg_kml == 25.0
+    assert s.avg_kml > 12.0

@@ -201,12 +201,30 @@ async def api_create_trip(request: Request):
             )
     return _created({"trip_code": trip_code, "status": "ACTIVE"})
 @router.post("/trips/{trip_code}/settle", response_model=Data[SettleTripResult])
-def api_settle_trip(request: Request, trip_code: str):
+async def api_settle_trip(request: Request, trip_code: str):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
     user = _identity(request)
     trip_code = trip_code.strip().upper()
+
+    # Parse the closing odometer from the request body.
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+
+    end_odo = body.get("end_odo")
+    if end_odo is not None:
+        try:
+            end_odo = float(end_odo)
+        except (TypeError, ValueError):
+            return JSONResponse(
+                status_code=400,
+                content={"error": "end_odo must be a number", "code": "INVALID_ODO"},
+            )
 
     with get_db() as conn:
         trip = get_trip_by_code(conn, trip_code)
@@ -224,7 +242,59 @@ def api_settle_trip(request: Request, trip_code: str):
                     "code": "PENDING_EXPENSES",
                 },
             )
-        mark_trip_settled(conn, trip_code, manager_id=user.get("user_id"))
+
+        # ---- Check 4: end_odo >= start_odo ---------------------------------
+        start_odo = float(trip.get("start_odo") or 0.0)
+        if end_odo is None:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "closing odometer reading (end_odo) is required to settle",
+                    "code": "MISSING_END_ODO",
+                },
+            )
+        if end_odo < start_odo:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": (
+                        f"Closing odometer ({end_odo}) is lower than start odometer "
+                        f"({start_odo}). Please correct and retry."
+                    ),
+                    "code": "INVALID_END_ODO",
+                },
+            )
+
+        # ---- Check 5: Fuel efficiency within 1.5-12 km/L band ---------------
+        expenses = get_expenses_for_trip(conn, trip_code)
+        settlement = compute_settlement(trip, expenses)
+        if settlement.avg_kml is not None:
+            if settlement.avg_kml < 1.5:
+                return JSONResponse(
+                    status_code=409,
+                    content={
+                        "error": (
+                            f"Fuel efficiency is {settlement.avg_kml} km/L — below the "
+                            f"minimum of 1.5 km/L for commercial vehicles. "
+                            f"Verify fuel litres and odometer readings."
+                        ),
+                        "code": "FUEL_EFFICIENCY_LOW",
+                    },
+                )
+            if settlement.avg_kml > 12.0:
+                return JSONResponse(
+                    status_code=409,
+                    content={
+                        "error": (
+                            f"Fuel efficiency is {settlement.avg_kml} km/L — exceeds the "
+                            f"maximum of 12 km/L for commercial vehicles. "
+                            f"Verify fuel litres and odometer readings."
+                        ),
+                        "code": "FUEL_EFFICIENCY_HIGH",
+                    },
+                )
+
+        mark_trip_settled(conn, trip_code, manager_id=user.get("user_id"), end_odo=end_odo)
     return _ok({"trip_code": trip_code, "status": "SETTLED"})
 
 

@@ -19,6 +19,7 @@ export default function TripDetailPage() {
   const [odometer, setOdometer] = useState("");
   const [busy, setBusy] = useState(false);
   const [settleBusy, setSettleBusy] = useState(false);
+  const [endOdo, setEndOdo] = useState("");
 
   function load() {
     setError("");
@@ -58,7 +59,10 @@ export default function TripDetailPage() {
     setSettleBusy(true);
     setError("");
     try {
-      await api.post(`/api/v1/trips/${tripCode}/settle`);
+      await api.post(`/api/v1/trips/${tripCode}/settle`, {
+        end_odo: Number(endOdo),
+      });
+      setEndOdo("");
       load();
     } catch (err) {
       setError(err.message);
@@ -109,7 +113,7 @@ export default function TripDetailPage() {
       )}
 
       {showSettle && (
-        <div className="card p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="card p-4 space-y-3">
           <div>
             <p className="text-xs font-extrabold text-slate-800">
               Ready to settle this trip?
@@ -118,13 +122,34 @@ export default function TripDetailPage() {
               All expenses must be APPROVED or REJECTED first. Settling closes the trip and locks the settlement ledger.
             </p>
           </div>
-          <button
-            onClick={settleTrip}
-            disabled={settleBusy}
-            className="btn-success px-4 py-2 rounded-xl transition shadow disabled:opacity-50"
-          >
-            {settleBusy ? "Settling…" : "✓ Settle Trip"}
-          </button>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[140px]">
+              <label
+                htmlFor="end_odo"
+                className="block text-[10px] font-bold text-slate-500 uppercase mb-1"
+              >
+                Closing Odometer (KM)
+              </label>
+              <input
+                id="end_odo"
+                type="number"
+                step="any"
+                min={trip?.start_odo ?? 0}
+                value={endOdo}
+                onChange={(e) => setEndOdo(e.target.value)}
+                placeholder={`Min: ${trip?.start_odo ?? 0}`}
+                className="input text-sm w-full"
+                required
+              />
+            </div>
+            <button
+              onClick={settleTrip}
+              disabled={settleBusy || !endOdo}
+              className="btn-success px-4 py-2 rounded-xl transition shadow disabled:opacity-50"
+            >
+              {settleBusy ? "Settling…" : "✓ Settle Trip"}
+            </button>
+          </div>
         </div>
       )}
 

@@ -78,12 +78,7 @@ export default function TripsPage() {
         {!trips.length && !error && (
           <div className="empty card">
             <p className="text-3xl">🚚</p>
-            <p className="mt-2 font-medium text-ink-500">No trips yet.</p>
-            {canCreate && (
-              <Link to="/trips/new" className="btn-primary btn-sm mt-4">
-                Start your first trip
-              </Link>
-            )}
+            <p className="mt-2 font-medium text-ink-500">No trips yet.</p>            
           </div>
         )}
       </div>
