@@ -12,6 +12,10 @@ python-dotenv>=1.0.1
 
 # PDF Generation (Pure Python, native across Windows/macOS/Linux)
 reportlab>=4.1.0
+# Complex-script shaping for reportlab (HarfBuzz); reportlab discovers uharfbuzz
+# at runtime and uses it when the paragraph style has shaping=True. Required so
+# Devanagari (Hindi) conjuncts and pre-base matras render correctly in the PDFs.
+uharfbuzz>=0.40.0
 
 # HTTP Client (for external APIs / WhatsApp Webhook triggers)
 requests>=2.31.0

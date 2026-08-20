@@ -115,3 +115,50 @@ def test_hi_paragraph_builds_to_bytes() -> None:
     buf = io.BytesIO()
     SimpleDocTemplate(buf).build([para])
     assert len(buf.getvalue()) > 500, "Hindi paragraph should render to bytes"
+
+
+def test_hi_style_enables_shaping() -> None:
+    """Devanagari must render through HarfBuzz so conjuncts + matras shape.
+
+    reportlab only runs complex-script shaping when the style has ``shaping`` set
+    AND the font is ``shapable`` (which requires the ``uharfbuzz`` package). With
+    shaping disabled, Devanagari is laid out naively left-to-right, reordering
+    pre-base matras (``विवरण`` -> ``वविरण``) and breaking conjuncts (``ट्रिप`` ->
+    ``टरपि``). This test guards the regression where those assets/config were
+    dropped.
+    """
+    import uharfbuzz  # noqa: F401  (must be installed for shaping)
+    from reportlab.lib.styles import getSampleStyleSheet
+
+    style = _hi_style(getSampleStyleSheet()["Normal"])
+    assert style.shaping is True, "_hi_style must enable HarfBuzz shaping"
+
+    font = pdfmetrics.getFont(_FONT_NAME)
+    assert getattr(font, "shapable", False) is True, (
+        "Devanagari font must be shapable; install uharfbuzz (reportlab discovers it at runtime)"
+    )
+    assert font.hbFont is not None, "reportlab must have a HarfBuzz harness for the font"
+
+
+def test_bi_never_emits_orphaned_slash() -> None:
+    """Bilingual label joins must never produce a leading/trailing orphaned '/'.
+
+    Regression for the 'Missing English Labels / Leading Orphaned Slashes' bug:
+    when either the English or Hindi key is empty/None, the naive ``f'{en} / {hi}'``
+    emits a stray slash. The helper returns only the populated side instead.
+    """
+    from backend.app.services.pdf.settlement import _bi
+
+    # Both populated -> normal bilingual form.
+    assert _bi("FUEL", "डीजल") == "FUEL / डीजल"
+    # English missing -> keep Hindi only, NO leading slash.
+    assert _bi("", "डीजल") == "डीजल"
+    assert _bi(None, "डीजल") == "डीजल"
+    # Hindi missing -> English only, NO trailing slash.
+    assert _bi("FUEL", "") == "FUEL"
+    assert _bi("FUEL", None) == "FUEL"
+    # Both missing -> neutral dash, never an orphaned slash.
+    assert _bi(None, None) == "—"
+    assert "/" not in _bi("", "")
+    # Whitespace-only labels are treated as missing.
+    assert _bi("  ", "डीजल") == "डीजल"

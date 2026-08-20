@@ -34,12 +34,17 @@ _HI_STYLE_CTR = [0]
 def _hi_style(parent, **kwargs) -> ParagraphStyle:
     """Return a ParagraphStyle using the Devanagari font (for bilingual text).
 
-    Sets both ``fontName`` and ``boldFontName`` so reportlab's inline ``<b>``
-    markup keeps using the same font instead of falling back to Helvetica-Bold
-    (which would drop the Devanagari glyphs again).
+    Sets ``fontName``/``boldFontName`` so reportlab's inline ``<b>`` markup
+    keeps using the same font instead of falling back to Helvetica-Bold (which
+    would drop Devanagari glyphs). Also enables ``shaping`` so reportlab routes
+    Devanagari through HarfBuzz (via ``uharfbuzz``), which performs the complex
+    GSUB/GPOS shaping (conjunct ligatures + pre-base matra repositioning) that
+    a naive left-to-right codepoint layout cannot produce. Without this, Hindi
+    renders broken (e.g. ``विवरण`` -> ``वविरण``, ``ट्रिप`` -> ``टरपि``).
     """
     kwargs.setdefault("fontName", _FONT_NAME)
     kwargs.setdefault("boldFontName", _FONT_NAME)
+    kwargs.setdefault("shaping", True)
     _HI_STYLE_CTR[0] += 1
     name = kwargs.pop("name", None) or f"HiStyle_{_HI_STYLE_CTR[0]}"
     return ParagraphStyle(name, parent=parent, **kwargs)
@@ -61,6 +66,27 @@ def _rs(value: float) -> str:
     return f"₹{value:,.2f}"
 
 
+def _bi(label_en: str | None, label_hi: str | None) -> str:
+    """Join English and Hindi labels with `` / `` without producing an orphaned slash.
+
+    The voucher renders every bilingual line as ``{en} / {hi}`` or ``{key}: {val}``.
+    If either language key is unset (``None``/empty), a naive concatenation emits a
+    leading/trailing orphaned slash (e.g. ``/ यात्रा हिसाब पर्ची``). This helper
+    drops the missing side and returns only the populated label (falling back to the
+    other language, or a neutral ``—`` if both are empty) so the PDF never shows a
+    stray leading ``/``.
+    """
+    en = (label_en or "").strip()
+    hi = (label_hi or "").strip()
+    if en and hi:
+        return f"{en} / {hi}"
+    if en:
+        return en
+    if hi:
+        return hi
+    return "—"
+
+
 def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
     """Render the bilingual Dr/Cr settlement voucher PDF.
 
@@ -75,7 +101,7 @@ def build_settlement_pdf(trip: dict, expenses: list[dict]) -> bytes:
     story = []
     styles = getSampleStyleSheet()
 
-    title_style = ParagraphStyle("TitleStyle", parent=styles["Heading1"], fontName=_FONT_NAME, boldFontName=_FONT_NAME, fontSize=18, leading=22, textColor=colors.HexColor("#0f172a"))
+    title_style = ParagraphStyle("TitleStyle", parent=styles["Heading1"], fontName=_FONT_NAME, boldFontName=_FONT_NAME, fontSize=18, leading=22, textColor=colors.HexColor("#0f172a"), shaping=True)
     sub_style = _hi_style(styles["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
     meta_style = _hi_style(styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
     cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
@@ -138,7 +164,7 @@ def _render_pdf(doc, buffer, story, styles, s) -> bytes:
             continue
         en, hi = BUCKET_LABELS[bucket]
         ledger_rows.append([
-            Paragraph(f"{en} / {hi}", cell_style),
+            Paragraph(_bi(en, hi), cell_style),
             Paragraph(f"<b>{_rs(amount)}</b>", cell_style),
             Paragraph("—", cell_style),
         ])
