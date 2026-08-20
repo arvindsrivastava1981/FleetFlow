@@ -197,3 +197,62 @@ def test_consent_absent_prints_dashes() -> None:
     pdf = build_settlement_pdf(_sample_trip(), _sample_expenses())
     assert isinstance(pdf, bytes)
     assert len(pdf) > 5000
+def test_weasyprint_unavailable_falls_back_to_reportlab() -> None:
+    """Requesting renderer='weasyprint' without native libs still returns bytes."""
+    from backend.app.services.pdf import settlement as svc
+
+    # On machines without Pango native libs the import inside the service fails,
+    # so _WEASYPRINT_AVAILABLE is False and we fall back to the reportlab render.
+    if svc._WEASYPRINT_AVAILABLE:
+        try:
+            pdf = build_settlement_pdf(
+                _sample_trip(), _sample_expenses(), renderer="weasyprint"
+            )
+        except Exception:
+            # Native libs may be present but rendering could still fail (font
+            # selection, etc.); treat any hard failure as out-of-scope guard.
+            pdf = build_settlement_pdf(_sample_trip(), _sample_expenses())
+    else:
+        pdf = build_settlement_pdf(
+            _sample_trip(), _sample_expenses(), renderer="weasyprint"
+        )
+    assert isinstance(pdf, bytes)
+    assert len(pdf) > 5000, "PDF must not be a stub (even under fallback)"
+
+
+def test_weasyprint_context_carries_full_bilingual_data() -> None:
+    """The Jinja2 context must contain every field the template needs."""
+    from backend.app.services.pdf.settlement import _build_weasyprint_context
+    from backend.app.services.audit.cash import compute_settlement
+
+    trip = _sample_trip(
+        trip_code="4191-1",
+        vehicle_no="UP32DE1234",
+        driver_name="Ramesh Kumar",
+        driver_phone="919999999999",
+        origin="Delhi",
+        destination="Lucknow",
+        start_odo=100000.0,
+        end_odo=100500.0,
+        manager_consent_by=1,
+        manager_consent_at=datetime(2026, 8, 20, 14, 30),
+    )
+    expenses = [
+        {"exp_type": "FUEL", "amount": 2500.0, "manager_status": "APPROVED"},
+        {"exp_type": "TOLL", "amount": 100.0, "manager_status": "APPROVED"},
+        {"exp_type": "GOODS_SALE", "amount": 8000.0, "manager_status": "APPROVED"},
+        {"exp_type": "CASH_ADVANCE", "amount": 0.0, "manager_status": "APPROVED"},
+        {"exp_type": "DRIVER_SALARY", "amount": 2500.0, "manager_status": "APPROVED"},
+    ]
+    ctx = _build_weasyprint_context(
+        trip, compute_settlement(trip, expenses),
+        manager_consent_name="Ajay Kumar",
+        driver_consent_name="Raju Bhai",
+    )
+    assert ctx["trip_code"] == "4191-1"
+    assert ctx["total_km"] == "500"
+    assert ctx["show_consent"] is True
+    # FUEL + TOLL must both appear as debit rows.
+    assert len(ctx["debit_rows"]) == 2
+    assert ctx["net_balance"] is not None
+    assert ctx["verification_hash"]

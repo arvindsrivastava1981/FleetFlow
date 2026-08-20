@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import io
+import logging
 import os
-import datetime as _dt
 
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -11,7 +12,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from backend.app.services.audit.cash import compute_settlement
+from backend.app.services.audit.cash import ROAD_EXPENSE_BUCKETS, SettlementResult, compute_settlement
 
 # ---------------------------------------------------------------------------#
 # Devanagari-capable font registration.
@@ -66,8 +67,6 @@ def _rs(value: float) -> str:
     return f"₹{value:,.2f}"
 
 
-
-
 def _fmt_ts(ts) -> str:
     """Format a DB timestamp (datetime or str) into a human-readable local string.
 
@@ -107,11 +106,97 @@ def _bi(label_en: str | None, label_hi: str | None) -> str:
     return "—"
 
 
+# ---------------------------------------------------------------------------#
+# Optional WeasyPrint renderer.
+#
+# reportlab (the default) already shapes Devanagari correctly via HarfBuzz and
+# requires no external binaries. WeasyPrint provides a second, HTML/CSS-based
+# renderer for users who want to maintain the voucher as a web-safe template.
+# It needs Pango/HarfBuzz native libs (Linux: `apt-get install libpango-1.0-0
+# libharfbuzz0b`); on boxes where those DLLs are absent `import weasyprint`
+# raises OSError, so we degrade gracefully back to reportlab.
+# ---------------------------------------------------------------------------#
+logger = logging.getLogger(__name__)
+
+_TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "templates")
+_jinja_env = Environment(
+    loader=FileSystemLoader(_TEMPLATES_DIR),
+    autoescape=select_autoescape(["html", "xml"]),
+)
+
+try:
+    from weasyprint import HTML as _WP_HTML  # noqa: E402
+
+    _WEASYPRINT_AVAILABLE = True
+except Exception as _wp_err:  # pragma: no cover - environment dependent
+    _WEASYPRINT_AVAILABLE = False
+    logger.warning("[pdf] weasyprint unavailable, using reportlab: %s", _wp_err)
+
+
+def _render_weasyprint(context: dict) -> bytes:
+    """Render the Jinja2 settlement voucher HTML into PDF bytes via WeasyPrint."""
+    template = _jinja_env.get_template("settlement_voucher.html")
+    rendered_html = template.render(**context)
+
+    pdf_buffer = io.BytesIO()
+    _WP_HTML(string=rendered_html).write_pdf(target=pdf_buffer)
+    return pdf_buffer.getvalue()
+
+
+def _build_weasyprint_context(
+    trip: dict,
+    s: SettlementResult,
+    manager_consent_name: str | None,
+    driver_consent_name: str | None,
+) -> dict:
+    """Assemble the template context from a trip + computed settlement."""
+    odo_dist = (trip.get("end_odo") or trip.get("current_odo") or 0) - (trip.get("start_odo") or 0)
+    mileage_text = f"{s.avg_kml:.2f} km/L" if s.avg_kml is not None else "N/A"
+
+    # Debit rows: every non-zero expense bucket in the canonical order.
+    debit_rows = []
+    for bucket in ROAD_EXPENSE_BUCKETS:
+        amount = s.expense_buckets.get(bucket, 0.0)
+        if amount != 0.0:
+            en, hi = BUCKET_LABELS[bucket]
+            debit_rows.append((en, hi, amount))
+
+    return {
+        "trip_code": trip.get("trip_code"),
+        "vehicle_no": trip.get("vehicle_no"),
+        "driver_name": trip.get("driver_name"),
+        "driver_phone": trip.get("driver_phone"),
+        "origin": trip.get("origin") or "Origin",
+        "destination": trip.get("destination") or "Destination",
+        "total_km": f"{odo_dist:,.0f}",
+        "mileage_text": mileage_text,
+        "advance_amount": s.advance_amount,
+        "goods_income": s.goods_income,
+        "debit_rows": debit_rows,
+        "driver_batta": s.driver_batta,
+        "total_driver_credits": s.total_driver_credits,
+        "total_cr": s.total_cr,
+        "net_balance": s.net_balance,
+        "status_label_en": s.status_label_en,
+        "status_label_hi": s.status_label_hi,
+        "verification_hash": s.verification_hash,
+        "show_consent": bool(
+            manager_consent_name or driver_consent_name
+            or trip.get("manager_consent_at") or trip.get("driver_consent_at")
+        ),
+        "manager_consent_name": manager_consent_name,
+        "driver_consent_name": driver_consent_name,
+        "manager_consent_at": _fmt_ts(trip.get("manager_consent_at")),
+        "driver_consent_at": _fmt_ts(trip.get("driver_consent_at")),
+    }
+
+
 def build_settlement_pdf(
     trip: dict,
     expenses: list[dict],
     manager_consent_name: str | None = None,
     driver_consent_name: str | None = None,
+    renderer: str = "reportlab",
 ) -> bytes:
     """Render the bilingual Dr/Cr settlement voucher PDF.
 
@@ -120,8 +205,21 @@ def build_settlement_pdf(
     Batta on Dr), a net-settlement card, a verification fingerprint footer, and
     when consent data are present (Option 1) a bilingual consent block with the
     manager's and driver's acceptance names + DB-authoritative timestamps.
+
+    *renderer* selects the backend: ``reportlab`` (default, pure-Python, always
+    available) or ``weasyprint`` (Jinja2 HTML/CSS template via Pango/HarfBuzz).
+    If WeasyPrint is requested but its native libs are absent, it transparently
+    falls back to reportlab.
     """
     s = compute_settlement(trip, expenses)
+
+    if renderer == "weasyprint" and _WEASYPRINT_AVAILABLE:
+        try:
+            return _render_weasyprint(_build_weasyprint_context(trip, s, manager_consent_name, driver_consent_name))
+        except Exception as exc:  # pragma: no cover - environment dependent
+            logger.warning("[pdf] weasyprint render failed, using reportlab: %s", exc)
+    elif renderer == "weasyprint":
+        logger.warning("[pdf] renderer='weasyprint' requested but unavailable; using reportlab")
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
@@ -132,7 +230,6 @@ def build_settlement_pdf(
     sub_style = _hi_style(styles["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
     meta_style = _hi_style(styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
     cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
-    hi_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#64748b"))
 
     story.append(Paragraph("<b>VahanKhata</b>", title_style))
     story.append(Paragraph("Official Trip Settlement & Advance Reconciliation Ledger", sub_style))

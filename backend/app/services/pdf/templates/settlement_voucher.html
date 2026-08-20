@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>Settlement Voucher / यात्रा हिसाब पर्ची</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm;
+    }
+    body {
+      font-family: 'Noto Sans Devanagari', 'Noto Sans', sans-serif;
+      color: #1a1a1a;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .header {
+      border-bottom: 2px solid #0052cc;
+      padding-bottom: 8px;
+      margin-bottom: 15px;
+    }
+    .title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0052cc;
+    }
+    .sub {
+      color: #64748b;
+      font-size: 11px;
+    }
+    .summary-grid {
+      display: table;
+      width: 100%;
+      margin-bottom: 15px;
+      background: #f4f6f8;
+      padding: 10px;
+      border-radius: 4px;
+    }
+    .summary-row {
+      display: table-row;
+    }
+    .summary-cell {
+      display: table-cell;
+      padding: 4px 10px;
+    }
+    table.ledger {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    table.ledger th, table.ledger td {
+      border: 1px solid #dcdfe6;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    table.ledger th {
+      background-color: #ebf1f5;
+      font-weight: 600;
+    }
+    .text-right {
+      text-align: right;
+    }
+    .total-row {
+      font-weight: 700;
+      background: #f8fafc;
+    }
+    .settlement-badge {
+      margin-top: 15px;
+      padding: 10px;
+      background: #e6fffa;
+      border: 1px solid #38b2ac;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .consent {
+      margin-top: 15px;
+    }
+    .consent table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .consent th, .consent td {
+      border: 1px solid #dcdfe6;
+      padding: 8px 10px;
+      text-align: left;
+    }
+    .consent th {
+      background-color: #ebf1f5;
+    }
+    .signatures {
+      margin-top: 40px;
+      display: table;
+      width: 100%;
+    }
+    .sign-box {
+      display: table-cell;
+      width: 50%;
+      padding-top: 30px;
+      border-top: 1px dashed #999;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="title">VahanKhata — Trip Settlement Voucher / यात्रा हिसाब पर्ची</div>
+    <div class="sub">Official Trip Settlement &amp; Advance Reconciliation Ledger</div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-row">
+      <div class="summary-cell"><strong>Trip Code / ट्रिप:</strong> {{ trip_code }}</div>
+      <div class="summary-cell"><strong>Vehicle / वाहन:</strong> {{ vehicle_no }}</div>
+      <div class="summary-cell"><strong>Driver / चालक:</strong> {{ driver_name }} ({{ driver_phone }})</div>
+    </div>
+    <div class="summary-row">
+      <div class="summary-cell"><strong>Route / मार्ग:</strong> {{ origin }} ➔ {{ destination }}</div>
+      <div class="summary-cell"><strong>Distance / दूरी:</strong> {{ total_km }} KM</div>
+      <div class="summary-cell"><strong>Mileage / माइलेज:</strong> {{ mileage_text }}</div>
+    </div>
+  </div>
+
+  <h3>दोहरी प्रविष्टि हिसाब / Bilingual Double-Entry Ledger</h3>
+  <table class="ledger">
+    <thead>
+      <tr>
+        <th>विवरण / Particulars</th>
+        <th class="text-right">खर्चे / Dr (₹)</th>
+        <th class="text-right">प्राप्ति / Cr (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>प्रारंभिक अग्रिम राशि / Trip Cash Advance Issued</td>
+        <td class="text-right">—</td>
+        <td class="text-right">₹{{ "%.2f"|format(advance_amount) }}</td>
+      </tr>
+      <tr>
+        <td>माल विक्री आय / Goods Sales Income</td>
+        <td class="text-right">—</td>
+        <td class="text-right">₹{{ "%.2f"|format(goods_income) }}</td>
+      </tr>
+      {% for en, hi, amount in debit_rows %}
+      <tr>
+        <td>{{ hi }} / {{ en }}</td>
+        <td class="text-right">₹{{ "%.2f"|format(amount) }}</td>
+        <td class="text-right">—</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td><strong>चालक ट्रिप भत्ता / Driver Trip Salary</strong></td>
+        <td class="text-right">₹{{ "%.2f"|format(driver_batta) }}</td>
+        <td class="text-right">—</td>
+      </tr>
+      <tr class="total-row">
+        <td>कुल योग / Subtotal</td>
+        <td class="text-right">₹{{ "%.2f"|format(total_driver_credits) }}</td>
+        <td class="text-right">₹{{ "%.2f"|format(total_cr) }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="settlement-badge">
+    अंतिम शेष राशि / Net Settlement: ₹{{ "%.2f"|format(net_balance) }}
+    <span style="float: right;">[ {{ status_label_en }} / {{ status_label_hi }} ]</span>
+  </div>
+
+  {% if show_consent %}
+  <div class="consent">
+    <h3>स्वीकृति एवं स्वीकार / Consent &amp; Acceptance</h3>
+    <table>
+      <tr>
+        <th>Fleet Manager Acceptance / प्रबंधक स्वीकृति</th>
+        <th>Driver Acceptance / चालक स्वीकृति</th>
+      </tr>
+      <tr>
+        <td>{{ manager_consent_name or '—' }} | {{ manager_consent_at }}</td>
+        <td>{{ driver_consent_name or '—' }} | {{ driver_consent_at }}</td>
+      </tr>
+    </table>
+  </div>
+  {% endif %}
+
+  <p><strong>Verification Code:</strong> VHK-{{ verification_hash }}</p>
+
+  <div class="signatures">
+    <div class="sign-box">
+      <strong>Driver Signature / चालक हस्ताक्षर</strong><br>
+      ___________________
+    </div>
+    <div class="sign-box" style="text-align: right;">
+      <strong>Fleet Manager Sign-off / प्रबंधक हस्ताक्षर</strong><br>
+      ___________________
+    </div>
+  </div>
+
+</body>
+</html>

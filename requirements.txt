@@ -16,6 +16,10 @@ reportlab>=4.1.0
 # at runtime and uses it when the paragraph style has shaping=True. Required so
 # Devanagari (Hindi) conjuncts and pre-base matras render correctly in the PDFs.
 uharfbuzz>=0.40.0
+# Optional HTML/CSS settlement-voucher renderer (Jinja2 + Pango/HarfBuzz). Needs
+# native libs on first import (Linux: `apt-get install libpango-1.0-0
+# libharfbuzz0b`); when those are absent the PDF service degrades to reportlab.
+weasyprint>=69.0
 
 # HTTP Client (for external APIs / WhatsApp Webhook triggers)
 requests>=2.31.0
