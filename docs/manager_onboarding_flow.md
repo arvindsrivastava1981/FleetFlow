@@ -252,3 +252,7 @@ Extra slots are purchased but there's no history of plan baseline vs bought slot
 > impact, covered by the existing `test_new_manager_vehicle.py` regression pattern, and it
 > unblocks G2 / G5 / G7. Then wrap the flow in `POST /fleets/onboard` (G2) and layer on the
 > error-clarity (G3) + billing-health (G6) views.
+
+
+
+Fix in FastAPI / PydanticItemAction NeededRequest BodiesAdd explicit Pydantic schemas in endpoint signatures (e.g., async def create_trip(payload: TripCreate)).SecurityAdd HTTPBearer or APIKeyCookie security dependencies.Response ModelsReplace generic dict[str, Any] response models with concrete schemas (list[VehicleOut], list[Plan], etc.).PaginationAdd query parameter models (limit: int = 20, offset: int = 0, status: Optional[str]).ErrorsDeclare responses={401: {"model": ErrorResponse}, 404: {"model": ErrorResponse}} for Swagger documentation.
