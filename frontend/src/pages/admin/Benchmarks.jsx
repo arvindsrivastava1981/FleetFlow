@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
 
-const emptyForm = {
-  state_code: "",
-  state_name: "",
-  benchmark_price_per_liter: "",
-  tolerance_pct: "8",
-  effective_date: "",
-};
+function timeAgo(value) {
+  if (!value) return "—";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return value;
+  const seconds = Math.max(0, Math.floor((Date.now() - then) / 1000));
+  if (seconds < 60) return `${seconds} sec ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
 
 export default function BenchmarksPage() {
   const [benchmarks, setBenchmarks] = useState([]);
   const [error, setError] = useState("");
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null);
-  const [pendingDelete, setPendingDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   function load() {
@@ -25,65 +27,6 @@ export default function BenchmarksPage() {
       .catch((e) => setError(e.message));
   }
   useEffect(load, []);
-
-  function set(k, v) {
-    setForm((f) => ({ ...f, [k]: v }));
-  }
-
-  async function onSubmit(e) {
-    e.preventDefault();
-    setError("");
-    try {
-      const payload = {
-        ...form,
-        benchmark_price_per_liter: Number(form.benchmark_price_per_liter),
-        tolerance_pct: Number(form.tolerance_pct),
-        effective_date: form.effective_date || null,
-      };
-      if (editingId) {
-        await api.put(`/api/v1/benchmarks/${editingId}`, payload);
-      } else {
-        await api.post("/api/v1/benchmarks", payload);
-      }
-      setForm(emptyForm);
-      setEditingId(null);
-      load();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  function remove(b) {
-    // Open an in-app confirmation modal instead of relying on native
-    // window.confirm (which mobile/embedded web views may silently suppress).
-    setPendingDelete(b);
-  }
-
-  async function confirmDelete() {
-    if (!pendingDelete) return;
-    setDeleting(true);
-    setError("");
-    try {
-      await api.del(`/api/v1/benchmarks/${pendingDelete.id}`);
-      setPendingDelete(null);
-      load();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  function startEdit(b) {
-    setEditingId(b.id);
-    setForm({
-      state_code: b.state_code,
-      state_name: b.state_name,
-      benchmark_price_per_liter: String(b.benchmark_price_per_liter),
-      tolerance_pct: String(b.tolerance_pct),
-      effective_date: b.effective_date || "",
-    });
-  }
 
   async function syncLive() {
     setSyncing(true);
@@ -106,29 +49,6 @@ export default function BenchmarksPage() {
           {error}
         </div>
       )}
-
-      <div className="card-pad">
-        <h3 className="text-sm font-extrabold text-slate-800 mb-3">
-          {editingId ? "Edit Benchmark" : "Add Benchmark"}
-        </h3>
-        <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <input value={form.state_code} onChange={(e) => set("state_code", e.target.value)} placeholder="State Code (e.g. UP)" required className="input" />
-          <input value={form.state_name} onChange={(e) => set("state_name", e.target.value)} placeholder="State Name" required className="input" />
-          <input value={form.benchmark_price_per_liter} onChange={(e) => set("benchmark_price_per_liter", e.target.value)} placeholder="Price ₹/L" required type="number" step="any" className="input" />
-          <input value={form.tolerance_pct} onChange={(e) => set("tolerance_pct", e.target.value)} placeholder="Tolerance %" type="number" step="any" className="input" />
-          <input value={form.effective_date} onChange={(e) => set("effective_date", e.target.value)} placeholder="Effective Date (YYYY-MM-DD)" type="date" className="input" />
-          <div className="col-span-2 md:col-span-4 flex gap-2">
-            <button type="submit" className="btn-primary py-2 px-4 rounded-xl transition shadow">
-              {editingId ? "Save Changes" : "Add Benchmark"}
-            </button>
-            {editingId && (
-              <button type="button" onClick={() => { setForm(emptyForm); setEditingId(null); }} className="btn-secondary py-2 px-4 rounded-xl">
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-      </div>
 
       <div className="card-pad flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -158,7 +78,8 @@ export default function BenchmarksPage() {
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">State</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Price</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Tolerance</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Effective</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Updated</th>
             </tr>
           </thead>
           <tbody>
@@ -168,51 +89,22 @@ export default function BenchmarksPage() {
                 <td className="p-3 text-xs text-slate-600">{b.state_name}</td>
                 <td className="p-3 text-xs text-slate-600">₹{b.benchmark_price_per_liter}</td>
                 <td className="p-3 text-xs text-slate-600">{b.tolerance_pct}%</td>
-                <td className="p-3 text-xs flex gap-3">
-                  <button onClick={() => startEdit(b)} className="text-brand-600 hover:text-brand-800 font-semibold">Edit</button>
-                  <button onClick={() => remove(b)} className="text-rose-600 hover:text-rose-800 font-semibold">Delete</button>
+                <td className="p-3 text-xs text-slate-600">
+                  {b.effective_date ? new Date(b.effective_date).toLocaleDateString() : "—"}
+                </td>
+                <td className="p-3 text-xs text-slate-600" title={b.updated_at ? new Date(b.updated_at).toLocaleString() : ""}>
+                  {timeAgo(b.updated_at)}
                 </td>
               </tr>
             ))}
             {!benchmarks.length && (
               <tr>
-                <td colSpan="5" className="p-6 text-center text-xs text-slate-400">No benchmarks yet.</td>
+                <td colSpan="6" className="p-6 text-center text-xs text-slate-400">No benchmarks yet.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
-
-      {pendingDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h4 className="text-base font-extrabold text-slate-900">Delete Fuel Benchmark?</h4>
-            <p className="text-sm text-slate-600 mt-2">
-              This permanently deletes the benchmark for{" "}
-              <strong>{pendingDelete.state_code}</strong> ({pendingDelete.state_name}).
-              Are you sure?
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingDelete(null)}
-                disabled={deleting}
-                className="btn-secondary py-2 px-4 rounded-xl text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deleting}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2 px-4 rounded-xl text-sm disabled:opacity-50"
-              >
-                {deleting ? "Deleting…" : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -173,8 +173,8 @@ export default function DriversPage() {
             <tr>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Username</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Name</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Batta Type</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Batta Rate</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Salary Type</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Salary Rate</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Phone</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>

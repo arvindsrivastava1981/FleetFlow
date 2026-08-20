@@ -230,7 +230,7 @@ export default function OnboardFirmPage() {
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-600">
-              Batta Type
+              Driver Salary / Bhatta Type
               <select value={form.batta_type} onChange={(e) => set("batta_type", e.target.value)} className={input}>
                 {BATTA_TYPES.map((bt) => (
                   <option key={bt} value={bt}>{bt.replace(/_/g, " ")}</option>
