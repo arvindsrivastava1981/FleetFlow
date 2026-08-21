@@ -24,3 +24,8 @@ VALUES
     ('admin', 'pbkdf2_sha256$100000$e736c77949726881ac49aca9b8d141b0$5824b96852d0a9be488b4d67cb40bf66761cb005a709567861bad3139f805b1d',
      'Super Admin', 'super_admin', '+91 98765 00000', 'admin@vahankhata.in', TRUE, NULL)   
 ON CONFLICT (username) DO NOTHING;
+
+
+
+select distinct method,path,status_code, error_type, message, detail,traceback_text
+ from error_logs where  message not like '%coroutine raised StopIteration%' 

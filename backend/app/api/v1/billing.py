@@ -236,25 +236,28 @@ def api_fleets_subscriptions(request: Request):
     with get_db() as conn:
         fleets = get_all_fleets(conn)
         plans = {p["id"]: p for p in get_all_plans(conn)} if fleets else {}
-    result = []
-    for f in fleets:
-        fid = f.get("id")
-        plan_id = f.get("plan_id")
-        plan = plans.get(plan_id, {})
-        result.append({
-            "fleet_id": fid,
-            "owner_name": f.get("owner_name", ""),
-            "phone": f.get("phone", ""),
-            "email": f.get("email", ""),
-            "subscription_status": f.get("subscription_status", "?"),
-            "plan_code": f.get("plan_code") or plan.get("code", ""),
-            "plan_name": f.get("plan_name") or plan.get("name", ""),
-            "vehicle_count": f.get("vehicle_count", 0),
-            "vehicle_limit": f.get("vehicle_limit", 1),
-            "trial_ends_at": f.get("trial_ends_at"),
-            "next_billing_date": f.get("next_billing_date"),
-            "is_active": f.get("is_active", True),
-            "entitlement_addons": f.get("entitlement_addons"),
-            "recent_events": get_fleet_billing_events(conn, fid, limit=5),
-        })
+        result = []
+        for f in fleets:
+            fid = f.get("id")
+            plan_id = f.get("plan_id")
+            plan = plans.get(plan_id, {})
+            result.append({
+                "fleet_id": fid,
+                "owner_name": f.get("owner_name", ""),
+                "phone": f.get("phone", ""),
+                "email": f.get("email", ""),
+                "subscription_status": f.get("subscription_status", "?"),
+                "plan_code": f.get("plan_code") or plan.get("code", ""),
+                "plan_name": f.get("plan_name") or plan.get("name", ""),
+                "vehicle_count": f.get("vehicle_count", 0),
+                "vehicle_limit": f.get("vehicle_limit", 1),
+                "trial_ends_at": f.get("trial_ends_at"),
+                "next_billing_date": f.get("next_billing_date"),
+                "is_active": f.get("is_active", True),
+                "entitlement_addons": f.get("entitlement_addons"),
+                # Must stay INSIDE the `with` block: get_db() closes the
+                # connection on exit, and executing on a closed psycopg2
+                # connection raises InterfaceError (500).
+                "recent_events": get_fleet_billing_events(conn, fid, limit=5),
+            })
     return _ok(result)
