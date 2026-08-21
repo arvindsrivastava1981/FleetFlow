@@ -247,7 +247,7 @@ export default function TripWhatsAppPage() {
                         {(e.exp_type === "FUEL" || e.exp_type === "DEF") && <p>⛽ {e.liters} L (लीटर) × ₹{e.rate}/L</p>}
                         {Number(e.odometer) > 0 && <p>🛣️ Odometer: {e.odometer} KM (कि.मी.)</p>}
                         {e.station_name && <p>⛽ Station: {e.station_name}</p>}
-                        {e.state_code && <p>📍 State: {e.state_code}</p>}
+                        {(e.exp_type === "FUEL" || e.exp_type === "DEF") && e.state_code && <p>📍 State: {e.state_code}</p>}
                       </div>
                     </div>
                   </div>
