@@ -34,6 +34,7 @@ export default {
       fontFamily: {
         sans: [
           "Inter",
+          "Noto Sans Devanagari",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
