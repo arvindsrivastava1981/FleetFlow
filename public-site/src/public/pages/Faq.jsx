@@ -8,8 +8,8 @@ const FAQS = [
     a: "No. Drivers send fuel and receipt photos straight to WhatsApp. VahanKhata reads the message, runs fuel benchmarking, and routes it for approval — no driver training or logins needed.",
   },
   {
-    q: "How does batta settlement actually work?",
-    a: "You set a batta profile (fixed, per-km, daily or none) per driver. When a trip is created, the cash advance posts automatically; at settlement the driver gives consent and the batta & salary post to the ledger, producing a clear, auditable record.",
+    q: "How does Driver Salery settlement actually work?",
+    a: "You set a Driver Salery profile (fixed, per-km, daily or none) per driver. When a trip is created, the cash advance posts automatically; at settlement the driver gives consent and the Driver Salery & salary post to the ledger, producing a clear, auditable record.",
   },
   {
     q: "Will it catch fuel overbilling?",
@@ -29,7 +29,7 @@ const FAQS = [
   },
   {
     q: "Can drivers see their own earnings?",
-    a: "Yes. Drivers have a read-only salary/batta view and their own settled-trip receipts, which builds trust and cuts settlement disputes.",
+    a: "Yes. Drivers have a read-only salary/Driver Salery view and their own settled-trip receipts, which builds trust and cuts settlement disputes.",
   },
 ];
 
@@ -55,7 +55,7 @@ export default function Faq() {
     <>
       <Seo
         title="FAQ"
-        description="Answers to common questions about VahanKhata: WhatsApp expense intake, batta settlement, fuel benchmarking, security, multi-fleet support and billing."
+        description="Answers to common questions about VahanKhata: WhatsApp expense intake, Driver Salery settlement, fuel benchmarking, security, multi-fleet support and billing."
         path="/faq"
       />
       <PageHero

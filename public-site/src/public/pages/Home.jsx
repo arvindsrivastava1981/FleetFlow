@@ -5,7 +5,7 @@ import { IconChip, CTABand } from "../UI";
 const HERO_PAINS = [
   "Fat fuel bills with no way to catch overbilling",
   "Drivers texting receipts to a number nobody watches",
-  "Batta and advance arguments at settlement time",
+  "Driver Salery and advance arguments at settlement time",
   "Challans, repairs and cash advances lost in notebooks",
 ];
 
@@ -20,8 +20,8 @@ const HERO_STATS = [
 const FEATURES = [
   ["🧾", "brand", "WhatsApp expense intake", "Drivers send fuel & receipt photos to WhatsApp. VahanKhata reads them, auto-flags overpriced or off-route fuel, and routes them for approval."],
   ["📊", "emerald", "Live fuel benchmarking", "Every petrol/DEF purchase is checked against per-state fuel bands, catching overbilling before it's paid — not at month-end."],
-  ["🚚", "amber", "Trips start to settlement", "Odometer-in to batta-out. Driver consent, cash advance and salary post to the ledger automatically when a trip settles."],
-  ["⚖️", "violet", "Fair batta, no disputes", "Fixed, per-km or daily batta rules make every rupee clear. Drivers see their own settlement. No more month-end arguments."],
+  ["🚚", "amber", "Trips start to settlement", "Odometer-in to Driver Salery-out. Driver consent, cash advance and salary post to the ledger automatically when a trip settles."],
+  ["⚖️", "violet", "Fair Driver Salery, no disputes", "Fixed, per-km or daily Driver Salery rules make every rupee clear. Drivers see their own settlement. No more month-end arguments."],
   ["🛡️", "sky", "Emergency alerts & QR", "Every tag carries a QR and a normalized emergency alert path — with anti-spam so a stray scan never floods the inbox."],
   ["🏢", "rose", "Made for Indian fleets", "Multi-fleet, multi-manager, driver salary and Razorpay billing built in — the way Indian fleet operations actually run."],
 ];
@@ -41,7 +41,7 @@ const HOW = [
   ["1", "Create the trip", "Log the vehicle, driver and odometer-in. An advance posts to the ledger automatically."],
   ["2", "Driver sends expenses", "Fuel and DEF photos go to WhatsApp — read, benchmarked and flagged instantly."],
   ["3", "Manager approves", "Approve or deduct in one tap from the escalation thread. No spreadsheets."],
-  ["4", "Trip settles", "Driver gives consent, batta posts, and the history locks into an auditable record."],
+  ["4", "Trip settles", "Driver gives consent, Driver Salery posts, and the history locks into an auditable record."],
 ];
 
 export default function Home() {
@@ -49,7 +49,7 @@ export default function Home() {
     <>
       <Seo
         title="Smart Fleet Expense & Trip Management for Indian Transport Firms"
-        description="VahanKhata replaces spreadsheets and WhatsApp chaos with live fuel benchmarking, driver batta settlement and trip management — built for how Indian fleets actually run."
+        description="VahanKhata replaces spreadsheets and WhatsApp chaos with live fuel benchmarking, driver Driver Salery settlement and trip management — built for how Indian fleets actually run."
         path="/"
       />
 
@@ -62,11 +62,11 @@ export default function Home() {
               Built for Indian transport firms
             </span>
             <h1 className="mt-5 text-balance text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[3.4rem]">
-              Stop bleeding money on <span className="market-grad-text">fuel, batta and unsettled trips.</span>
+              Stop bleeding money on <span className="market-grad-text">fuel, Driver Salery and unsettled trips.</span>
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-brand-100 sm:text-lg">
               VahanKhata turns messy WhatsApp receipts and spreadsheets into a live expense ledger — with per-state fuel
-              benchmarking, driver batta settlement and full trip audit, all in the way your drivers actually work today.
+              benchmarking, driver Driver Salery settlement and full trip audit, all in the way your drivers actually work today.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href="/request-demo" className="market-btn market-btn-brand !bg-white !text-brand-900 hover:!bg-brand-50">
@@ -147,7 +147,7 @@ export default function Home() {
       <section className="market-section market-wrap border-t border-ink-100">
         <div className="flex flex-col items-center">
           <span className="market-eyebrow">How it works</span>
-          <h2 className="market-title">From trip start to batta — on one thread.</h2>
+          <h2 className="market-title">From trip start to Driver Salery — on one thread.</h2>
         </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {HOW.map(([n, t, d]) => (

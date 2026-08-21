@@ -4,7 +4,7 @@ import { PageHero, CTABand, IconChip } from "../UI";
 
 const VALUES = [
   ["🎯", "Clarity over chaos", "Fleet owners shouldn't guess where money went. One live ledger for every trip, litre and rupee."],
-  ["⚖️", "Fairness for drivers", "Transparent batta and settlement means drivers trust the system — and stay."],
+  ["⚖️", "Fairness for drivers", "Transparent Driver Salery and settlement means drivers trust the system — and stay."],
   ["📉", "Stop silent leakage", "Fuel overbilling and lost chalans are costs hiding in plain sight. We surface them first."],
   ["🚚", "Built for the road", "WhatsApp-first input, made for drivers on the highway, not office desktops."],
 ];
@@ -14,7 +14,7 @@ export default function About() {
     <>
       <Seo
         title="About Us"
-        description="VahanKhata exists to give Indian transport firms a single, honest view of every trip — from fuel to batta settlement. Meet the team and mission."
+        description="VahanKhata exists to give Indian transport firms a single, honest view of every trip — from fuel to Driver Salery settlement. Meet the team and mission."
         path="/about"
       />
       <PageHero
@@ -31,7 +31,7 @@ export default function About() {
             <h2 className="market-title">Every rupee accounted for. Every driver treated fairly.</h2>
             <p className="mt-5 text-base leading-relaxed text-ink-600">
               Transport firms in India run on trust and relationships. We want to give that trust a record. VahanKhata
-              pairs driver-friendly WhatsApp intake with hard-nosed fuel benchmarking and batta settlement, so owners
+              pairs driver-friendly WhatsApp intake with hard-nosed fuel benchmarking and Driver Salery settlement, so owners
               see margins rise while drivers see a fairer, clearer deal.
             </p>
             <p className="mt-4 text-base leading-relaxed text-ink-600">

@@ -25,7 +25,7 @@ export default function Privacy() {
         </p>
         <h2>2. How we use your information</h2>
         <ul>
-          <li>To operate and improve the Service (trip, expense, batta and settlement tracking).</li>
+          <li>To operate and improve the Service (trip, expense, Driver Salery and settlement tracking).</li>
           <li>To authenticate you, including one-time passcodes (OTPs).</li>
           <li>To communicate operational updates, billing and support messages.</li>
           <li>To maintain audit logs and comply with legal obligations.</li>

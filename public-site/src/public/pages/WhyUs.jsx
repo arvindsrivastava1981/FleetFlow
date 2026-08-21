@@ -5,7 +5,7 @@ import { PageHero, CTABand, IconChip } from "../UI";
 const REASONS = [
   ["📊", "Per-state fuel benchmarking", "Most tools just record what drivers spend. VahanKhata compares every petrol purchase to per-state bands, so overpriced fuel is flagged the moment it's submitted — not caught at audit."],
   ["💬", "WhatsApp the drivers already use", "No app to install, no training. Drivers send receipt photos to a number; VahanKhata reads, benchmarks and routes them. Adoption happens in days, not months."],
-  ["⚖️", "Batta without battles", "Fixed, per-km or daily batta rules automate settlement. Drivers see their own numbers and consent digitally — ending the month-end arguments that cost you time and freight."],
+  ["⚖️", "Driver Salery without battles", "Fixed, per-km or daily Driver Salery rules automate settlement. Drivers see their own numbers and consent digitally — ending the month-end arguments that cost you time and freight."],
   ["🧾", "Cash advances stay traceable", "Advances post to the ledger automatically at trip creation and reconcile on settlement — no more 'who has what' uncertainty."],
   ["🛡️", "Emergency alerts that actually route", "Every tag carries a QR and a normalized emergency path, with anti-spam. A real incident reaches the right person in one tap."],
   ["🏢", "Scales with your firm", "Own one fleet or a multi-branch operation — multi-fleet and multi-manager support, with Razorpay billing built in."],
@@ -16,7 +16,7 @@ export default function WhyUs() {
     <>
       <Seo
         title="Why Us — Compared to Spreadsheets & Other Fleet Tools"
-        description="See why transport firms choose VahanKhata over spreadsheets and ERP-style fleet software: live fuel benchmarking, WhatsApp intake, fair batta and a full audit trail."
+        description="See why transport firms choose VahanKhata over spreadsheets and ERP-style fleet software: live fuel benchmarking, WhatsApp intake, fair Driver Salery and a full audit trail."
         path="/why-us"
       />
       <PageHero
@@ -51,7 +51,7 @@ export default function WhyUs() {
           {[
             ["Live fuel benchmarking, not month-end shocks", "✅"],
             ["Drivers input via WhatsApp — zero training", "✅"],
-            ["Automated batta & advance settlement", "✅"],
+            ["Automated Driver Salery & advance settlement", "✅"],
             ["Full audit trail from trip start to settle", "✅"],
             ["Built for Indian fleet operations & billing", "✅"],
           ].map(([text, mark]) => (

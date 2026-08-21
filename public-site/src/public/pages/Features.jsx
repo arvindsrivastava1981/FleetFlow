@@ -24,12 +24,12 @@ const GROUPS = [
     ],
   },
   {
-    title: "Driver batta & salary",
+    title: "Driver Driver Salery & salary",
     icon: "⚖️",
     items: [
-      "Fixed, per-km, daily or none — configurable batta profiles",
+      "Fixed, per-km, daily or none — configurable Driver Salery profiles",
       "Cash advance auto-posted at trip creation",
-      "Batta & salary post to the ledger on settlement",
+      "Driver Salery & salary post to the ledger on settlement",
       "Drivers see their own clear settlement view",
     ],
   },
@@ -67,7 +67,7 @@ export default function Features() {
     <>
       <Seo
         title="Features — Fleet & Trip Management Platform"
-        description="Explore VahanKhata's features: WhatsApp expense intake, per-state fuel benchmarking, driver batta settlement, trip management, emergency alerts, and Razorpay billing."
+        description="Explore VahanKhata's features: WhatsApp expense intake, per-state fuel benchmarking, driver Driver Salery settlement, trip management, emergency alerts, and Razorpay billing."
         path="/features"
       />
       <PageHero
