@@ -20,6 +20,24 @@ const EXPENSE_TYPES = // Quick Copy Array:
 // them from the chat thread and the "Receipts Logged" count.
 const PROVISION_TYPES = new Set(["CASH_ADVANCE", "DRIVER_SALARY"]);
 
+// Hindi labels for each expense type so every receipt bubble is bilingual.
+const HINDI_LABELS = {
+  FUEL: "डीजल",
+  DEF: "यूरिया",
+  TOLL: "टोल",
+  REPAIR: "मरम्मत",
+  CHALLAN: "चालान",
+  MISC: "कांटा / विविध",
+  GOODS_BUY: "माल खरीद",
+  GOODS_SALE: "माल बिक्री",
+};
+
+const HINDI_STATUS = {
+  APPROVED: "स्वीकृत",
+  PENDING: "लंबित",
+  REJECTED: "अस्वीकृत",
+};
+
 function fmtRs(n) {
   return (Number(n) || 0).toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -191,14 +209,24 @@ async function sendReceipt(e) {
                 <div key={e.id} className="space-y-1">
                   <div className="flex flex-col items-end">
                     <div className="bg-[#d9fdd3] p-2.5 rounded-lg rounded-tr-none shadow-sm max-w-[85%] text-slate-800">
-                      <p className="font-bold text-[11px]">
-                        📸 {e.exp_type}: ₹{fmtRs(e.amount)}
-                      </p>
-                      <p className="text-[10px] text-slate-600">
-                        {e.exp_type === "FUEL" || e.exp_type === "DEF"
-                          ? `${e.liters}L @ ₹${e.rate}/L | Odo: ${e.odometer} KM`
-                          : `Odo: ${e.odometer} KM`}
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-bold text-[11px]">
+                          📸 {e.exp_type} · {HINDI_LABELS[e.exp_type] || e.exp_type}
+                        </p>
+                        <p className="font-extrabold text-[12px] text-emerald-700">
+                          ₹{fmtRs(e.amount)}
+                        </p>
+                      </div>
+                      <div className="text-[10px] text-slate-600 space-y-0.5">
+                        {(e.exp_type === "FUEL" || e.exp_type === "DEF") && (
+                          <p>⛽ {e.liters} L (लीटर) × ₹{e.rate}/L</p>
+                        )}
+                        {Number(e.odometer) > 0 && (
+                          <p>🛣️ Odometer: {e.odometer} KM (कि.मी.)</p>
+                        )}
+                        {e.station_name && <p>⛽ Station: {e.station_name}</p>}
+                        {e.state_code && <p>📍 State: {e.state_code}</p>}
+                      </div>
                     </div>
                   </div>
                   <div className="flex flex-col items-start">
@@ -211,17 +239,20 @@ async function sendReceipt(e) {
                     >
                       {e.is_flagged ? (
                         <>
-                          <p className="font-bold text-[11px]">⚠️ Anomaly Alert</p>
+                          <p className="font-bold text-[11px]">⚠️ Anomaly Alert (विसंगति चेतावनी)</p>
                           <p className="text-[10px]">{e.flag_reason}</p>
                         </>
                       ) : (
                         <>
-                          <p className="font-bold text-[11px]">✅ Verified</p>
+                          <p className="font-bold text-[11px]">✅ Verified (सत्यापित)</p>
                           <p className="text-[10px]">
-                            ₹{fmtRs(e.amount)} logged and verified.
+                            {HINDI_LABELS[e.exp_type] || e.exp_type} · ₹{fmtRs(e.amount)} logged.
                           </p>
                         </>
                       )}
+                      <p className="text-[10px] text-slate-500">
+                        Status: {e.manager_status} ({HINDI_STATUS[e.manager_status] || "—"})
+                      </p>
                       <p className="text-[9px] text-slate-400 mt-1">
                         {new Date(e.created_at).toLocaleString("en-IN", {
                           day: "2-digit",
