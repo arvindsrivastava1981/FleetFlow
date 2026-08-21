@@ -43,7 +43,7 @@
    - Resolve **default fleet** → `manager_fleet_id`.
    - If that fleet is **not entitled** (e.g. stale TRIAL with no clock), call `start_trial_subscription(...)` → **15-day trial starts** so the manager can immediately register a vehicle.
 3. `create_user(..., fleet_id=manager_fleet_id, ...)` → `users.fleet_id` bound, role stored.
-4. If `email` provided → **manager onboarding email** with temporary password + login URL (`send_manager_onboarding_email_sync`). The login URL prefers the `APP_PUBLIC_URL` env var (production = `https://vahankhata-app.onrender.com`) and falls back to the request base URL; the email's "Driver Capacity" figure is the plan's `features.driver_limit` (TRIAL=5, MONTHLY/YEARLY=10).
+4. If `email` provided → **manager onboarding email** with temporary password + login URL (`send_manager_onboarding_email_sync`). The login URL prefers the `APP_PUBLIC_URL` env var (production = `https://app.vahankhata.in`) and falls back to the request base URL; the email's "Driver Capacity" figure is the plan's `features.driver_limit` (TRIAL=5, MONTHLY/YEARLY=10).
 5. Returns `200 {"id": <new_id>}`.
 
 ---

@@ -24,7 +24,7 @@ const TOKEN_KEY = "vk_token";
 // /api to the FastAPI backend) and the single-container Docker deploy both work.
 //
 // For the two-service Render setup (static SPA on vahankhata-app + API on
-// vahankhata-api), render.yaml sets VITE_API_BASE_URL=https://vahankhata-api.onrender.com
+// vahankhata-api), render.yaml sets VITE_API_BASE_URL=https://api.vahankhata.in
 // at build time so the static bundle calls the API cross-origin; the API's CORS
 // allowlist (backend/app/main.py) includes that SPA origin. Never hardcode a
 // local fallback here (e.g. http://localhost:8000) — it would break production.

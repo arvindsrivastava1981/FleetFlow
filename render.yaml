@@ -38,7 +38,7 @@ services:
       # service cross-origin (default is "" / same-origin, which would break
       # a separately-hosted static SPA).
       - key: VITE_API_BASE_URL
-        value: https://vahankhata-api.onrender.com
+        value: https://api.vahankhata.in
 
   # ---- Web Service: the FastAPI JSON API ----------------------------------
   - type: web
@@ -61,6 +61,6 @@ services:
       - key: USER_PASSWORD
         sync: false # set manually (strong  password)
       - key: APP_PUBLIC_URL
-        value: https://vahankhata-app.onrender.com
+        value: https://app.vahankhata.in
       - key: ENV
         value: production
