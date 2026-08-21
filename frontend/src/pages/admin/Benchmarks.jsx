@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
+import { useToast } from "../../context/ToastContext.jsx";
+import Loader from "../../components/Loader.jsx";
 
 function timeAgo(value) {
   if (!value) return "—";
@@ -16,15 +18,21 @@ function timeAgo(value) {
 }
 
 export default function BenchmarksPage() {
+  const toast = useToast();
   const [benchmarks, setBenchmarks] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
   function load() {
     api
       .get("/api/v1/benchmarks")
       .then(setBenchmarks)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }
   useEffect(load, []);
 
@@ -33,9 +41,11 @@ export default function BenchmarksPage() {
     setError("");
     try {
       await api.post("/api/v1/benchmarks/sync-live", {});
+      toast.success("Live rates synced.");
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setSyncing(false);
     }
@@ -70,6 +80,9 @@ export default function BenchmarksPage() {
         </button>
       </div>
 
+      {loading ? (
+        <Loader label="Loading benchmarks…" />
+      ) : (
       <div className="table-wrap">
         <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -105,6 +118,7 @@ export default function BenchmarksPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

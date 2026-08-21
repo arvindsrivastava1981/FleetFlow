@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 // Aligned with users.batta_type CHECK (FIXED_TRIP/PER_KM/DAILY/NONE).
 const BATTA_TYPES = ["FIXED_TRIP", "PER_KM", "DAILY", "NONE"];
@@ -20,8 +22,10 @@ const emptyForm = {
 };
 
 export default function DriversPage() {
+  const toast = useToast();
   const [drivers, setDrivers] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
 
@@ -29,7 +33,8 @@ export default function DriversPage() {
     api
       .get("/api/v1/drivers")
       .then(setDrivers)
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }
   useEffect(load, []);
 
@@ -44,14 +49,17 @@ export default function DriversPage() {
       if (editingId) {
         const { username, ...payload } = form; // username is immutable on edit
         await api.put(`/api/v1/drivers/${editingId}`, payload);
+        toast.success("Driver updated successfully.");
       } else {
         await api.post("/api/v1/drivers", form);
+        toast.success("Driver added successfully.");
       }
       setForm(emptyForm);
       setEditingId(null);
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -71,9 +79,13 @@ export default function DriversPage() {
   async function toggle(d) {
     try {
       await api.post(`/api/v1/drivers/${d.id}/toggle`, { activate: !d.is_active });
+      toast.success(
+        d.is_active ? "Driver deactivated." : "Driver activated."
+      );
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -167,6 +179,9 @@ export default function DriversPage() {
         </form>
       </div>
 
+      {loading ? (
+        <Loader label="Loading drivers…" />
+      ) : (
       <div className="table-wrap">
         <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -232,6 +247,7 @@ export default function DriversPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

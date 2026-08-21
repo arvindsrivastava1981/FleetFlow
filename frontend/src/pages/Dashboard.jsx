@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 const ic = (n) => `₹${(Number(n) || 0).toLocaleString("en-IN")}`;
 
@@ -25,6 +27,7 @@ function KpiCard({ icon, label, value, sub, accent, chip }) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -32,7 +35,10 @@ export default function DashboardPage() {
     api
       .get("/api/v1/dashboard/overview")
       .then(setData)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      });
   }, []);
 
   const role = user?.role;
@@ -47,6 +53,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {!data && !error && <Loader label="Loading your dashboard…" full />}
       {/* Welcome hero banner */}
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 p-6 text-white shadow-card sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />

@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 function fmtRs(n) {
   return (Number(n) || 0).toLocaleString("en-IN", {
@@ -9,6 +11,7 @@ function fmtRs(n) {
 }
 
 export default function ManagerWhatsAppPage() {
+  const toast = useToast();
   const [escalations, setEscalations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -21,6 +24,7 @@ export default function ManagerWhatsAppPage() {
       setEscalations(list || []);
     } catch (e) {
       setError(e.message);
+      toast.error(e.message);
     } finally {
       setLoading(false);
     }
@@ -40,9 +44,13 @@ export default function ManagerWhatsAppPage() {
     setError("");
     try {
       await api.post(`/api/v1/expenses/${exp.id}/action`, { action });
+      toast.success(
+        action === "approve" ? "Expense approved." : "Expense rejected."
+      );
       await refresh();
     } catch (e) {
       setError(e.message || "Action failed");
+      toast.error(e.message || "Action failed");
     } finally {
       setBusyId(null);
     }
@@ -79,9 +87,7 @@ export default function ManagerWhatsAppPage() {
       )}
 
       {loading ? (
-        <div className="empty card">
-          Loading escalations…
-        </div>
+        <Loader label="Loading escalations…" />
       ) : (
         <div className="max-w-3xl mx-auto bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
           <div className="bg-amber-800 text-white p-3.5 flex items-center justify-between">

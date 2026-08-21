@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 const PROVISION_TYPES = new Set(["CASH_ADVANCE", "DRIVER_SALARY"]);
 
@@ -10,16 +12,22 @@ function StatusBadge({ status }) {
 }
 
 export default function ExpensesPage() {
+  const toast = useToast();
   const [trips, setTrips] = useState([]);
   const [selected, setSelected] = useState("");
   const [expenses, setExpenses] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
       .get("/api/v1/trips")
       .then((t) => setTrips(t))
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -34,7 +42,10 @@ export default function ExpensesPage() {
           (d.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type))
         )
       )
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      });
   }, [selected]);
 
   return (
@@ -48,6 +59,9 @@ export default function ExpensesPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
+      {loading ? (
+        <Loader label="Loading trips…" />
+      ) : (
       <div className="card-pad">
         <label className="label">Select Trip</label>
         <select
@@ -63,6 +77,7 @@ export default function ExpensesPage() {
           ))}
         </select>
       </div>
+      )}
 
       <div className="table-wrap">
         <table className="table">

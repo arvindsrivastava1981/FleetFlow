@@ -1,20 +1,31 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useToast } from "../../context/ToastContext.jsx";
+import Loader from "../../components/Loader.jsx";
 
 const emptyForm = { owner_name: "", phone: "", email: "", subscription_plan: "MONTHLY" };
 
 export default function FleetsPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const isSuperAdmin = user?.role === "super_admin";
   const [fleets, setFleets] = useState([]);
   const [plans, setPlans] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
 
   function load() {
-    api.get("/api/v1/fleets").then(setFleets).catch((e) => setError(e.message));
+    api
+      .get("/api/v1/fleets")
+      .then(setFleets)
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }
   function loadPlans() {
     api.get("/api/v1/fleets/plans").then(setPlans).catch(() => {});
@@ -36,14 +47,17 @@ export default function FleetsPage() {
       const payload = { ...form, email: form.email || null };
       if (editingId) {
         await api.put(`/api/v1/fleets/${editingId}`, payload);
+        toast.success("Fleet updated.");
       } else {
         await api.post("/api/v1/fleets", payload);
+        toast.success("Fleet created.");
       }
       setForm(emptyForm);
       setEditingId(null);
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -60,9 +74,11 @@ export default function FleetsPage() {
   async function toggle(f) {
     try {
       await api.post(`/api/v1/fleets/${f.id}/toggle`, { activate: !f.is_active });
+      toast.success(f.is_active ? "Fleet deactivated." : "Fleet activated.");
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -112,6 +128,9 @@ export default function FleetsPage() {
         </form>
       </div>
 
+      {loading ? (
+        <Loader label="Loading fleets…" />
+      ) : (
       <div className="table-wrap">
         <table className="table">
           <thead>
@@ -159,6 +178,7 @@ export default function FleetsPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

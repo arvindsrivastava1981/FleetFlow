@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 const EXPENSE_TYPES = [
   "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
@@ -14,6 +16,7 @@ const PROVISION_TYPES = new Set(["CASH_ADVANCE", "DRIVER_SALARY"]);
 export default function TripDetailPage() {
   const { tripCode } = useParams();
   const { user } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [expType, setExpType] = useState("FUEL");
@@ -51,9 +54,11 @@ export default function TripDetailPage() {
       setLiters("");
       setRate("");
       setOdometer("");
+      toast.success("Expense logged.");
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -67,9 +72,11 @@ export default function TripDetailPage() {
         end_odo: Number(endOdo),
       });
       setEndOdo("");
+      toast.success("Trip settled.");
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setSettleBusy(false);
     }
@@ -117,6 +124,8 @@ export default function TripDetailPage() {
           {error}
         </div>
       )}
+
+      {!data && !error && <Loader label="Loading trip…" full />}
 
       {showSettle && (
         <div className="card p-4 space-y-3">

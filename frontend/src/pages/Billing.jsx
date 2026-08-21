@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 export default function BillingPage() {
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -10,7 +13,10 @@ export default function BillingPage() {
     api
       .get("/api/v1/billing/overview")
       .then(setData)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      });
   }, []);
 
   async function subscribe(planCode) {
@@ -23,6 +29,7 @@ export default function BillingPage() {
       }
     } catch (e) {
       setError(e.message);
+      toast.error(e.message);
     } finally {
       setBusy("");
     }
@@ -38,6 +45,7 @@ export default function BillingPage() {
       }
     } catch (e) {
       setError(e.message);
+      toast.error(e.message);
     } finally {
       setBusy("");
     }
@@ -52,12 +60,7 @@ export default function BillingPage() {
         <p className="page-sub">Manage your plan and add extra vehicle slots.</p>
       </div>
       {error && <div className="alert alert-error">{error}</div>}
-      {!data && !error && (
-        <div className="empty card">
-          <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-ink-200 border-t-brand-600" />
-          <p className="mt-3">Loading billing info…</p>
-        </div>
-      )}
+      {!data && !error && <Loader label="Loading billing info…" />}
       {fleet && (
         <div className="card-pad grid grid-cols-1 gap-4 md:grid-cols-3">
           <div>

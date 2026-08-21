@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 const EXPENSE_TYPES = // Quick Copy Array:
 [
@@ -26,12 +28,13 @@ function fmtRs(n) {
 }
 
 export default function DriverWhatsAppPage() {
+  const toast = useToast();
   const [trip, setTrip] = useState(null);
   const [expenses, setExpenses] = useState([]);
   const [cashInHand, setCashInHand] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState("");
+  const [loading, setLoading] = useState(true);
 
   const [form, setForm] = useState({
     trip_code: "",
@@ -73,7 +76,11 @@ export default function DriverWhatsAppPage() {
             (det.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type))
           );
       })
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -87,7 +94,6 @@ async function sendReceipt(e) {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
-    setToast("");
     try {
       const payload = {
         trip_code: form.trip_code,
@@ -99,7 +105,7 @@ async function sendReceipt(e) {
         state_code: form.state_code || undefined,
       };
       const res = await api.post("/api/v1/expenses", payload);
-      setToast(
+      toast.info(
         `Receipt logged: ${res.exp_type} ₹${fmtRs(payload.amount)} — ${
           res.is_flagged ? "⚠️ flagged for manager review" : "✅ verified"
         }`
@@ -109,10 +115,8 @@ async function sendReceipt(e) {
         (det?.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type))
       );
       setForm((f) => ({ ...f, amount: "", odometer: "", liters: "", rate: "" }));
-      setTimeout(() => setToast(""), 4000);
     } catch (err) {
-      setToast(err.message || "Failed to send receipt");
-      setTimeout(() => setToast(""), 4000);
+      toast.error(err.message || "Failed to send receipt");
     } finally {
       setBusy(false);
     }
@@ -135,10 +139,12 @@ async function sendReceipt(e) {
       {error && (
         <div className="alert alert-error">{error}</div>
       )}
-      {toast && (
-        <div className="bg-brand-50 border border-sky-200 text-sky-800 text-sm rounded-xl p-3">{toast}</div>
-      )}
-{!trip ? (
+
+      {loading ? (
+        <Loader label="Loading your trip…" />
+      ) : (
+      <div>
+      {!trip ? (
         <div className="empty card">
           You have no active trip right now. A trip manager will assign one before your next dispatch.
         </div>
@@ -336,6 +342,8 @@ async function sendReceipt(e) {
             </div>
           </div>
         </div>
+      )}
+      </div>
       )}
     </div>
   );

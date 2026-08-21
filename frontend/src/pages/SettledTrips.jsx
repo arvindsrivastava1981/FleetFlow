@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 function fmtDate(value) {
   if (!value) return "date unavailable";
@@ -14,14 +16,20 @@ function fmtDate(value) {
 }
 
 export default function SettledTripsPage() {
+  const toast = useToast();
   const [trips, setTrips] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
       .get("/api/v1/settlements")
       .then(setTrips)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const pdfUrl = (tripCode) =>
@@ -43,6 +51,7 @@ export default function SettledTripsPage() {
       setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } catch (e) {
       setError(e.message);
+      toast.error(e.message);
     } finally {
       setOpening("");
     }
@@ -58,6 +67,9 @@ export default function SettledTripsPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+      {loading ? (
+        <Loader label="Loading settled trips…" />
+      ) : (
       <div className="space-y-3">
         {trips.map((t) => (
           <div
@@ -90,6 +102,7 @@ export default function SettledTripsPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

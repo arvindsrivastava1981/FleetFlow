@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 // Standard Indian registration plate regex (system invariant).
 const PLATE_REGEX = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
@@ -42,11 +44,13 @@ function validate(form) {
 
 export default function NewTripPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [form, setForm] = useState(emptyForm);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [fieldErrors, setFieldErrors] = useState(initialErrors);
 
   function load() {
@@ -57,7 +61,8 @@ export default function NewTripPage() {
     api
       .get("/api/v1/drivers")
       .then(setDrivers)
-      .catch((e) => setError(e.message));
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }
   useEffect(load, []);
 
@@ -90,9 +95,11 @@ export default function NewTripPage() {
           : null,
       };
       await api.post("/api/v1/trips", payload);
+      toast.success("Trip started successfully.");
       navigate("/trips");
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -129,6 +136,9 @@ export default function NewTripPage() {
         </div>
       )}
 
+      {loading ? (
+        <Loader label="Loading vehicles &amp; drivers…" />
+      ) : (
       <div className="card-pad">
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 text-sm">
           <div>
@@ -250,6 +260,7 @@ export default function NewTripPage() {
           </div>
         </form>
       </div>
+      )}
     </div>
   );
 }

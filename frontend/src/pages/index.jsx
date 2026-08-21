@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
 
 const FEATURES = [
   "Real-time fuel & expense verification",
@@ -11,6 +12,7 @@ const FEATURES = [
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,6 +28,7 @@ export default function LoginPage() {
       navigate(landing, { replace: true });
     } catch (err) {
       setError(err.message || "Login failed");
+      toast.error(err.message || "Login failed");
     } finally {
       setBusy(false);
     }

@@ -2,17 +2,25 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 export default function TripsPage() {
   const { user } = useAuth();
+  const toast = useToast();
   const [trips, setTrips] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
       .get("/api/v1/trips")
       .then(setTrips)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const canCreate =
@@ -34,6 +42,9 @@ export default function TripsPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
+      {loading ? (
+        <Loader label="Loading trips…" />
+      ) : (
       <div className="space-y-3">
         {trips.map((t) => {
           const active = t.status === "ACTIVE";
@@ -82,6 +93,7 @@ export default function TripsPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

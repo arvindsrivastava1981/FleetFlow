@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
 
 export default function ChangePasswordPage() {
+  const toast = useToast();
   const [form, setForm] = useState({
     current_password: "",
     new_password: "",
     confirm_password: "",
   });
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -18,14 +19,14 @@ export default function ChangePasswordPage() {
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
-    setMessage("");
     setBusy(true);
     try {
       await api.post("/api/v1/auth/change-password", form);
-      setMessage("Password changed successfully.");
+      toast.success("Password changed successfully.");
       setForm({ current_password: "", new_password: "", confirm_password: "" });
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -38,9 +39,7 @@ export default function ChangePasswordPage() {
         <p className="page-sub">Update the password for your account.</p>
       </div>
 
-      {message && <div className="alert alert-success">{message}</div>}
       {error && <div className="alert alert-error">{error}</div>}
-
       <form
         onSubmit={onSubmit}
         className="card-pad space-y-4"

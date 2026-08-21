@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../../lib/api.js";
+import { useToast } from "../../context/ToastContext.jsx";
 
 const PLANS = [
   { code: "TRIAL", name: "Trial Pack", desc: "15 days free · 1 vehicle" },
@@ -11,6 +12,7 @@ const BATTA_TYPES = ["FIXED_TRIP", "PER_KM", "DAILY", "NONE"];
 const PLATE_RE = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
 
 export default function OnboardFirmPage() {
+  const toast = useToast();
   const [form, setForm] = useState({
     owner_name: "", phone: "", email: "",
     username: "", full_name: "", password: "",
@@ -95,8 +97,10 @@ export default function OnboardFirmPage() {
       const data = await api.post("/api/v1/fleets/onboard", payload);
       setResult(data);
       setErrors({});
+      toast.success("Firm onboarded successfully.");
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     } finally {
       setSubmitting(false);
     }

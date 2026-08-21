@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../lib/api.js";
+import { useToast } from "../context/ToastContext.jsx";
+import Loader from "../components/Loader.jsx";
 
 function fmtDate(value) {
   if (!value) return "—";
@@ -18,6 +20,7 @@ function Stat({ label, value, cls }) {
 }
 
 export default function DriverSalaryPage() {
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -32,7 +35,10 @@ export default function DriverSalaryPage() {
     api
       .get("/api/v1/driver/salary")
       .then(setData)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      });
   }, []);
 
   const trips = data?.trips || [];
@@ -54,11 +60,7 @@ export default function DriverSalaryPage() {
         </div>
       )}
 
-      {!data && !error && (
-        <div className="empty card">
-          Loading your salary…
-        </div>
-      )}
+      {!data && !error && <Loader label="Loading your salary…" />}
 
       {data && (
         <>

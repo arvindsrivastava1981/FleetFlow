@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
+import { useToast } from "../../context/ToastContext.jsx";
+import Loader from "../../components/Loader.jsx";
 
 const emptyForm = {
   vehicle_number: "",
@@ -10,8 +12,10 @@ const emptyForm = {
 };
 
 export default function VehiclesPage() {
+  const toast = useToast();
   const [vehicles, setVehicles] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
 
@@ -19,7 +23,11 @@ export default function VehiclesPage() {
     api
       .get("/api/v1/vehicles")
       .then(setVehicles)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }
   useEffect(load, []);
 
@@ -38,14 +46,17 @@ export default function VehiclesPage() {
       };
       if (editingId) {
         await api.put(`/api/v1/vehicles/${editingId}`, payload);
+        toast.success("Vehicle updated.");
       } else {
         await api.post("/api/v1/vehicles", payload);
+        toast.success("Vehicle added.");
       }
       setForm(emptyForm);
       setEditingId(null);
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -63,9 +74,11 @@ export default function VehiclesPage() {
   async function toggle(v) {
     try {
       await api.post(`/api/v1/vehicles/${v.id}/toggle`, { activate: !v.is_active });
+      toast.success(v.is_active ? "Vehicle deactivated." : "Vehicle activated.");
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -100,6 +113,9 @@ export default function VehiclesPage() {
         </form>
       </div>
 
+      {loading ? (
+        <Loader label="Loading vehicles…" />
+      ) : (
       <div className="table-wrap">
         <table className="table">
           <thead>
@@ -144,6 +160,7 @@ export default function VehiclesPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }

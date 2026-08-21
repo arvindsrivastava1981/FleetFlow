@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
+import { useToast } from "../../context/ToastContext.jsx";
+import Loader from "../../components/Loader.jsx";
 
 const ROLES = ["trip_manager", "driver"];
 const ROLE_LABELS = { super_admin: "Super Admin", trip_manager: "Trip Manager", driver: "Driver" };
@@ -12,9 +14,11 @@ const BATTA_UNIT = {
 const emptyForm = { username: "", full_name: "", role: "trip_manager", phone: "", email: "", password: "", fleet_id: "", batta_type: "FIXED_TRIP", default_batta_rate: "2500.00" };
 
 export default function UsersPage() {
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [fleets, setFleets] = useState([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
 
@@ -22,7 +26,11 @@ export default function UsersPage() {
     api
       .get("/api/v1/users")
       .then(setUsers)
-      .catch((e) => setError(e.message));
+      .catch((e) => {
+        setError(e.message);
+        toast.error(e.message);
+      })
+      .finally(() => setLoading(false));
   }
   function loadFleets() {
     api.get("/api/v1/fleets").then(setFleets).catch(() => {});
@@ -43,14 +51,17 @@ export default function UsersPage() {
     try {
       if (editingId) {
         await api.put(`/api/v1/users/${editingId}`, form);
+        toast.success("User updated.");
       } else {
         await api.post("/api/v1/users", form);
+        toast.success("User created.");
       }
       setForm(emptyForm);
       setEditingId(null);
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -72,9 +83,11 @@ export default function UsersPage() {
   async function toggle(u) {
     try {
       await api.post(`/api/v1/users/${u.id}/toggle`, { activate: !u.is_active });
+      toast.success(u.is_active ? "User deactivated." : "User activated.");
       load();
     } catch (err) {
       setError(err.message);
+      toast.error(err.message);
     }
   }
 
@@ -136,7 +149,10 @@ export default function UsersPage() {
           </div>
         </form>
       </div>
-<div className="table-wrap">
+      {loading ? (
+        <Loader label="Loading users…" />
+      ) : (
+      <div className="table-wrap">
         <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -180,6 +196,7 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 }
