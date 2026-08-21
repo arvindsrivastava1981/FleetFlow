@@ -5,7 +5,7 @@ import { PageHero, CTABand } from "../UI";
 const FAQS = [
   {
     q: "Do drivers need to install an app?",
-    a: "No. Drivers send fuel and receipt photos straight to WhatsApp. FleetFlow reads the message, runs fuel benchmarking, and routes it for approval — no driver training or logins needed.",
+    a: "No. Drivers send fuel and receipt photos straight to WhatsApp. VahanKhata reads the message, runs fuel benchmarking, and routes it for approval — no driver training or logins needed.",
   },
   {
     q: "How does batta settlement actually work?",
@@ -17,7 +17,7 @@ const FAQS = [
   },
   {
     q: "We run multiple branches / fleets. Does it scale?",
-    a: "FleetFlow supports multi-fleet and multi-manager operations with role-based access, so super-admins see everything while each trip manager sees only their own firm's trips, vehicles and drivers.",
+    a: "VahanKhata supports multi-fleet and multi-manager operations with role-based access, so super-admins see everything while each trip manager sees only their own firm's trips, vehicles and drivers.",
   },
   {
     q: "Is our data secure?",
@@ -54,8 +54,8 @@ export default function Faq() {
   return (
     <>
       <Seo
-        title="FAQ — FleetFlow"
-        description="Answers to common questions about FleetFlow: WhatsApp expense intake, batta settlement, fuel benchmarking, security, multi-fleet support and billing."
+        title="FAQ"
+        description="Answers to common questions about VahanKhata: WhatsApp expense intake, batta settlement, fuel benchmarking, security, multi-fleet support and billing."
         path="/faq"
       />
       <PageHero

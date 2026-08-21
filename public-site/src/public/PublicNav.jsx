@@ -17,10 +17,10 @@ export default function PublicNav() {
       <div className="market-wrap flex h-16 items-center justify-between gap-4">
         <a href="/" className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-base font-black text-white">
-            F
+            V
           </span>
           <span className="text-lg font-extrabold tracking-tight text-ink-900">
-            Fleet<span className="text-brand-600">Flow</span>
+            Vahan<span className="text-brand-600">Khata.in</span>
           </span>
         </a>
 

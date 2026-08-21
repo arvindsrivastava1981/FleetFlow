@@ -3,8 +3,8 @@ import Seo from "../Seo";
 import { PageHero, CTABand, IconChip } from "../UI";
 
 const REASONS = [
-  ["📊", "Per-state fuel benchmarking", "Most tools just record what drivers spend. FleetFlow compares every petrol purchase to per-state bands, so overpriced fuel is flagged the moment it's submitted — not caught at audit."],
-  ["💬", "WhatsApp the drivers already use", "No app to install, no training. Drivers send receipt photos to a number; FleetFlow reads, benchmarks and routes them. Adoption happens in days, not months."],
+  ["📊", "Per-state fuel benchmarking", "Most tools just record what drivers spend. VahanKhata compares every petrol purchase to per-state bands, so overpriced fuel is flagged the moment it's submitted — not caught at audit."],
+  ["💬", "WhatsApp the drivers already use", "No app to install, no training. Drivers send receipt photos to a number; VahanKhata reads, benchmarks and routes them. Adoption happens in days, not months."],
   ["⚖️", "Batta without battles", "Fixed, per-km or daily batta rules automate settlement. Drivers see their own numbers and consent digitally — ending the month-end arguments that cost you time and freight."],
   ["🧾", "Cash advances stay traceable", "Advances post to the ledger automatically at trip creation and reconcile on settlement — no more 'who has what' uncertainty."],
   ["🛡️", "Emergency alerts that actually route", "Every tag carries a QR and a normalized emergency path, with anti-spam. A real incident reaches the right person in one tap."],
@@ -15,14 +15,14 @@ export default function WhyUs() {
   return (
     <>
       <Seo
-        title="Why FleetFlow — Compared to Spreadsheets & Other Fleet Tools"
-        description="See why transport firms choose FleetFlow over spreadsheets and ERP-style fleet software: live fuel benchmarking, WhatsApp intake, fair batta and a full audit trail."
+        title="Why Us — Compared to Spreadsheets & Other Fleet Tools"
+        description="See why transport firms choose VahanKhata over spreadsheets and ERP-style fleet software: live fuel benchmarking, WhatsApp intake, fair batta and a full audit trail."
         path="/why-us"
       />
       <PageHero
-        eyebrow="Why FleetFlow"
+        eyebrow="Why VahanKhata"
         title="Spreadsheets didn't scale. Neither will a heavyweight ERP."
-        lead="FleetFlow sits in the sweet spot — the WhatsApp workflow your drivers know, with the airtight accounting and benchmarking your margins demand."
+        lead="VahanKhata sits in the sweet spot — the WhatsApp workflow your drivers know, with the airtight accounting and benchmarking your margins demand."
       />
 
       <section className="market-section market-wrap">
@@ -41,12 +41,12 @@ export default function WhyUs() {
       <section className="market-section market-wrap border-t border-ink-100">
         <div className="flex flex-col items-center">
           <span className="market-eyebrow">Side by side</span>
-          <h2 className="market-title">Where FleetFlow wins.</h2>
+          <h2 className="market-title">Where VahanKhata wins.</h2>
         </div>
         <div className="market-card mt-12 overflow-hidden">
           <div className="hidden grid-cols-3 border-b border-ink-200 bg-ink-50 px-6 py-3 text-sm font-bold text-ink-700 sm:grid">
             <span className="col-span-2">Capability</span>
-            <span className="text-brand-600">FleetFlow</span>
+            <span className="text-brand-600">VahanKhata</span>
           </div>
           {[
             ["Live fuel benchmarking, not month-end shocks", "✅"],

@@ -67,13 +67,13 @@ export default function Features() {
     <>
       <Seo
         title="Features — Fleet & Trip Management Platform"
-        description="Explore FleetFlow's features: WhatsApp expense intake, per-state fuel benchmarking, driver batta settlement, trip management, emergency alerts, and Razorpay billing."
+        description="Explore VahanKhata's features: WhatsApp expense intake, per-state fuel benchmarking, driver batta settlement, trip management, emergency alerts, and Razorpay billing."
         path="/features"
       />
       <PageHero
         eyebrow="Features"
         title="One platform, every rupee on the road accounted for."
-        lead="From the moment a driver sends a receipt to the day a trip settles, FleetFlow keeps every step tracked, benchmarked and fair."
+        lead="From the moment a driver sends a receipt to the day a trip settles, VahanKhata keeps every step tracked, benchmarked and fair."
       />
 
       <section className="market-section market-wrap">

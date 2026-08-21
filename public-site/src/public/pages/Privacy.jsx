@@ -6,14 +6,14 @@ export default function Privacy() {
   return (
     <>
       <Seo
-        title="Privacy Policy — FleetFlow"
-        description="How FleetFlow collects, uses and protects your data, including phone numbers, OTPs, and fleet operational data."
+        title="Privacy Policy"
+        description="How VahanKhata collects, uses and protects your data, including phone numbers, OTPs, and fleet operational data."
         path="/privacy"
       />
       <PageHero eyebrow="Legal" title="Privacy Policy" lead="Last updated: August 2026" />
       <Prose>
         <p>
-          This Privacy Policy explains how FleetFlow ("we", "our") collects, uses and protects your information when
+          This Privacy Policy explains how VahanKhata ("we", "our") collects, uses and protects your information when
           you use our fleet expense &amp; trip management platform (the "Service"). By using the Service you agree to
           the practices described below.
         </p>
@@ -55,7 +55,7 @@ export default function Privacy() {
         </p>
         <h2>7. Contact</h2>
         <p>
-          For privacy questions, contact us at <a href="mailto:hello@fleetflow.app">hello@fleetflow.app</a>.
+          For privacy questions, contact us at <a href="mailto:hello@vahankhata.in">hello@vahankhata.in</a>.
         </p>
       </Prose>
     </>

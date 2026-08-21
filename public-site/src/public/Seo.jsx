@@ -8,8 +8,8 @@ import { useEffect } from "react";
  */
 export default function Seo({ title, description, path }) {
   useEffect(() => {
-    const base = "FleetFlow — Smart Fleet Expense & Trip Management";
-    document.title = title ? `${title} | FleetFlow` : base;
+    const base = "VahanKhata.in — Smart Fleet Expense & Trip Management";
+    document.title = title ? `${title} | VahanKhata` : base;
 
     const set = (attr, key, val) => {
       let el = document.head.querySelector(`meta[${attr}="${key}"]`);
@@ -22,7 +22,7 @@ export default function Seo({ title, description, path }) {
     };
 
     set("name", "description", description ?? "");
-    set("property", "og:title", title ? `${title} | FleetFlow` : base);
+    set("property", "og:title", title ? `${title} | VahanKhata` : base);
     set("property", "og:description", description ?? "");
     set("property", "og:type", "website");
     if (path) set("property", "og:url", path);

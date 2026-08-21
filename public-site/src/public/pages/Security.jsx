@@ -13,8 +13,8 @@ export default function Security() {
   return (
     <>
       <Seo
-        title="Security — FleetFlow"
-        description="How FleetFlow protects fleet data: role-based access, time-limited sessions, audit logging and safe emergency routing."
+        title="Security"
+        description="How VahanKhata protects fleet data: role-based access, time-limited sessions, audit logging and safe emergency routing."
         path="/security"
       />
       <PageHero
@@ -36,7 +36,7 @@ export default function Security() {
       <Prose>
         <h2>How we protect your data</h2>
         <p>
-          FleetFlow applies defence-in-depth across authentication, entitlements and audit. Each firm (fleet) is a
+          VahanKhata applies defence-in-depth across authentication, entitlements and audit. Each firm (fleet) is a
           tenant; users and records are scoped to that firm. Administrative actions are restricted to the relevant role.
         </p>
         <h3>Authentication &amp; sessions</h3>
@@ -54,7 +54,7 @@ export default function Security() {
         <p>
           No platform can guarantee absolute security. We continuously review our controls and follow responsible
           disclosure for any finding. Report concerns to{" "}
-          <a href="mailto:security@fleetflow.app">security@fleetflow.app</a>.
+          <a href="mailto:security@vahankhata.in">security@vahankhata.in</a>.
         </p>
       </Prose>
     </>

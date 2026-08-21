@@ -13,14 +13,14 @@ export default function About() {
   return (
     <>
       <Seo
-        title="About FleetFlow"
-        description="FleetFlow exists to give Indian transport firms a single, honest view of every trip — from fuel to batta settlement. Meet the team and mission."
+        title="About Us"
+        description="VahanKhata exists to give Indian transport firms a single, honest view of every trip — from fuel to batta settlement. Meet the team and mission."
         path="/about"
       />
       <PageHero
         eyebrow="Our story"
         title="We live where the fleet does."
-        lead="FleetFlow was built after watching transport firms lose profit to untracked WhatsApp receipts, handwritten trip sheets and month-end settlement battles."
+        lead="VahanKhata was built after watching transport firms lose profit to untracked WhatsApp receipts, handwritten trip sheets and month-end settlement battles."
       />
 
       {/* MISSION */}
@@ -30,7 +30,7 @@ export default function About() {
             <span className="market-eyebrow">Our mission</span>
             <h2 className="market-title">Every rupee accounted for. Every driver treated fairly.</h2>
             <p className="mt-5 text-base leading-relaxed text-ink-600">
-              Transport firms in India run on trust and relationships. We want to give that trust a record. FleetFlow
+              Transport firms in India run on trust and relationships. We want to give that trust a record. VahanKhata
               pairs driver-friendly WhatsApp intake with hard-nosed fuel benchmarking and batta settlement, so owners
               see margins rise while drivers see a fairer, clearer deal.
             </p>

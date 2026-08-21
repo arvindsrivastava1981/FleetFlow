@@ -5,7 +5,7 @@ const FOOTER_COLUMNS = [
     title: "Product",
     links: [
       { label: "Features", to: "/features" },
-      { label: "Why FleetFlow", to: "/why-us" },
+      { label: "Why VahanKhata", to: "/why-us" },
       { label: "Pricing", to: "/pricing" },
       { label: "About", to: "/about" },
       { label: "Book a demo", to: "/request-demo" },
@@ -54,10 +54,10 @@ export default function PublicFooter() {
           <div>
             <a href="/" className="flex items-center gap-2">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-base font-black text-white">
-                F
+                V
               </span>
               <span className="text-lg font-extrabold tracking-tight text-white">
-                Fleet<span className="text-brand-200">Flow</span>
+                Vahan<span className="text-brand-200">Khata.in</span>
               </span>
             </a>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-brand-100/80">
@@ -72,7 +72,7 @@ export default function PublicFooter() {
         </div>
 
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-white/15 pt-6 text-xs text-brand-100/70 sm:flex-row sm:items-center">
-          <span>© {new Date().getFullYear()} FleetFlow Technologies. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} VahanKhata.in. All rights reserved.</span>
           <span>Made for Indian fleet &amp; transport operations.</span>
         </div>
       </div>

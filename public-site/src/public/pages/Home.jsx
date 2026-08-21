@@ -9,7 +9,7 @@ const HERO_PAINS = [
   "Challans, repairs and cash advances lost in notebooks",
 ];
 
-// Stats shown in the hero's mock "FleetFlow Dashboard" card.
+// Stats shown in the hero's mock "VahanKhata Dashboard" card.
 const HERO_STATS = [
   { label: "Active trips", value: "1,248", cls: "bg-brand-50" },
   { label: "Expenses logged", value: "₹4.2L", cls: "bg-emerald-50" },
@@ -18,7 +18,7 @@ const HERO_STATS = [
 ];
 
 const FEATURES = [
-  ["🧾", "brand", "WhatsApp expense intake", "Drivers send fuel & receipt photos to WhatsApp. FleetFlow reads them, auto-flags overpriced or off-route fuel, and routes them for approval."],
+  ["🧾", "brand", "WhatsApp expense intake", "Drivers send fuel & receipt photos to WhatsApp. VahanKhata reads them, auto-flags overpriced or off-route fuel, and routes them for approval."],
   ["📊", "emerald", "Live fuel benchmarking", "Every petrol/DEF purchase is checked against per-state fuel bands, catching overbilling before it's paid — not at month-end."],
   ["🚚", "amber", "Trips start to settlement", "Odometer-in to batta-out. Driver consent, cash advance and salary post to the ledger automatically when a trip settles."],
   ["⚖️", "violet", "Fair batta, no disputes", "Fixed, per-km or daily batta rules make every rupee clear. Drivers see their own settlement. No more month-end arguments."],
@@ -49,7 +49,7 @@ export default function Home() {
     <>
       <Seo
         title="Smart Fleet Expense & Trip Management for Indian Transport Firms"
-        description="FleetFlow replaces spreadsheets and WhatsApp chaos with live fuel benchmarking, driver batta settlement and trip management — built for how Indian fleets actually run."
+        description="VahanKhata replaces spreadsheets and WhatsApp chaos with live fuel benchmarking, driver batta settlement and trip management — built for how Indian fleets actually run."
         path="/"
       />
 
@@ -65,7 +65,7 @@ export default function Home() {
               Stop bleeding money on <span className="market-grad-text">fuel, batta and unsettled trips.</span>
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-brand-100 sm:text-lg">
-              FleetFlow turns messy WhatsApp receipts and spreadsheets into a live expense ledger — with per-state fuel
+              VahanKhata turns messy WhatsApp receipts and spreadsheets into a live expense ledger — with per-state fuel
               benchmarking, driver batta settlement and full trip audit, all in the way your drivers actually work today.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -85,7 +85,7 @@ export default function Home() {
                 F
               </span>
               <div>
-                <p className="text-sm font-bold text-ink-900">FleetFlow Dashboard</p>
+                <p className="text-sm font-bold text-ink-900">VahanKhata Dashboard</p>
                 <p className="text-xs text-ink-500">Live view · trips &amp; expenses</p>
               </div>
               <span className="badge badge-success ml-auto">Live</span>

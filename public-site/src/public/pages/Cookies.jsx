@@ -6,14 +6,14 @@ export default function Cookies() {
   return (
     <>
       <Seo
-        title="Cookie Policy — FleetFlow"
-        description="How FleetFlow uses cookies and similar technologies for authentication, security and analytics."
+        title="Cookie Policy"
+        description="How VahanKhata uses cookies and similar technologies for authentication, security and analytics."
         path="/cookies"
       />
       <PageHero eyebrow="Legal" title="Cookie Policy" lead="Last updated: August 2026" />
       <Prose>
         <p>
-          This Cookie Policy explains how FleetFlow uses cookies and similar technologies when you visit our site or
+          This Cookie Policy explains how VahanKhata uses cookies and similar technologies when you visit our site or
           use our platform. We keep tracking minimal and only where it provides a genuine benefit.
         </p>
         <h2>1. What are cookies?</h2>
@@ -42,7 +42,7 @@ export default function Cookies() {
         </p>
         <h2>4. Contact</h2>
         <p>
-          Questions about cookies? Email <a href="mailto:hello@fleetflow.app">hello@fleetflow.app</a>.
+          Questions about cookies? Email <a href="mailto:hello@vahankhata.in">hello@vahankhata.in</a>.
         </p>
       </Prose>
     </>

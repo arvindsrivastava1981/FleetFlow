@@ -1,7 +1,7 @@
 @tailwind components;
 
 /* =========================================================================
-   Public marketing theme layer (FleetFlow / VahanKhata)
+   Public marketing theme layer (VahanKhata)
    Centralised CSS variables + reusable marketing primitives.
    Everything here flows from the `brand`(indigo)/`ink`(slate) design tokens
    so the whole public site re-themes from ONE place (see

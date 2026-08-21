@@ -31,7 +31,7 @@ const PLANS = [
 
 const FAQ = [
   ["Can I add extra vehicles?", "Yes — extra vehicle slots can be purchased per firm directly from billing."],
-  ["Do drivers need to install anything?", "No. Drivers send receipts via WhatsApp; FleetFlow reads them."],
+  ["Do drivers need to install anything?", "No. Drivers send receipts via WhatsApp; VahanKhata reads them."],
   ["Is there a long-term contract?", "No. Start on the free 15-day Trial, move to Monthly or Yearly when you're ready."],
 ];
 
@@ -40,7 +40,7 @@ export default function Pricing() {
     <>
       <Seo
         title="Pricing — Transparent Fleet Management Plans"
-        description="FleetFlow's simple pricing: a free 15-day trial, ₹799/month per vehicle, or ₹7,191/year (25% off). No long contracts, Razorpay billing built in."
+        description="VahanKhata's simple pricing: a free 15-day trial, ₹799/month per vehicle, or ₹7,191/year (25% off). No long contracts, Razorpay billing built in."
         path="/pricing"
       />
       <PageHero

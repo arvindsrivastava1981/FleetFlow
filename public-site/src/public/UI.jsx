@@ -68,7 +68,7 @@ export function Prose({ children }) {
 }
 export function CTABand({
   title = "Ready to take control of your fleet?",
-  lead = "See how FleetFlow replaces spreadsheets and WhatsApp hassle with one clean workflow — from trip start to batta settlement.",
+  lead = "See how VahanKhata replaces spreadsheets and WhatsApp hassle with one clean workflow — from trip start to batta settlement.",
   ctaText = "Book a demo",
   ctaHref = "/request-demo",
   ghostText = "Log in",

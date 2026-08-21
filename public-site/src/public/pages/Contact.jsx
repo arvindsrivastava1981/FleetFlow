@@ -3,7 +3,7 @@ import Seo from "../Seo";
 import { PageHero } from "../UI";
 import { app } from "../../config.js";
 
-const CONTACT_EMAIL = "hello@fleetflow.app";
+const CONTACT_EMAIL = "hello@vahankhata.in";
 
 export default function Contact() {
   const [form, setForm] = useState({ name: "", firm: "", email: "", phone: "", message: "" });
@@ -20,14 +20,14 @@ export default function Contact() {
   };
 
   const whatsappLink = `https://wa.me/919999999999?text=${encodeURIComponent(
-    `Hi FleetFlow, I'd like a demo. (${form.name || "Inquiry"})`
+    `Hi VahanKhata, I'd like a demo. (${form.name || "Inquiry"})`
   )}`;
 
   return (
     <>
       <Seo
-        title="Contact Us — FleetFlow"
-        description="Talk to the FleetFlow team about a demo, pricing or onboarding. Reach us by email or WhatsApp."
+        title="Contact Us"
+        description="Talk to the VahanKhata team about a demo, pricing or onboarding. Reach us by email or WhatsApp."
         path="/contact"
       />
       <PageHero
