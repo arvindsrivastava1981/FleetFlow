@@ -32,3 +32,6 @@ ALTER TABLE expenses ADD COLUMN IF NOT EXISTS state_code VARCHAR(10);
 
 
 
+
+
+

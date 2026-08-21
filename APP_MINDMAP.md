@@ -22,7 +22,7 @@
 - **Staff position:** `users.fleet_role` (`owner`/`manager`/`branch_head`/`driver`) sits inside a firm alongside the platform `role`.
 - **Audit ledger:** `fleet_billing_events` (PLAN_CHANGE/EXTRA_SLOT/TRIAL_START/PAYMENT) — each entitlement mutation is append-only explainable (G6/G10).
 - **Entitlement resolver:** `backend/app/services/entitlements.py::fleet_feature()` merges plan + add-ons; `fleet_can_add_vehicles()` distinguishes `NOT_ENTITLED` vs `VEHICLE_LIMIT` (G3). `vehicles.py` now routes the vehicle gate through it.
-- **Onboarding wizard:** `POST /api/v1/fleets/onboard` (`backend/app/api/v1/onboard.py`) — creates fleet + owner Trip Manager + trial (+ optional vehicle/driver with batta/capacity profile) in one transaction; dispatches the owner's welcome email (same as Path A) and returns inline `payment_url` for paid plans + `email_queued` flag (G2).
+- **Onboarding wizard:** `POST /api/v1/fleets/onboard` (`backend/app/api/v1/onboard.py`) — creates fleet + owner Trip Manager + trial (+ optional first vehicle/driver with batta/capacity profile) in one transaction; dispatches the owner's welcome email (same as Path A) and returns inline `payment_url` for paid plans + `email_queued` flag (G2). **Resilient TRIAL-plan resolution (2026-08):** `db/queries/fleets.py::insert_fleet` and `start_trial_subscription` now resolve the TRIAL `subscription_plans` row in Python (`_trial_plan`) and fall back to the `TRIAL_VEHICLE_LIMIT` default (1) when the catalogue is unseeded — a missing seed row previously wrote `NULL` into the NOT NULL `fleets.vehicle_limit` and raised a 500 NotNullViolation on onboard/trial-activate. `database/incremental.sql` also idempotently re-inserts the TRIAL plan row.
 - **Fleet picker:** `POST /api/v1/users` accepts optional `fleet_id` when `role=="trip_manager"` (G1).
 - **Billing health:** `GET /api/v1/fleets/{fid}/billing` (Super Admin) returns status + effective limits + audit ledger (G6).
 
@@ -46,7 +46,7 @@
 ## Database Access Pattern (Postgres/Neon)
 - Connection: `psycopg2.connect(os.getenv("DATABASE_URL"), cursor_factory=psycopg2.extras.RealDictCursor)`.
 - JSONB params are always passed as `psycopg2.extras.Json(...)` or `json.dumps(...)` — never a raw Python `dict` (`fleets.log_fleet_billing_event`, `billing.webhook_logs`).
-- `trips` deliberately has NO `updated_at` column; there is no `trg_trips_updated_at` trigger (older schema.sql created one, which broke every `UPDATE trips` — dropped in `schema.sql` + `incremental.sql`).
+- `trips` deliberately has NO `updated_at` column; there is no `trg_trips_updated_at` trigger (older schema.sql created one, which broke every `UPDATE trips` — dropped in `schema.sql` + `incremental_ddl.sql` and `incremental_dml.sql`).
 - Global `DEC2FLOAT` type caster registered at startup so `NUMERIC` columns arrive as Python `float`, not `Decimal`.
 - Placeholders: `%s` only (never `?`).
 - `created_at`/timestamps are native `datetime` objects — always format via `fmt_dt(dt)` helper, never slice (`dt[:16]` crashes).

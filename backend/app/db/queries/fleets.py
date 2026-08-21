@@ -129,6 +129,28 @@ def fleet_phone_exists(conn, phone: str, exclude_id: int | None = None) -> bool:
     return cur.fetchone() is not None
 
 
+TRIAL_VEHICLE_LIMIT: int = 1
+"""Default vehicle cap for a fleet on the TRIAL plan.
+
+Used as a resilient fallback when the ``TRIAL`` row is missing from the seeded
+``subscription_plans`` catalogue — onboarding must not crash with a NULL write
+into ``fleets.vehicle_limit`` (NOT NULL) just because seed data was incomplete.
+Kept in sync with the seeded TRIAL plan's ``vehicle_limit`` value.
+"""
+
+
+def _trial_plan(conn) -> dict | None:
+    """Resolve the TRIAL subscription_plans row, or ``None`` if absent.
+
+    Returns the full plan row so callers can derive ``plan_id`` and
+    ``vehicle_limit`` in one read. ``None`` signals an unseeded catalogue
+    (the app still degrades safely to :data:`TRIAL_VEHICLE_LIMIT`).
+    """
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM subscription_plans WHERE code = 'TRIAL'")
+    return cur.fetchone()
+
+
 def insert_fleet(
     conn,
     owner_name: str,
@@ -138,9 +160,14 @@ def insert_fleet(
     """Create a new fleet starting its 15-day trial on the TRIAL plan.
 
     Returns the new fleet id. The 15-day trial clock starts now. The plan is
-    always resolved to the TRIAL ``subscription_plans`` row via ``plan_id`` — the
-    single source of truth (plan code/price derive from that FK via JOIN).
+    resolved to the TRIAL ``subscription_plans`` row via ``plan_id`` when the
+    catalogue is seeded; otherwise the fleet is created with a **NULL plan**
+    (the FK is nullable) and the default :data:`TRIAL_VEHICLE_LIMIT` so
+    onboarding never hard-fails on a missing seed row.
     """
+    plan = _trial_plan(conn)
+    plan_id = plan["id"] if plan is not None else None
+    limit = (plan or {}).get("vehicle_limit") or TRIAL_VEHICLE_LIMIT
     cur = conn.cursor()
     cur.execute(
         """
@@ -149,13 +176,12 @@ def insert_fleet(
              plan_id, subscription_status,
              trial_started_at, trial_ends_at, vehicle_limit)
         VALUES
-            (%s, %s, %s,
-             (SELECT id FROM subscription_plans WHERE code = 'TRIAL'),
+            (%s, %s, %s, %s,
              'TRIAL', CURRENT_TIMESTAMP,
-             CURRENT_TIMESTAMP + INTERVAL '15 days', 1)
+             CURRENT_TIMESTAMP + INTERVAL '15 days', %s)
         RETURNING id
         """,
-        (owner_name, phone, email),
+        (owner_name, phone, email, plan_id, limit),
     )
     return cur.fetchone()["id"]
 
@@ -251,14 +277,21 @@ def start_trial_subscription(conn, fleet_id: int) -> None:
     Trial Pack on the upgrade page and the trial clock (re)starts immediately
     so they can continue registering vehicles. Clears billing references so a
     previous subscription doesn't leak into the trial window.
+
+    The TRIAL plan row is resolved in Python so a missing seed row never writes
+    a NULL into the NOT NULL ``fleets.vehicle_limit`` column (falls back to
+    :data:`TRIAL_VEHICLE_LIMIT`); the plan FK is set only when the row exists.
     """
+    plan = _trial_plan(conn)
+    plan_id = plan["id"] if plan is not None else None
+    limit = (plan or {}).get("vehicle_limit") or TRIAL_VEHICLE_LIMIT
     cur = conn.cursor()
     cur.execute(
         """
         UPDATE fleets
-           SET plan_id = (SELECT id FROM subscription_plans WHERE code = 'TRIAL'),
+           SET plan_id = %s,
                subscription_status = 'TRIAL',
-               vehicle_limit = (SELECT vehicle_limit FROM subscription_plans WHERE code = 'TRIAL'),
+               vehicle_limit = %s,
                trial_started_at = CURRENT_TIMESTAMP,
                trial_ends_at = CURRENT_TIMESTAMP + INTERVAL '15 days',
                next_billing_date = NULL,
@@ -266,7 +299,7 @@ def start_trial_subscription(conn, fleet_id: int) -> None:
                razorpay_customer_id = NULL
          WHERE id = %s
         """,
-        (fleet_id,),
+        (plan_id, limit, fleet_id),
     )
 
 
