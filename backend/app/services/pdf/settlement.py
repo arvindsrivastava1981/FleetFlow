@@ -177,6 +177,8 @@ def _build_weasyprint_context(
         "goods_income": s.goods_income,
         "debit_rows": debit_rows,
         "driver_batta": s.driver_batta,
+        "settlement_transfer": s.settlement_transfer,
+        "settlement_transfer_side": s.settlement_transfer_side,
         "total_driver_credits": s.total_driver_credits,
         "total_cr": s.total_cr,
         "net_balance": s.net_balance,
@@ -397,6 +399,15 @@ def _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, drive
         Paragraph("—", cell_style),
     ])
 
+    # Closing entry: the approved cash handover that zeroes Dr/Cr.
+    if s.settlement_transfer:
+        dr = s.settlement_transfer_side == "DR"
+        ledger_rows.append([
+            Paragraph(_bi("Cash Settlement Transfer", "निपटान रोकड़ भुगतान"), cell_style),
+            Paragraph(f"<b>{_rs(s.settlement_transfer)}</b>" if dr else "—", cell_style),
+            Paragraph("—" if dr else f"<b>{_rs(s.settlement_transfer)}</b>", cell_style),
+        ])
+
     # Subtotal row.
     ledger_rows.append([
         Paragraph("<b>Subtotal / कुल योग</b>", cell_style),
@@ -414,6 +425,20 @@ def _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, drive
     ]))
     story.append(t_ledger)
     story.append(Spacer(1, 15))
+
+    # ---- Closing-entry callout (driver acceptance evidence) ----------------
+    if s.settlement_transfer:
+        direction = (
+            "Driver returned to Fleet / चालक द्वारा वापसी"
+            if s.settlement_transfer_side == "DR"
+            else "Paid to Driver / चालक को भुगतान"
+        )
+        story.append(Paragraph(
+            f"<b>Cash Settlement Paid &amp; Accepted / निपटान रोकड़ भुगतान स्वीकृत:</b> "
+            f"{_rs(s.settlement_transfer)} &nbsp;({direction})",
+            cell_style,
+        ))
+        story.append(Spacer(1, 8))
 
     # ---- Net settlement card ---------------------------------------------
     net_color = colors.HexColor("#16a34a") if s.net_balance >= 0 else colors.HexColor("#dc2626")

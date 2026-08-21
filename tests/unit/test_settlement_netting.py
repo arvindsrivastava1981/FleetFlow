@@ -212,3 +212,73 @@ def test_normalise_batta_rejects_unknown_type():
     from backend.app.db.queries.users import _normalise_batta
     # Unknown type falls back to FIXED_TRIP, keeps a valid rate.
     assert _normalise_batta("WEEKLY", "1800") == ("FIXED_TRIP", 1800.00)
+
+
+# ---- SETTLEMENT_TRANSFER closing entry (driver acceptance) ------------------
+def _transfer(amount: float) -> dict:
+    """An APPROVED SETTLEMENT_TRANSFER closing-entry row (cash handover)."""
+    return _exp(exp_type="SETTLEMENT_TRANSFER", amount=amount, liters=0.0)
+
+
+def test_transfer_zeroes_positive_net_driver_returns_cash():
+    """Surplus (net > 0): the closing entry debits the cash the driver returns."""
+    s = compute_settlement(_trip(), [
+        _advance(10000.0),
+        _batta(2500.0),
+        _transfer(7500.0),
+    ])
+    assert s.net_balance == 0.0
+    assert s.settlement_transfer == 7500.0
+    assert s.settlement_transfer_side == "DR"
+    assert s.total_driver_credits == 10000.0   # batta + returned cash
+    assert s.status_label_en == "FULLY SETTLED"
+
+
+def test_transfer_zeroes_negative_net_fleet_pays_driver():
+    """Deficit (net < 0): the closing entry credits the payout to the driver."""
+    expenses = [
+        _advance(5000.0),
+        _batta(2500.0),
+        _exp(exp_type="FUEL", amount=6000.0, liters=60.0),
+        _transfer(3500.0),
+    ]
+    s = compute_settlement(_trip(), expenses)
+    assert s.net_balance == 0.0
+    assert s.settlement_transfer_side == "CR"
+    assert s.total_cr == pytest.approx(5000.0 + 3500.0)
+    assert s.status_label_en == "FULLY SETTLED"
+
+
+def test_unapproved_transfer_is_informational_only():
+    """PENDING/REJECTED closing entries never enter (or distort) the math."""
+    expenses = [
+        _advance(10000.0),
+        _batta(2500.0),
+        _exp(exp_type="SETTLEMENT_TRANSFER", amount=7500.0, liters=0.0,
+             manager_status="PENDING"),
+        _exp(exp_type="SETTLEMENT_TRANSFER", amount=7500.0, liters=0.0,
+             manager_status="REJECTED"),
+    ]
+    s = compute_settlement(_trip(), expenses)
+    assert s.net_balance == 7500.0
+    assert s.settlement_transfer == 0.0
+    assert s.settlement_transfer_side == ""
+
+
+def test_transfer_amount_binds_verification_hash():
+    """The fingerprint pins the real figure even though the net zeroes out."""
+    base = [_advance(10000.0), _batta(2500.0)]
+    h_plain = compute_settlement(_trip(), base).verification_hash
+    h_closed = compute_settlement(_trip(), base + [_transfer(7500.0)]).verification_hash
+    assert h_plain != h_closed
+
+
+def test_legacy_trips_without_transfer_keep_stable_hash():
+    """No transfer row -> hash input byte-for-byte identical to the legacy formula."""
+    import hashlib
+    s = compute_settlement(_trip(), [_advance(10000.0)])
+    # NOTE: empty sums round() to int 0, so the engine formats "0" (not "0.0")
+    # for goods_income / driver_batta — the legacy string must match exactly.
+    legacy_input = "TRIP-101|10000.0|0|0.0|0|10000.0"
+    expected = hashlib.sha256(legacy_input.encode()).hexdigest()[:32].upper()
+    assert s.verification_hash == expected

@@ -65,7 +65,7 @@ export default function Terms() {
         </p>
         <h2>9. Contact</h2>
         <p>
-          For questions about these Terms, contact us at <a href="mailto:hello@vahankhata.in">hello@vahankhata.in</a>.
+          For questions about these Terms, contact us at <a href="mailto:support@vahankhata.in">support@vahankhata.in</a>.
         </p>
       </Prose>
     </>

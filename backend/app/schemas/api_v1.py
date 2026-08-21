@@ -143,6 +143,9 @@ class ExpenseAccepted(BaseModel):
     manager_status: str
     is_flagged: bool
     flag_reason: Optional[str] = None
+    # SETTLEMENT_TRANSFER only: the server-computed |net_balance| recorded as
+    # the closing-entry amount (client-supplied amounts are ignored).
+    settlement_amount: Optional[float] = None
 
 
 class ExpenseActionResult(BaseModel):

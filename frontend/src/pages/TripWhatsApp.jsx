@@ -122,10 +122,39 @@ export default function TripWhatsAppPage() {
     finally { setBusyId(null); }
   }
 
+  async function initiateSettlement() {
+    if (busy) return;
+    setBusy(true); setError("");
+    try {
+      // Amount is server-computed (read-only for the driver): the closing
+      // entry must equal the live |net_balance|, so we send a placeholder.
+      const res = await api.post("/api/v1/expenses", {
+        trip_code: form.trip_code || tripCode,
+        exp_type: "SETTLEMENT_TRANSFER",
+        amount: 0,
+      });
+      toast.success(`🤝 Settlement of ₹${fmtRs(res?.settlement_amount ?? Math.abs(balance))} sent to manager for approval.`);
+      const det = await api.get(`/api/v1/trips/${tripCode}`);
+      setExpenses(det?.expenses || []);
+    } catch (e) { setError(e.message); toast.error(e.message); } finally { setBusy(false); }
+  }
+
   const pending = expenses.filter((e) =>
     e.manager_status === "PENDING" || e.manager_status === null || e.manager_status === undefined);
   const resolved = expenses.filter((e) =>
     e.manager_status === "APPROVED" || e.manager_status === "REJECTED");
+
+  // Live Dr/Cr balance (mirrors compute_settlement): advance + goods income −
+  // (road expenses + driver batta). Only APPROVED ledger rows count.
+  const approvedAmt = (e) => Number(e.approved_amount ?? e.amount) || 0;
+  const balance = Math.round(100 * expenses
+    .filter((e) => e.manager_status === "APPROVED" && e.exp_type !== "SETTLEMENT_TRANSFER")
+    .reduce(
+      (sum, e) => sum + (["CASH_ADVANCE", "GOODS_SALE"].includes(e.exp_type) ? approvedAmt(e) : -approvedAmt(e)),
+      0,
+    )) / 100;
+  // The driver-initiated closing entry (acceptance). REJECTED frees the ledger.
+  const transferRow = expenses.find((e) => e.exp_type === "SETTLEMENT_TRANSFER" && e.manager_status !== "REJECTED");
 
   /* ── Manager trip picker (no tripCode) ── */
   if (!hasTripCode && isManager && !loading) {
@@ -354,6 +383,41 @@ export default function TripWhatsAppPage() {
               </div>
             )}
           </div>
+          {isDriver && (
+            <div className="pt-2 border-t border-slate-100">
+              {transferRow ? (
+                transferRow.manager_status === "APPROVED" ? (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded-xl">
+                    <p className="text-[10px] font-bold">✅ Driver acceptance recorded / स्वीकृति दर्ज</p>
+                    <p className="text-[10px]">Settlement cash ₹{fmtRs(transferRow.approved_amount ?? transferRow.amount)} — manager can now settle the trip.</p>
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 text-amber-800 p-2.5 rounded-xl">
+                    <p className="text-[10px] font-bold">🤝 Awaiting manager approval / स्वीकृति लंबित</p>
+                    <p className="text-[10px]">You accepted the settlement balance of ₹{fmtRs(transferRow.amount)}. Expenses are locked until reviewed.</p>
+                  </div>
+                )
+              ) : (
+                <>
+                  <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[9px] uppercase font-bold text-slate-500 block">Current Balance / वर्तमान शेष</span>
+                      <span className={`text-sm font-extrabold ${balance < 0 ? "text-rose-600" : balance > 0 ? "text-slate-800" : "text-emerald-600"}`}>
+                        ₹{fmtRs(Math.abs(balance))} {balance > 0 ? "refundable" : balance < 0 ? "payable" : "settled"}
+                      </span>
+                    </div>
+                    <button onClick={initiateSettlement} disabled={busy}
+                      className="btn-success text-[10px] font-bold px-3 py-2 rounded-xl transition disabled:opacity-50">
+                      {busy ? "…" : "🤝 Initiate Settlement"}
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-slate-400 mt-1">
+                    Accepting locks this balance and sends it to your manager for approval.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
           {isManager && (
             <div className="pt-2 border-t border-slate-100">
               <p className="text-[10px] text-slate-400">Pending items need your approval. Approved items feed into settlement.</p>

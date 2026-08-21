@@ -60,7 +60,7 @@ export default function Privacy() {
         </p>
         <h2>7. Contact</h2>
         <p>
-          For privacy questions, contact us at <a href="mailto:hello@vahankhata.in">hello@vahankhata.in</a>.
+          For privacy questions, contact us at <a href="mailto:support@vahankhata.in">support@vahankhata.in</a>.
         </p>
       </Prose>
     </>

@@ -3,7 +3,7 @@ import Seo from "../Seo";
 import { PageHero } from "../UI";
 import { app } from "../../config.js";
 
-const CONTACT_EMAIL = "hello@vahankhata.in";
+const CONTACT_EMAIL = "support@vahankhata.in";
 
 export default function Contact() {
   const [form, setForm] = useState({ name: "", firm: "", email: "", phone: "", message: "" });
@@ -19,7 +19,7 @@ export default function Contact() {
     return `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
   };
 
-  const whatsappLink = `https://wa.me/919999999999?text=${encodeURIComponent(
+  const whatsappLink = `https://wa.me/918860666659?text=${encodeURIComponent(
     `Hi VahanKhata, I'd like a demo. (${form.name || "Inquiry"})`
   )}`;
 

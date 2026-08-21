@@ -46,7 +46,7 @@ export default function Cookies() {
         </p>
         <h2>4. Contact</h2>
         <p>
-          Questions about cookies? Email <a href="mailto:hello@vahankhata.in">hello@vahankhata.in</a>.
+          Questions about cookies? Email <a href="mailto:support@vahankhata.in">support@vahankhata.in</a>.
         </p>
       </Prose>
     </>

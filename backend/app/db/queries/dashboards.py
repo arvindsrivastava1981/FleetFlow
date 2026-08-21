@@ -35,19 +35,25 @@ def admin_kpis(conn) -> dict:
 
     cur.execute(
         "SELECT COALESCE(SUM(amount), 0) AS saved "
-        "FROM expenses WHERE manager_status = 'REJECTED'"
+        "FROM expenses WHERE manager_status = 'REJECTED' "
+        "AND exp_type <> 'SETTLEMENT_TRANSFER'"
     )
     leakage_prevented = cur.fetchone()["saved"]
 
     cur.execute(
         """SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name,
-                  COALESCE(SUM(
-                      CASE WHEN e.manager_status = 'APPROVED' THEN
-                          (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
-                                THEN COALESCE(e.approved_amount, e.amount)
-                                ELSE -COALESCE(e.approved_amount, e.amount) END)
-                      ELSE 0 END
-                  ), 0) AS approved_net
+                  CASE WHEN COALESCE(SUM(CASE WHEN e.manager_status = 'APPROVED'
+                                                   AND e.exp_type = 'SETTLEMENT_TRANSFER'
+                                              THEN 1 ELSE 0 END), 0) > 0
+                       THEN 0
+                       ELSE COALESCE(SUM(
+                           CASE WHEN e.manager_status = 'APPROVED'
+                                AND e.exp_type <> 'SETTLEMENT_TRANSFER' THEN
+                               (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
+                                     THEN COALESCE(e.approved_amount, e.amount)
+                                     ELSE -COALESCE(e.approved_amount, e.amount) END)
+                           ELSE 0 END), 0)
+                  END AS approved_net
              FROM trips t
              LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
@@ -195,18 +201,24 @@ def active_trip_progress(conn, manager_id: int | None = None) -> list[dict]:
                   t.current_odo,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status IN ('APPROVED','PENDING')
+                           AND e.exp_type <> 'SETTLEMENT_TRANSFER'
                            THEN COALESCE(e.approved_amount, e.amount) ELSE 0 END
                   ), 0) AS claimed,
                   COALESCE(SUM(
                       CASE WHEN e.manager_status = 'PENDING' THEN 1 ELSE 0 END
                   ), 0) AS pending_n,
-                  COALESCE(SUM(
-                      CASE WHEN e.manager_status = 'APPROVED' THEN
-                          (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
-                                THEN COALESCE(e.approved_amount, e.amount)
-                                ELSE -COALESCE(e.approved_amount, e.amount) END)
-                      ELSE 0 END
-                  ), 0) AS approved_net
+                  CASE WHEN COALESCE(SUM(CASE WHEN e.manager_status = 'APPROVED'
+                                                   AND e.exp_type = 'SETTLEMENT_TRANSFER'
+                                              THEN 1 ELSE 0 END), 0) > 0
+                       THEN 0
+                       ELSE COALESCE(SUM(
+                           CASE WHEN e.manager_status = 'APPROVED'
+                                AND e.exp_type <> 'SETTLEMENT_TRANSFER' THEN
+                               (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
+                                     THEN COALESCE(e.approved_amount, e.amount)
+                                     ELSE -COALESCE(e.approved_amount, e.amount) END)
+                           ELSE 0 END), 0)
+                  END AS approved_net
              FROM trips t
              LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
@@ -235,13 +247,18 @@ def settlement_ready_trips(conn, manager_id: int | None = None) -> list[dict]:
     scope_params = (manager_id,) if manager_id else ()
     cur.execute(
         f"""SELECT t.trip_code, t.vehicle_no, u.full_name AS driver_name,
-                  COALESCE(SUM(
-                      CASE WHEN e.manager_status = 'APPROVED' THEN
-                          (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
-                                THEN COALESCE(e.approved_amount, e.amount)
-                                ELSE -COALESCE(e.approved_amount, e.amount) END)
-                      ELSE 0 END
-                  ), 0) AS approved_net
+                  CASE WHEN COALESCE(SUM(CASE WHEN e.manager_status = 'APPROVED'
+                                                   AND e.exp_type = 'SETTLEMENT_TRANSFER'
+                                              THEN 1 ELSE 0 END), 0) > 0
+                       THEN 0
+                       ELSE COALESCE(SUM(
+                           CASE WHEN e.manager_status = 'APPROVED'
+                                AND e.exp_type <> 'SETTLEMENT_TRANSFER' THEN
+                               (CASE WHEN e.exp_type IN ('GOODS_SALE','CASH_ADVANCE')
+                                     THEN COALESCE(e.approved_amount, e.amount)
+                                     ELSE -COALESCE(e.approved_amount, e.amount) END)
+                           ELSE 0 END), 0)
+                  END AS approved_net
              FROM trips t
              LEFT JOIN users u ON u.id = t.driver_user_id
              LEFT JOIN expenses e ON e.trip_code = t.trip_code
@@ -334,7 +351,7 @@ def driver_today_logged(conn, trip_code: str) -> float:
     cur = conn.cursor()
     cur.execute(
         """SELECT COALESCE(SUM(
-               CASE WHEN exp_type IN ('CASH_ADVANCE', 'DRIVER_SALARY')
+               CASE WHEN exp_type IN ('CASH_ADVANCE', 'DRIVER_SALARY', 'SETTLEMENT_TRANSFER')
                     THEN 0 ELSE amount END
            ), 0) AS total FROM expenses
             WHERE trip_code = %s AND manager_status = 'APPROVED'
@@ -350,16 +367,26 @@ def approved_cash_net(conn, trip_code: str) -> float:
     CASH_ADVANCE/DRIVER_SALARY are excluded — they represent trip-level
     provisions (advance float + driver batta), not daily road spend.
     The advance is added back separately via driver_cash_advance_total.
+
+    An APPROVED SETTLEMENT_TRANSFER closing entry zeroes the ledger (the cash
+    handover happened), so the driver's live cash-in-hand nets to exactly 0.
     """
     cur = conn.cursor()
     cur.execute(
-        """SELECT COALESCE(SUM(
+        """SELECT CASE WHEN EXISTS (
+                   SELECT 1 FROM expenses x
+                    WHERE x.trip_code = expenses.trip_code
+                      AND x.exp_type = 'SETTLEMENT_TRANSFER'
+                      AND x.manager_status = 'APPROVED'
+               ) THEN 0 ELSE COALESCE(SUM(
                    CASE WHEN exp_type IN ('CASH_ADVANCE', 'DRIVER_SALARY')
                         THEN 0
                         WHEN exp_type = 'GOODS_SALE'
                         THEN COALESCE(approved_amount, amount)
+                        WHEN exp_type = 'SETTLEMENT_TRANSFER'
+                        THEN 0
                         ELSE -COALESCE(approved_amount, amount) END
-               ), 0) AS net FROM expenses
+               ), 0) END AS net FROM expenses
             WHERE trip_code = %s AND manager_status = 'APPROVED'""",
         (trip_code,),
     )

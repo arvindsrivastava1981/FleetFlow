@@ -8,6 +8,11 @@ ROAD_EXPENSE_BUCKETS: tuple[str, ...] = (
     "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY",
 )
 
+# Driver-initiated settlement closing entry: the cash-handover row that zeroes
+# the ledger (Dr/Cr net to 0). Manager approval of this row IS the recorded
+# driver acceptance; see api/v1/expenses.py + db/queries/expenses.py.
+SETTLEMENT_TRANSFER_TYPE: str = "SETTLEMENT_TRANSFER"
+
 DEFAULT_DRIVER_BATTA = 2500.00
 
 
@@ -26,6 +31,8 @@ class SettlementResult:
     status_label_hi: str                 # चालक द्वारा कंपनी को वापसी / कंपनी द्वारा चालक को देय / पूर्ण हिसाब बराबर
     avg_kml: float | None                # (end_odo - start_odo) / fuel_liters (guarded div/0)
     verification_hash: str               # 32-char uppercase SHA256 hex fingerprint
+    settlement_transfer: float = 0.0     # |cash| moved by an APPROVED SETTLEMENT_TRANSFER closing entry
+    settlement_transfer_side: str = ""   # "DR" (driver returns cash) / "CR" (fleet pays driver)
 
 
 def resolve_trip_batta(driver: dict | None) -> float:
@@ -101,6 +108,26 @@ def compute_settlement(trip: dict, expenses: list[dict]) -> SettlementResult:
     # 4. Balancing.
     total_cr = round(advance + goods_income, 2)
     total_driver_credits = round(total_road_expenses + driver_batta, 2)
+    net_pre_transfer = round(total_cr - total_driver_credits, 2)
+
+    # 4b. Closing entry — an APPROVED SETTLEMENT_TRANSFER row is the cash
+    #     handover that zeroes the ledger (driver-initiated settlement
+    #     acceptance). Its side is decided by the pre-entry balance sign:
+    #     a surplus (driver owes fleet) debits the cash returned; a deficit
+    #     (fleet owes driver) credits the cash paid out. Zero/inconsistent
+    #     amounts stay informational and never distort the math.
+    settlement_transfer = round(sum(
+        _get_effective_amount(e)
+        for e in approved if e.get("exp_type") == SETTLEMENT_TRANSFER_TYPE
+    ), 2)
+    transfer_side = ""
+    if settlement_transfer > 0 and net_pre_transfer > 0:
+        transfer_side = "DR"
+        total_driver_credits = round(total_driver_credits + settlement_transfer, 2)
+    elif settlement_transfer > 0 and net_pre_transfer < 0:
+        transfer_side = "CR"
+        total_cr = round(total_cr + settlement_transfer, 2)
+
     net_balance = round(total_cr - total_driver_credits, 2)
 
     # 5. Status labels (bilingual).
@@ -129,6 +156,12 @@ def compute_settlement(trip: dict, expenses: list[dict]) -> SettlementResult:
         f"{trip.get('trip_code')}|{advance}|{goods_income}|"
         f"{total_road_expenses}|{driver_batta}|{net_balance}"
     )
+    if settlement_transfer > 0:
+        # Bind the closing-entry amount so the fingerprint still pins the real
+        # settlement figure even though the transfer zeroes net_balance. Legacy
+        # trips (no transfer row) hash byte-for-byte as before, keeping every
+        # already-stored voucher code stable.
+        raw_hash_input += f"|{settlement_transfer}"
     verification_hash = hashlib.sha256(raw_hash_input.encode("utf-8")).hexdigest()[:32].upper()
 
     return SettlementResult(
@@ -145,4 +178,6 @@ def compute_settlement(trip: dict, expenses: list[dict]) -> SettlementResult:
         status_label_hi=status_label_hi,
         avg_kml=avg_kml,
         verification_hash=verification_hash,
+        settlement_transfer=settlement_transfer,
+        settlement_transfer_side=transfer_side,
     )

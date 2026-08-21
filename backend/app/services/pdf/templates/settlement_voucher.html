@@ -153,6 +153,18 @@
         <td class="text-right">₹{{ "%.2f"|format(driver_batta) }}</td>
         <td class="text-right">—</td>
       </tr>
+      {% if settlement_transfer %}
+      <tr>
+        <td>निपटान रोकड़ भुगतान / Cash Settlement Transfer</td>
+        {% if settlement_transfer_side == 'DR' %}
+          <td class="text-right"><strong>₹{{ "%.2f"|format(settlement_transfer) }}</strong></td>
+          <td class="text-right">—</td>
+        {% else %}
+          <td class="text-right">—</td>
+          <td class="text-right"><strong>₹{{ "%.2f"|format(settlement_transfer) }}</strong></td>
+        {% endif %}
+      </tr>
+      {% endif %}
       <tr class="total-row">
         <td>कुल योग / Subtotal</td>
         <td class="text-right">₹{{ "%.2f"|format(total_driver_credits) }}</td>
@@ -160,6 +172,13 @@
       </tr>
     </tbody>
   </table>
+
+  {% if settlement_transfer %}
+  <div style="margin:10px 0;">
+    <strong>निपटान रोकड़ भुगतान स्वीकृत / Cash Settlement Paid &amp; Accepted:
+      ₹{{ "%.2f"|format(settlement_transfer) }}</strong>
+  </div>
+  {% endif %}
 
   <div class="settlement-badge">
     अंतिम शेष राशि / Net Settlement: ₹{{ "%.2f"|format(net_balance) }}

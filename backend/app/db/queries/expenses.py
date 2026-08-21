@@ -83,3 +83,30 @@ def get_ledger_expenses_for_trip(conn, trip_code: str) -> list[dict]:
         (trip_code,),
     )
     return cur.fetchall()
+
+
+def open_settlement_request(conn, trip_code: str) -> dict | None:
+    """Return the trip's live SETTLEMENT_TRANSFER row, if one exists.
+
+    A "live" request is PENDING (awaiting manager action) or already APPROVED
+    (acceptance recorded). Only REJECTED requests free the ledger for a fresh
+    initiation, so at most one live closing entry can exist per trip.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT id, amount, created_by, manager_status
+             FROM expenses
+            WHERE trip_code = %s
+              AND exp_type = 'SETTLEMENT_TRANSFER'
+              AND manager_status IN ('PENDING', 'APPROVED')
+            ORDER BY id DESC LIMIT 1""",
+        (trip_code,),
+    )
+    return cur.fetchone()
+
+
+def get_expense_by_id(conn, expense_id: int) -> dict | None:
+    """Fetch one expense row (type/amount/actor) for action-side checks."""
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM expenses WHERE id = %s", (expense_id,))
+    return cur.fetchone()
