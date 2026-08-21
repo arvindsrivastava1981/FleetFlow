@@ -149,6 +149,8 @@ class ExpenseActionResult(BaseModel):
     expense_id: int
     status: str
     trip_code: str
+    label_en: Optional[str] = None
+    label_hi: Optional[str] = None
 
 
 class EscalationRow(BaseModel):

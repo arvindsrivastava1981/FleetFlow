@@ -173,4 +173,47 @@ async def api_action_expense(request: Request, expense_id: int):
                 status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
             )
         trip_code = action_expense_status(conn, expense_id, status)
-    return _ok({"expense_id": expense_id, "status": status, "trip_code": trip_code})
+        # Resolve the driver phone for WhatsApp notification (best-effort).
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT phone FROM users WHERE id = %s",
+                (trip.get("driver_user_id"),),
+            )
+            driver_row = cur.fetchone()
+        except Exception:
+            driver_row = None
+        driver_phone = (driver_row or {}).get("phone") if driver_row else None
+
+        # Human-facing status labels (bilingual).
+        label_en = "Approved" if status == "APPROVED" else "Deducted"
+        label_hi = "स्वीकृत" if status == "APPROVED" else "कटौती"
+
+        # Best-effort WhatsApp notification to the driver.
+        if driver_phone:
+            try:
+                import requests as _req
+                _req.post(
+                    f"{request.url.scheme}://{request.url.netloc}/api/v1/whatsapp/send",
+                    json={
+                        "to": driver_phone,
+                        "template": "expense_action",
+                        "params": {
+                            "trip_code": trip_code,
+                            "expense_id": expense_id,
+                            "action_en": label_en,
+                            "action_hi": label_hi,
+                        },
+                    },
+                    timeout=5,
+                )
+            except Exception:
+                pass  # Notification is best-effort, never block the API response.
+
+    return _ok({
+        "expense_id": expense_id,
+        "status": status,
+        "trip_code": trip_code,
+        "label_en": label_en,
+        "label_hi": label_hi,
+    })

@@ -43,10 +43,11 @@ export default function ManagerWhatsAppPage() {
     setBusyId(exp.id);
     setError("");
     try {
-      await api.post(`/api/v1/expenses/${exp.id}/action`, { action });
-      toast.success(
-        action === "approve" ? "Expense approved." : "Expense rejected."
-      );
+      const res = await api.post(`/api/v1/expenses/${exp.id}/action`, { action });
+      const label = action === "APPROVE"
+        ? (res?.label_hi ? `स्वीकृत (${res.label_en})` : "Expense approved ✅")
+        : (res?.label_hi ? `कटौती (${res.label_en})` : "Expense deducted ❌");
+      toast.success(label);
       await refresh();
     } catch (e) {
       setError(e.message || "Action failed");
