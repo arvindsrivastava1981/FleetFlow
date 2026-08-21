@@ -146,10 +146,10 @@ async def api_create_trip(request: Request):
 
     if not vehicle_no:
         return _bad("vehicle_no is required", "MISSING_FIELDS")
-    if advance_amount < 0 or start_odo < 0:
-        return _bad(
-            "advance_amount and start_odo must be non-negative", "INVALID_NUMBER"
-        )
+    if advance_amount <= 0:
+        return _bad("advance_amount must be greater than zero", "INVALID_ADVANCE")
+    if start_odo < 0:
+        return _bad("start_odo must be non-negative", "INVALID_NUMBER")
     if not _PLATE_RE.match(vehicle_no):
         return _bad("invalid license plate", "INVALID_PLATE")
 
@@ -176,6 +176,11 @@ async def api_create_trip(request: Request):
         if not driver:
             return _bad("unknown driver selected", "UNKNOWN_DRIVER")
         driver_batta_amount = resolve_trip_batta(driver)
+        if driver_batta_amount <= 0:
+            return _bad(
+                "selected driver has no batta configured; batta must be greater than zero",
+                "INVALID_BATTA",
+            )
         trip_code = insert_trip(
             conn,
             fleet_id,

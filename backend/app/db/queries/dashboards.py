@@ -331,6 +331,7 @@ def driver_today_logged(conn, trip_code: str) -> float:
     cur.execute(
         """SELECT COALESCE(SUM(amount), 0) AS total FROM expenses
             WHERE trip_code = %s AND manager_status = 'APPROVED'
+              AND exp_type NOT IN ('CASH_ADVANCE', 'DRIVER_SALARY')
               AND created_at >= CURRENT_DATE""",
         (trip_code,),
     )
@@ -346,7 +347,8 @@ def approved_cash_net(conn, trip_code: str) -> float:
                         THEN COALESCE(approved_amount, amount)
                         ELSE -COALESCE(approved_amount, amount) END
                ), 0) AS net FROM expenses
-            WHERE trip_code = %s AND manager_status = 'APPROVED'""",
+            WHERE trip_code = %s AND manager_status = 'APPROVED'
+              AND exp_type NOT IN ('CASH_ADVANCE', 'DRIVER_SALARY')""",
         (trip_code,),
     )
     return cur.fetchone()["net"]

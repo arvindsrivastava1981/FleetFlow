@@ -30,8 +30,8 @@ function validate(form) {
   const advance = Number(form.advance_amount || 0);
   if (Number.isNaN(advance)) {
     errs.advance_amount = "Advance must be a number";
-  } else if (advance < 0) {
-    errs.advance_amount = "Advance cannot be negative";
+  } else if (advance <= 0) {
+    errs.advance_amount = "Advance must be greater than zero";
   }
   const odo = Number(form.start_odo || 0);
   if (Number.isNaN(odo)) {
@@ -217,7 +217,7 @@ export default function NewTripPage() {
               placeholder="0.00"
               type="number"
               step="any"
-              min="0"
+              min="0.01"
               required
               className={fieldClass(!!fieldErrors.advance_amount)}
             />

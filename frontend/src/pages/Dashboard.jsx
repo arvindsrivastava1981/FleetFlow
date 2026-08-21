@@ -53,7 +53,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {!data && !error && <Loader label="Loading your dashboard…" full />}
       {/* Welcome hero banner */}
       <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 p-6 text-white shadow-card sm:p-8">
         <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
@@ -79,6 +78,10 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {!data && !error ? (
+        <Loader label="Loading your dashboard…" />
+      ) : (
+        <>
       {data?.role === "super_admin" && data.kpis && (
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -178,7 +181,8 @@ export default function DashboardPage() {
           )}
         </>
       )}
-
+        </>
+      )}
       </div>
   );
 }

@@ -27,7 +27,8 @@ export function ToastProvider({ children }) {
     (type, message) => {
       const id = ++nextId;
       setToasts((list) => [...list, { id, type, message }]);
-      timers.current[id] = setTimeout(() => dismiss(id), 3500);
+      // Keep the toast visible long enough to read, while still auto-dismissing.
+      timers.current[id] = setTimeout(() => dismiss(id), 5000);
     },
     [dismiss]
   );
@@ -65,7 +66,7 @@ export function ToastProvider({ children }) {
             <button
               type="button"
               onClick={() => dismiss(t.id)}
-              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold leading-none opacity-70 transition hover:opacity-100"
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-current/[0.15] text-xs font-bold leading-none opacity-70 transition hover:bg-black/5 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-current/40"
               aria-label="Dismiss"
             >
               ✕
