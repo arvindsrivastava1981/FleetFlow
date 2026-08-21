@@ -230,7 +230,7 @@ export default function App() {
       <Route
         path="/benchmarks"
         element={
-          <ProtectedRoute roles={["super_admin"]}>
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <BenchmarksPage />
             </Layout>

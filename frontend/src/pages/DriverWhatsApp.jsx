@@ -250,9 +250,11 @@ async function sendReceipt(e) {
                           </p>
                         </>
                       )}
-                      <p className="text-[10px] text-slate-500">
-                        Status: {e.manager_status} ({HINDI_STATUS[e.manager_status] || "—"})
-                      </p>
+                      {e.exp_type === "FUEL" && (
+                        <p className="text-[10px] text-slate-500">
+                          Status: {e.manager_status} ({HINDI_STATUS[e.manager_status] || "—"})
+                        </p>
+                      )}
                       <p className="text-[9px] text-slate-400 mt-1">
                         {new Date(e.created_at).toLocaleString("en-IN", {
                           day: "2-digit",

@@ -29,6 +29,7 @@ const SECTIONS = [
       { to: "/fleets", label: "Fleets", icon: "🏢", roles: ["trip_manager", "super_admin"] },
       { to: "/vehicles", label: "Vehicles", icon: "🚛", roles: ["trip_manager", "super_admin"] },
       { to: "/drivers", label: "Drivers", icon: "👤", roles: ["trip_manager", "super_admin"] },
+      { to: "/benchmarks", label: "Fuel Benchmarks", icon: "⛽", roles: ["trip_manager", "super_admin"] },
     ],
   },
   {
@@ -36,7 +37,6 @@ const SECTIONS = [
     roles: ["super_admin"],
     links: [
       { to: "/users", label: "Users", icon: "👤", roles: ["super_admin"] },
-      { to: "/benchmarks", label: "Fuel Benchmarks", icon: "⛽", roles: ["super_admin"] },
     ],
   },
 ];
