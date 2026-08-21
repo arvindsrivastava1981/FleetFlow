@@ -53,6 +53,16 @@ export class UnauthorizedError extends ApiError {
   }
 }
 
+// Centralized 401 handling: drop the dead session token and bounce the user
+// back to the login page ("/"). The redirect is skipped when the app is
+// already on "/" so anonymous visitors and the boot-time /auth/me probe never
+// loop, and failed logins simply stay on the form.
+function handleUnauthorized() {
+  if (window.location.pathname !== "/") {
+    window.location.replace("/");
+  }
+}
+
 async function request(path, { method = "GET", body } = {}) {
   const headers = {};
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -67,11 +77,11 @@ async function request(path, { method = "GET", body } = {}) {
   });
 
   // On 401 (expired / invalid session): clear the local token so subsequent
-  // calls don't keep sending a dead token, and surface an UnauthorizedError.
-  // No automatic page redirect here — gating / redirecting is handled by the
-  // caller (e.g. ProtectedRoute) so public pages never get yanked to /login.
+  // calls don't keep sending a dead token, redirect to the login page ("/"),
+  // and surface an UnauthorizedError for callers that want to react too.
   if (res.status === 401 && !path.includes("/auth/login")) {
-    if (getToken()) setToken(null);
+    setToken(null);
+    handleUnauthorized();
     throw new UnauthorizedError();
   }
 
@@ -92,10 +102,11 @@ async function postForm(path, form) {
     body: new URLSearchParams(form).toString(),
   });
 
-  // On 401 (expired / invalid session): clear the local token. No automatic
-  // page redirect — the caller decides what to do.
+  // On 401 (expired / invalid session): clear the local token and redirect
+  // to the login page ("/"), same as JSON requests.
   if (res.status === 401 && !path.includes("/auth/login")) {
-    if (getToken()) setToken(null);
+    setToken(null);
+    handleUnauthorized();
     throw new UnauthorizedError();
   }
 
@@ -110,11 +121,13 @@ async function requestBlob(path) {
   const url = `${API_BASE_URL}${path}`;
   const res = await fetch(url, { method: "GET", headers });
 
-  // On 401 (expired / invalid session): clear the local token. No automatic
-  // page redirect — the caller decides what to do.
+  // On 401 (expired / invalid session): clear the local token and redirect
+  // to the login page ("/"), same as JSON requests. Throw the typed
+  // UnauthorizedError so callers can distinguish it like other API calls.
   if (res.status === 401) {
-    if (getToken()) setToken(null);
-    throw new ApiError("Unauthorized", 401, "UNAUTHORIZED");
+    setToken(null);
+    handleUnauthorized();
+    throw new UnauthorizedError();
   }
   if (!res.ok) {
     let message = `Request failed (${res.status})`;

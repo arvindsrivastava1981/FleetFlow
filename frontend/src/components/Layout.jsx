@@ -94,14 +94,14 @@ function navClass({ isActive }) {
         </p>
         <div className="space-y-0.5">
           <NavLink to="/change-password" className={navClass}>
-            <span className="w-5 text-center text-base leading-none">ðŸ”’</span>
+            <span className="w-5 text-center text-base leading-none">🔒</span>
             <span>Change Password</span>
           </NavLink>
           <button
             onClick={logout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-600 transition hover:bg-rose-50 hover:text-rose-700"
           >
-            <span className="w-5 text-center text-base leading-none">ðŸšª</span>
+            <span className="w-5 text-center text-base leading-none">🚪</span>
             <span>Logout</span>
           </button>
         </div>

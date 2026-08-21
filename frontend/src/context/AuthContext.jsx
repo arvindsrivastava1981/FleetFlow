@@ -8,9 +8,9 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // On boot, validate the stored token via /me. This runs on EVERY route,
-  // including public pages. Since api.js performs no automatic redirect on 401,
-  // an anonymous visitor can always view the public marketing pages — this just
-  // resolves whether a session exists so ProtectedRoute can gate authed routes.
+  // including the login page ("/"). On 401 api.js redirects to the login page
+  // unless the app is already there; here we just resolve whether a session
+  // exists so ProtectedRoute can gate authed routes.
   useEffect(() => {
     (async () => {
       try {
