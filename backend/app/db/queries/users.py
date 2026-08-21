@@ -67,6 +67,26 @@ def get_all_users(conn, role_filter: str | None = None) -> list[dict]:
     return cur.fetchall()
 
 
+def get_drivers_for_user(
+    conn, role: str = "super_admin", user_id: int | None = None
+) -> list[dict]:
+    """Return drivers visible to the caller, newest first.
+
+    super_admin sees every driver; a trip_manager sees ONLY the drivers they
+    created (users.created_by) — mirroring the vehicles ownership clause — so
+    one manager's drivers are never listed to another manager.
+    """
+    cur = conn.cursor()
+    if role == "super_admin":
+        cur.execute("SELECT * FROM users WHERE role = 'driver' ORDER BY id")
+    else:
+        cur.execute(
+            "SELECT * FROM users WHERE role = 'driver' AND created_by = %s ORDER BY id",
+            (user_id,),
+        )
+    return cur.fetchall()
+
+
 def get_users_by_roles(conn, roles: tuple[str, ...]) -> list[dict]:
     """Return users whose role is in *roles* (for driver dropdowns)."""
     if not roles:

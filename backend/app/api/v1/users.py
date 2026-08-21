@@ -12,6 +12,7 @@ from backend.app.db.queries.users import (
     create_user,
     deactivate_user,
     get_all_users,
+    get_drivers_for_user,
     get_user_by_id,
     reactivate_user,
     update_user,
@@ -227,8 +228,13 @@ def api_drivers(request: Request):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
+    user = _identity(request)
     with get_db() as conn:
-        drivers = get_all_users(conn, role_filter="driver")
+        # Ownership scoping: a trip_manager lists only drivers they created;
+        # super_admin sees all. Never expose one manager's drivers to another.
+        drivers = get_drivers_for_user(
+            conn, role=user.get("role", "super_admin"), user_id=user.get("user_id")
+        )
     for d in drivers:
         d.pop("password_hash", None)
     return _ok(drivers)
@@ -272,6 +278,7 @@ async def api_update_driver(request: Request, uid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
+    user = _identity(request)
     try:
         body = await request.json()
     except Exception:  # noqa: BLE001
@@ -291,6 +298,13 @@ async def api_update_driver(request: Request, uid: int):
         existing = get_user_by_id(conn, uid)
         if existing is None or existing.get("role") != "driver":
             return _not_found("driver not found")
+        # Ownership: a manager may only edit drivers they created (404 — not
+        # 403 — so the driver's existence is not leaked cross-manager).
+        if (
+            user.get("role") != "super_admin"
+            and existing.get("created_by") != user.get("user_id")
+        ):
+            return _not_found("driver not found")
         ok = update_user(
             conn, uid, full_name, "driver", phone, email, password_hash=pw_hash,
             batta_type=batta_type, default_batta_rate=default_batta_rate,
@@ -306,6 +320,7 @@ async def api_toggle_driver(request: Request, uid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
+    user = _identity(request)
     try:
         body = await request.json()
     except Exception:  # noqa: BLE001
@@ -314,6 +329,13 @@ async def api_toggle_driver(request: Request, uid: int):
     with get_db() as conn:
         existing = get_user_by_id(conn, uid)
         if existing is None or existing.get("role") != "driver":
+            return _not_found("driver not found")
+        # Ownership: a manager cannot activate/deactivate another manager's
+        # driver (404 — existence not leaked cross-manager).
+        if (
+            user.get("role") != "super_admin"
+            and existing.get("created_by") != user.get("user_id")
+        ):
             return _not_found("driver not found")
         if should_activate:
             reactivate_user(conn, uid)

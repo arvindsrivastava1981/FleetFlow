@@ -16,6 +16,7 @@ from backend.app.db.queries.users import get_user_fleet_id
 from backend.app.db.queries.vehicles import (
     deactivate_vehicle,
     get_all_vehicles,
+    get_vehicle_by_id,
     insert_vehicle,
     reactivate_vehicle,
     update_vehicle,
@@ -105,6 +106,7 @@ async def api_update_vehicle(request: Request, vid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
+    user = _identity(request)
     try:
         body = await request.json()
     except Exception:  # noqa: BLE001
@@ -120,6 +122,13 @@ async def api_update_vehicle(request: Request, vid: int):
     owner_phone = (body.get("owner_phone") or "").strip() or None
 
     with get_db() as conn:
+        # Ownership: resolve the vehicle through the role visibility clause so a
+        # manager can only update vehicles they created (404 hides existence).
+        if get_vehicle_by_id(
+            conn, vid, role=user.get("role", "super_admin"),
+            user_id=user.get("user_id"),
+        ) is None:
+            return _not_found("vehicle not found")
         if vehicle_number_exists(conn, number, exclude_id=vid):
             return _bad("vehicle number already exists", "DUP_VEHICLE")
         ok = update_vehicle(
@@ -136,12 +145,20 @@ async def api_toggle_vehicle(request: Request, vid: int):
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
+    user = _identity(request)
     try:
         body = await request.json()
     except Exception:  # noqa: BLE001
         return _bad("invalid JSON body")
     should_activate = bool((body or {}).get("activate", False))
     with get_db() as conn:
+        # Ownership: a manager cannot activate/deactivate another manager's
+        # vehicle (404 hides existence cross-manager).
+        if get_vehicle_by_id(
+            conn, vid, role=user.get("role", "super_admin"),
+            user_id=user.get("user_id"),
+        ) is None:
+            return _not_found("vehicle not found")
         if should_activate:
             reactivate_vehicle(conn, vid)
         else:

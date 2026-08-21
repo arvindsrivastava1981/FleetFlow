@@ -172,6 +172,18 @@ async def api_create_trip(request: Request):
             )
         # Driver name, phone, and batta are all resolved from the users table
         # via driver_user_id — the client sends only the ID.
+        # Ownership: a manager may only dispatch drivers they created; a
+        # foreign driver id must never be usable cross-manager (403).
+        driver_row = get_user_by_id(conn, driver_user_id) if driver_user_id else None
+        if driver_row is None or driver_row.get("role") != "driver":
+            return _bad("unknown driver selected", "UNKNOWN_DRIVER")
+        if (
+            user.get("role", "super_admin") != "super_admin"
+            and driver_row.get("created_by") != user.get("user_id")
+        ):
+            return JSONResponse(
+                status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
+            )
         driver = get_driver_batta_profile(conn, driver_user_id)
         if not driver:
             return _bad("unknown driver selected", "UNKNOWN_DRIVER")

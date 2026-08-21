@@ -124,7 +124,7 @@ async def api_onboard_fleet(request: Request):
                     float(vehicle.get("tank_capacity_liters", 350.0)),
                     float(vehicle.get("expected_km_per_liter", 4.0)),
                     ((vehicle.get("owner_phone") or "")).strip() or None,
-                    created_by=actor_id, fleet_id=fleet_id,
+                    created_by=owner_user_id, fleet_id=fleet_id,
                 )
 
         driver_user_id = None
@@ -136,7 +136,7 @@ async def api_onboard_fleet(request: Request):
                 conn, d_username, hash_password(d_pass), d_full, "driver",
                 ((driver.get("phone") or "")).strip() or None,
                 ((driver.get("email") or "")).strip() or None,
-                created_by=actor_id, fleet_id=fleet_id,
+                created_by=owner_user_id, fleet_id=fleet_id,
                 batta_type=driver.get("batta_type"),
                 default_batta_rate=driver.get("default_batta_rate"),
             )
