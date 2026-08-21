@@ -11,7 +11,7 @@ import UsersPage from "./pages/admin/Users.jsx";
 import VehiclesPage from "./pages/admin/Vehicles.jsx";
 import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
 import OnboardFirmPage from "./pages/admin/OnboardFirm.jsx";
-import BillingPage from "./pages/Billing.jsx";
+import SubscriptionPage from "./pages/Billing.jsx";
 import RuleEnginePage from "./pages/RuleEngine.jsx";
 import SettledTripsPage from "./pages/SettledTrips.jsx";
 import ChangePasswordPage from "./pages/ChangePassword.jsx";
@@ -167,15 +167,16 @@ export default function App() {
         }
       />
       <Route
-        path="/billing"
+        path="/subscription"
         element={
           <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
-              <BillingPage />
+              <SubscriptionPage />
             </Layout>
           </ProtectedRoute>
         }
       />
+      <Route path="/billing" element={<Navigate to="/subscription" replace />} />
       <Route
         path="/rule-engine"
         element={

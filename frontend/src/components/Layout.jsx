@@ -6,7 +6,7 @@ const SECTIONS = [
     title: "Onboarding",
     roles: ["super_admin"],
     links: [
-      { to: "/onboard", label: "Onboard Firm", icon: "🏗️", roles: ["super_admin"] },
+      { to: "/onboard", label: "Onboard Firm", icon: "🚧", roles: ["super_admin"] },
     ],
   },
   {
@@ -17,8 +17,8 @@ const SECTIONS = [
       { to: "/expenses", label: "Expense Ledger", icon: "🧾", roles: ["trip_manager", "super_admin"] },
       { to: "/whatsapp", label: "WhatsApp View", icon: "💬" },
       { to: "/driver-salary", label: "Driver Salary", icon: "💰", roles: ["driver"] },
-      { to: "/settlements", label: "Settled Trips", icon: "📑" },
-      { to: "/billing", label: "Billing", icon: "💳", roles: ["trip_manager", "super_admin"] },
+      { to: "/settlements", label: "Settled Trips", icon: "📒" },
+      { to: "/subscription", label: "Subscription", icon: "💳", roles: ["trip_manager", "super_admin"] },
       { to: "/rule-engine", label: "Rule Engine", icon: "⚙️", roles: ["trip_manager", "super_admin"] },
     ],
   },
@@ -27,7 +27,7 @@ const SECTIONS = [
     links: [
       { to: "/fleets", label: "Fleets", icon: "🏢", roles: ["trip_manager", "super_admin"] },
       { to: "/vehicles", label: "Vehicles", icon: "🚛", roles: ["trip_manager", "super_admin"] },
-      { to: "/drivers", label: "Drivers", icon: "👤", roles: ["trip_manager", "super_admin"] },
+      { to: "/drivers", label: "Drivers", icon: "👨", roles: ["trip_manager", "super_admin"] },
       { to: "/benchmarks", label: "Fuel Benchmarks", icon: "⛽", roles: ["trip_manager", "super_admin"] },
     ],
   },
@@ -35,7 +35,7 @@ const SECTIONS = [
     title: "System & Reports",
     roles: ["super_admin"],
     links: [
-      { to: "/users", label: "Users", icon: "👤", roles: ["super_admin"] },
+      { to: "/users", label: "Users", icon: "👨", roles: ["super_admin"] },
     ],
   },
 ];
@@ -94,14 +94,14 @@ function navClass({ isActive }) {
         </p>
         <div className="space-y-0.5">
           <NavLink to="/change-password" className={navClass}>
-            <span className="w-5 text-center text-base leading-none">🔒</span>
+            <span className="w-5 text-center text-base leading-none">ðŸ”’</span>
             <span>Change Password</span>
           </NavLink>
           <button
             onClick={logout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-600 transition hover:bg-rose-50 hover:text-rose-700"
           >
-            <span className="w-5 text-center text-base leading-none">🚪</span>
+            <span className="w-5 text-center text-base leading-none">ðŸšª</span>
             <span>Logout</span>
           </button>
         </div>

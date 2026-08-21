@@ -185,10 +185,11 @@ class ToggleAck(BaseModel):
 class Plan(BaseModel):
     code: str
     name: str
-    price: int
-    period: str
-    vehicle_limit: int
-    description: str
+    price: Optional[int] = None
+    period: Optional[str] = None
+    vehicle_limit: Optional[int] = None
+    trial_days: Optional[int] = None
+    description: str = ""
 
 
 class FleetBilling(BaseModel):
