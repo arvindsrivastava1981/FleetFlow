@@ -125,7 +125,7 @@ Left-nav sections **Operations → Fleet & Assets → System & Reports → Accou
 | # | Page (Route) | API(s) called | Activity | Observations |
 |---|--------------|---------------|----------|--------------|
 | 1 | Login `/login` → `/dashboard` | `POST /api/v1/auth/login` (form-encoded via `postForm`) | Authenticate; role normalized to `/dashboard` by `AuthContext.login()` | — |
-| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Macro KPIs (active trips/vehicles/drivers, MTD spend, leakage, float) + quick links | — |
+| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Responsive KPI dashboard: hero banner, macro KPIs (active trips/vehicles/drivers, MTD spend, leakage, float); **Expense Ledger & Active Trips quick-link cards removed** | — |
 | 3 | Active Trips `/trips` | `GET /api/v1/trips` | List trips (super_admin sees all fleets) → link to detail | — |
 | 4 | New Trip `/trips/new` | `GET /api/v1/vehicles`, `GET /api/v1/drivers`, `POST /api/v1/trips` | Prefill vehicle/driver dropdowns; start trip (auto trip_code) | No client-side plate/phone/non-neg validation — errors only after submit (backend `400/409`). |
 | 5 | Trip Detail `/trips/:tripCode` | `GET /api/v1/trips/{code}`, `POST /api/v1/expenses`, `POST /api/v1/trips/{code}/settle` | View/expense log; **Settle Trip** button shown when `status` is `ACTIVE` **or `COMPLETED`** | Route guard has **no `roles`** — any authenticated role can deep-link `/trips/:code`; settle button is UI-restricted but a driver could still submit expenses through this form. |
@@ -147,7 +147,7 @@ Same **Operations → Fleet & Assets → Account** sections (no System & Reports
 | # | Page (Route) | API(s) called | Activity | Observations |
 |---|--------------|---------------|----------|--------------|
 | 1 | Login `/login` → `/dashboard` | `POST /api/v1/auth/login` | Authenticate; normalized to SPA `/dashboard` | — |
-| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Dispatched, pending escalations, advances today, awaiting settlement | — |
+| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Dispatched, pending escalations, advances today, awaiting settlement + **Live Dispatches** feed (`active_trips`) | — |
 | 3 | Active Trips `/trips` | `GET /api/v1/trips` | List own trips | Ownership enforced backend-side (403 cross-scope). |
 | 4 | New Trip `/trips/new` | `GET /api/v1/vehicles`, `GET /api/v1/drivers`, `POST /api/v1/trips` | Start trip (dropdowns from own vehicles + active drivers) | Same client-validation gap as Super Admin. |
 | 5 | Trip Detail `/trips/:tripCode` | `GET /api/v1/trips/{code}`, `POST /api/v1/expenses`, `POST /api/v1/trips/{code}/settle` | Expense log + Settle Trip | — |
@@ -168,7 +168,7 @@ Left-nav **Operations → Account** only. Billing and Rule Engine are **not** sh
 | # | Page (Route) | API(s) called | Activity | Observations |
 |---|--------------|---------------|----------|--------------|
 | 1 | Login `/login` → `/dashboard` | `POST /api/v1/auth/login` | Authenticate; normalized to `/dashboard` | Backend returns legacy `/driver` landing — SPA ignores it (by design). |
-| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Today logged, cash-in-hand, active trip card (Expense Ledger quick-link now manager/admin-only) | — |
+| 2 | My Dashboard `/dashboard` | `GET /api/v1/dashboard/overview` | Responsive driver KPIs (Today Logged, Cash in Hand, Active Trip) + quick-action card; **Expense Ledger dashboard quick-link removed** | — |
 | 3 | ~~Expense Ledger `/expenses`~~ (removed from driver nav) | `GET /api/v1/trips`, `GET /api/v1/trips/{code}` | View ledger of **own assigned trips** (role-scoped) | Removed from sidebar + dashboard quick-links for drivers — a trip-picking audit tool; drivers view own expenses via Driver (WhatsApp). |
 | 4 | Driver (WhatsApp) `/whatsapp-driver` | `GET /api/v1/dashboard/overview`, `GET /api/v1/trips/{code}`, `POST /api/v1/expenses` | Chat-style receipt send (bilingual labels; flags anomalies) | Only functional when a trip is ACTIVE (else `404 trip not active`); simulates G1 real WhatsApp. |
 | 5 | Driver Salary `/driver-salary` | `GET /api/v1/driver/salary` | Read-only batta + per-trip net payable/refund totals | Backend `require_json_role("driver")`; driver-only route. |
@@ -184,6 +184,7 @@ Left-nav **Operations → Account** only. Billing and Rule Engine are **not** sh
 - ✅ **Fleets nav is now shown to `trip_manager` + `super_admin`** (moved from "System & Reports" into "Fleet & Assets"). Managers get a **scoped, read-only** view: backend `GET /api/v1/fleets` returns only the caller's own fleet (via `users.fleet_id`, passed to `get_all_fleets(conn, fleet_id)`), and the page hides the create/edit/toggle form + Action column for non-super-admins. `POST/PUT /fleets`, `POST /fleets/{fid}/toggle` remain `require_json_role("super_admin")` → managers get `403 FORBIDDEN`.
 - ✅ **Driver `Final Reports` nav item removed** as redundant with `Settled Trips`; the `/reports` route + `ReportsPage` are kept for backward-compat (still `driver`-guarded).
 - ✅ **Driver `Expense Ledger` nav item + dashboard quick-link removed** — a trip-picking audit tool (`GET /api/v1/trips` dropdown → ledger with approval/flag badges); drivers view their own expenses/submission status via the Driver (WhatsApp) and their financial summary via Driver Salary + Settled Trips. Sidebar link gained `roles: ["trip_manager", "super_admin"]`; dashboard `Expense Ledger` card gated behind the same role check. Route remains accessible to managers/admins only.
+- ✅ **Dashboard redesigned as a responsive UI** — `Dashboard.jsx` now leads with a gradient hero banner (role-aware greeting + sub-copy), replaces the flat `.stat` tiles with modern `KpiCard` components (color accent bar, icon chip, hover lift) on a 2-col → 4-col responsive grid, and **removes the `Expense Ledger` (🧾) and `Active Trips` (🚚) quick-link cards** from the dashboard for managers/super-admins. Managers gain a **Live Dispatches** feed fed by `dashboard/overview.active_trips` (trip_code, vehicle, driver, ODO, claimed ₹, pending badge) linking to `/trips/:code`, with an empty-state CTA to start a trip. Drivers get a quick-action card (WhatsApp send + trip detail). The dedicated `/trips` and `/expenses` pages remain reachable from the sidebar.
 - ✅ **Batta profiles now configurable end-to-end:** `Drivers.jsx` exposes `FIXED_TRIP/PER_KM/DAILY/NONE` (rate field disabled for `NONE`), the `Users.jsx` create/edit form now shows a batta block when `role === "driver"`, and the backend whitelist in `users.py::_normalise_batta` now accepts all four values (`NONE` stores rate `0.00`). Creating a driver via either page no longer silently defaults batta.
 - ✅ **SPA 404 catch-all added** — `path="*"` renders a `NotFound` page (unknown URLs no longer render blank; the catch-all is **not** wrapped in `ProtectedRoute`, so anonymous visitors hitting an unknown URL like `/xyz` see the 404 instead of being bounced to `/login` — only authenticated app routes are login-gated).
 - ✅ **NO automatic `/login` redirect in `frontend/src/lib/api.js`** — on a `401` (expired/invalid session) the request helpers (`request`, `postForm`, `requestBlob`) only clear the local `vk_token` and throw an error (`UnauthorizedError`/`ApiError`). They never call `window.location.href = "/login"`, so the boot-time `/me` probe is never yanked to `/login`. Redirect decision is left entirely to the caller; `ProtectedRoute` gates authed routes via `<Navigate to="/login">` only when rendering an auth-required page with no session. The `navigateOnUnauthorized` flag + `api.getOpts` helper were removed as dead code. (The public marketing pages are a **separate** `public-site/` SPA with no `api.js` dependency at all, so this probe behavior does not affect them.)
@@ -198,11 +199,7 @@ Left-nav **Operations → Account** only. Billing and Rule Engine are **not** sh
 - Vehicle Plate Regex: `^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$`
 - Country Code: `+91`
 - QR Code Length: 6 characters
-- Normalized Alert Issue: `issue_type="Emergency"`
-- Anti-Spam: 3 scans / hour per tag
-- OTP Constraints: 6-digit code, 10-minute expiry, 3 verification attempts, 60-second request cooldown
 - JWT Session: 72 hours
-- Contact Form Cooldown: 60 seconds per source IP
 - Rules engine constants: `BENCHMARK_PRICE=90.50`, `TANK_CAPACITY=350.0L`, `EXPECTED_KML=4.0`, `DEF_RATE_MAX=75.0`, `DEF_MIN_RATIO_PCT=3.0`, `DEF_MAX_RATIO_PCT=6.0`. The global `DEFAULT_BAND` (90.50 ± 8%) remains the **fallback**; the expense route resolves a per-**state** fuel band from `fuel_benchmarks` using the driver-submitted **fueling state** (`expenses.state_code` → `trips.state_code` → `DEFAULT_BAND`), and passes `band` + `band_state_code` into `evaluate_expense` so the FUEL band flag reason names the fueling state (`UP / Uttar Pradesh`). Live rates are refreshed via `POST /api/v1/benchmarks/sync-live`. `BENCHMARK_PRICE`/`FUEL_BAND_TOLERANCE_PCT` still feed `DEFAULT_BAND` in `services/rules/bands.py`. The canonical state list + name→code aliases live in `services/states.py`.
 
 ### Settlement / Unified Ledger (trip creation auto-posts two fixed provisions)
