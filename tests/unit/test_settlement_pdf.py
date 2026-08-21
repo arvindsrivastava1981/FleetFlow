@@ -82,6 +82,60 @@ def test_devanagari_font_is_registered() -> None:
     assert _FONT_NAME in pdfmetrics.getRegisteredFontNames()
 
 
+def test_bundled_font_covers_latin_letters() -> None:
+    """The bundled font must carry A-Z/a-z glyphs, not just Devanagari.
+
+    Regression guard: the original bundled NotoSansDevanagari-Regular.ttf was
+    a script-only build whose cmap had NO Latin letterforms, so every English
+    word in the voucher (labels, dates like ``21-Aug-2026``, ``NET SETTLEMENT``)
+    painted as blank .notdef boxes while digits/Hindi still rendered.
+    """
+    face = pdfmetrics.getFont(_FONT_NAME).face
+    cm = face.charToGlyph
+    missing = [chr(c) for c in range(0x41, 0x7B) if c not in cm]
+    assert not missing, f"bundled font lacks Latin glyphs: {''.join(missing)}"
+    assert 0x20B9 in cm, "bundled font must keep the rupee sign (₹)"
+
+
+def _ascii_letters_in_pdf(pdf: bytes) -> bool:
+    """Return True if any ToUnicode CMap maps a used glyph to an ASCII letter.
+
+    Mirrors :func:`_devanagari_in_pdf`: reportlab writes ``beginbfchar``
+    entries ``<glyph> <UTF-16 hex>``, so a painted English letter shows up as
+    a destination like ``<0044>`` ('D'). Glyphs that are NOT in the font never
+    get a bfchar entry, so this proves English text was really embedded.
+    """
+    ascii_hex = {f"{cp:04X}" for cp in range(0x41, 0x7B)} | {f"{cp:04X}" for cp in range(0x61, 0x7B)}
+    text = pdf.decode("latin1")
+    for m in re.finditer(r"stream", text):
+        start = text.find("\n", m.start()) + 1
+        end = text.find("endstream", start)
+        if end < 0:
+            continue
+        try:
+            decoded = zlib.decompress(text[start:end].encode("latin1"))
+        except zlib.error:
+            continue
+        seen = set(re.findall(rb"<[0-9A-F]{2}>\s*<([0-9A-F]{4})>", decoded))
+        if {v.decode("ascii") for v in seen} & ascii_hex:
+            return True
+    return False
+
+
+def test_build_settlement_pdf_embeds_latin_glyphs() -> None:
+    """The generated PDF must embed English (ASCII letter) glyphs too."""
+    from datetime import datetime
+
+    trip = _sample_trip(manager_consent_at=datetime(2026, 8, 21, 9, 47))
+    pdf = build_settlement_pdf(trip, _sample_expenses())
+    assert isinstance(pdf, bytes)
+    assert len(pdf) > 5000
+    assert _ascii_letters_in_pdf(pdf), (
+        "PDF must embed Latin glyphs — English text went blank "
+        "(script-only font regression)"
+    )
+
+
 def test_hi_style_uses_devanagari_for_normal_and_bold() -> None:
     """Inline ``<b>`` markup must not drop Devanagari glyphs."""
     from reportlab.lib.styles import getSampleStyleSheet

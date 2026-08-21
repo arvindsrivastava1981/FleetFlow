@@ -14,21 +14,22 @@ const SECTIONS = [
     links: [
       { to: "/dashboard", label: "My Dashboard", icon: "📊" },
       { to: "/trips", label: "Active Trips", icon: "🚚", roles: ["trip_manager", "super_admin"] },
-      { to: "/expenses", label: "Expense Ledger", icon: "🧾", roles: ["trip_manager", "super_admin"] },
-      { to: "/whatsapp", label: "WhatsApp View", icon: "💬" },
+      {
+        to: "/whatsapp",
+        icon: "💬",
+        label: (role) => (role === "driver" ? "WhatsApp View" : "Expense Approvals"),
+      },
       { to: "/driver-salary", label: "Driver Salary", icon: "💰", roles: ["driver"] },
       { to: "/settlements", label: "Settled Trips", icon: "📒" },
-      { to: "/subscription", label: "Subscription", icon: "💳", roles: ["trip_manager", "super_admin"] },
-      { to: "/rule-engine", label: "Rule Engine", icon: "⚙️", roles: ["trip_manager", "super_admin"] },
     ],
   },
   {
     title: "Fleet & Assets",
     links: [
-      { to: "/fleets", label: "Fleets", icon: "🏢", roles: ["trip_manager", "super_admin"] },
+      { to: "/fleets", label: "Fleets", icon: "🏢", roles: ["super_admin"] },
       { to: "/vehicles", label: "Vehicles", icon: "🚛", roles: ["trip_manager", "super_admin"] },
       { to: "/drivers", label: "Drivers", icon: "👨", roles: ["trip_manager", "super_admin"] },
-      { to: "/benchmarks", label: "Fuel Benchmarks", icon: "⛽", roles: ["trip_manager", "super_admin"] },
+      { to: "/benchmarks", label: "Rules & Rates", icon: "⚖️", roles: ["trip_manager", "super_admin"] },
     ],
   },
   {
@@ -70,19 +71,23 @@ function navClass({ isActive }) {
               {section.title}
             </p>
             <div className="space-y-0.5">
-              {links.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  end={link.to === "/trips"}
-                  className={navClass}
-                >
-                  <span className="w-5 text-center text-base leading-none">
-                    {link.icon}
-                  </span>
-                  <span>{link.label}</span>
-                </NavLink>
-              ))}
+              {links.map((link) => {
+                const label =
+                  typeof link.label === "function" ? link.label(role) : link.label;
+                return (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.to === "/trips"}
+                    className={navClass}
+                  >
+                    <span className="w-5 text-center text-base leading-none">
+                      {link.icon}
+                    </span>
+                    <span>{label}</span>
+                  </NavLink>
+                );
+              })}
             </div>
           </div>
         );
@@ -93,6 +98,12 @@ function navClass({ isActive }) {
           Account
         </p>
         <div className="space-y-0.5">
+          {role !== "driver" && (
+            <NavLink to="/subscription" className={navClass}>
+              <span className="w-5 text-center text-base leading-none">💳</span>
+              <span>Subscription</span>
+            </NavLink>
+          )}
           <NavLink to="/change-password" className={navClass}>
             <span className="w-5 text-center text-base leading-none">🔒</span>
             <span>Change Password</span>

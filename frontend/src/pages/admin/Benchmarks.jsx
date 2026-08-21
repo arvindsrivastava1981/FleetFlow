@@ -3,6 +3,14 @@ import { api } from "../../lib/api.js";
 import { useToast } from "../../context/ToastContext.jsx";
 import Loader from "../../components/Loader.jsx";
 
+const RULE_BADGES = {
+  FUEL: "badge-warning",
+  TOLL: "badge-danger",
+  REPAIR: "bg-orange-100 text-orange-800",
+  CHALLAN: "badge-danger",
+  DEF: "badge-brand",
+};
+
 function timeAgo(value) {
   if (!value) return "—";
   const then = new Date(value).getTime();
@@ -23,6 +31,7 @@ export default function BenchmarksPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [rules, setRules] = useState({});
 
   function load() {
     api
@@ -35,6 +44,13 @@ export default function BenchmarksPage() {
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
+
+  useEffect(() => {
+    api
+      .get("/api/v1/rules")
+      .then(setRules)
+      .catch(() => setRules({}));
+  }, []);
 
   async function syncLive() {
     setSyncing(true);
@@ -53,7 +69,10 @@ export default function BenchmarksPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="page-title">Fuel Benchmarks</h2>
+      <h2 className="page-title">Rules &amp; Rates</h2>
+      <p className="page-sub">
+        State fuel benchmarks and the automated expense rules.
+      </p>
       {error && (
         <div className="alert alert-error">
           {error}
@@ -118,6 +137,35 @@ export default function BenchmarksPage() {
           </tbody>
         </table>
       </div>
+      )}
+
+      {Object.keys(rules).length > 0 && (
+        <div className="space-y-3">
+          <div>
+            <h3 className="text-sm font-extrabold text-slate-800">
+              Expense Rule Engine
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Automated checks applied to every expense claim, grouped by expense type.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Object.entries(rules).map(([type, items]) => (
+              <div key={type} className="card-pad">
+                <span className={`badge ${RULE_BADGES[type] || "badge-neutral"}`}>
+                  {type}
+                </span>
+                <ul className="mt-3 list-inside list-disc space-y-1.5">
+                  {items.map((rule, idx) => (
+                    <li key={idx} className="text-sm leading-relaxed text-slate-600">
+                      {rule}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
