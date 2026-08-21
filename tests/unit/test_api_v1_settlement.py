@@ -14,16 +14,13 @@ MOCK_USER = {"user_id": 1, "username": "manager", "role": "super_admin"}
 def _mock_db_cursor(trip, expenses=None, ledger_expenses=None):
     """Build a fake cursor+connection that yields the trip and expense rows.
 
-    The trip-detail route first fetches the FULL ledger (for settlement math) via
-    `get_expenses_for_trip`, then the filtered ledger (`get_ledger_expenses_for_trip`)
-    for the response. `ledger_expenses` defaults to expenses but omits provisions.
+    The trip-detail route fetches the FULL ledger (for settlement math) via
+    `get_expenses_for_trip`, then the same full ledger via `get_ledger_expenses_for_trip`
+    for the response. `ledger_expenses` defaults to expenses (no longer filtered).
     """
     expenses = expenses or []
     if ledger_expenses is None:
-        ledger_expenses = [
-            e for e in expenses
-            if e.get("exp_type") not in ("CASH_ADVANCE", "DRIVER_SALARY")
-        ]
+        ledger_expenses = expenses
     cur = mock.MagicMock()
     cur.fetchone.side_effect = [trip]
     cur.fetchall.side_effect = [expenses, ledger_expenses]
@@ -177,11 +174,11 @@ def test_trip_detail_settlement_mirrors_compute_settlement(client, resolve_db):
     assert s["net_balance"] == pytest.approx(20000.0 + 30000.0 - (5000.0 + 1500.0 + 1000.0 + 2500.0))
     assert s["total_driver_credits"] == pytest.approx(5000.0 + 1500.0 + 1000.0 + 2500.0)
 
-    # The response ledger must exclude the provision legs (CASH_ADVANCE /
-    # DRIVER_SALARY) even though settlement math counts them.
+    # The response ledger now includes provision legs (CASH_ADVANCE / DRIVER_SALARY)
+    # alongside real driver expenses.
     returned_types = {e["exp_type"] for e in body["expenses"]}
-    assert "CASH_ADVANCE" not in returned_types
-    assert "DRIVER_SALARY" not in returned_types
+    assert "CASH_ADVANCE" in returned_types
+    assert "DRIVER_SALARY" in returned_types
     assert {"GOODS_SALE", "FUEL", "REPAIR", "CHALLAN"} <= returned_types
 
 

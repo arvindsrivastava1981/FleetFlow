@@ -7,11 +7,8 @@ import Loader from "../components/Loader.jsx";
 
 const EXPENSE_TYPES = [
   "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
+  "CASH_ADVANCE", "DRIVER_SALARY",
 ];
-
-// Auto-posted provision ledger rows (fixed at trip creation) are not real driver
-// expenses — hide them from the user-facing ledger table.
-const PROVISION_TYPES = new Set(["CASH_ADVANCE", "DRIVER_SALARY"]);
 
 export default function TripDetailPage() {
   const { tripCode } = useParams();
@@ -83,9 +80,7 @@ export default function TripDetailPage() {
   }
 
   const trip = data?.trip;
-  const expenses = (data?.expenses || []).filter(
-    (e) => !PROVISION_TYPES.has(e.exp_type)
-  );
+  const expenses = data?.expenses || [];
   const s = trip?.settlement;
   const canSettle =
     user?.role === "trip_manager" || user?.role === "super_admin";

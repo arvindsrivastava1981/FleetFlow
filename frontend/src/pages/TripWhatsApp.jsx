@@ -16,8 +16,6 @@ const EXPENSE_TYPES = [
   { value: "GOODS_SALE", label: "Goods Sell (माल बिक्री)" },
 ];
 
-const PROVISION_TYPES = new Set(["CASH_ADVANCE", "DRIVER_SALARY"]);
-
 const HINDI_LABELS = {
   FUEL: "डीजल", DEF: "यूरिया", TOLL: "टोल", REPAIR: "मरम्मत",
   CHALLAN: "चालान", MISC: "कांटा / विविध",
@@ -80,7 +78,7 @@ export default function TripWhatsAppPage() {
     api.get(`/api/v1/trips/${tripCode}`).then((det) => {
       const tripData = det?.trip || det;
       setTrip(tripData);
-      setExpenses((det?.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type)));
+      setExpenses(det?.expenses || []);
       setForm((f) => ({ ...f, trip_code: tripCode, state_code: tripData?.state_code || "" }));
       if (isDriver && tripData?.trip_code) {
         api.get("/api/v1/dashboard/overview").then((d) => setCashInHand(d?.cash_in_hand ?? 0));
@@ -110,7 +108,7 @@ export default function TripWhatsAppPage() {
         : "✅ Receipt logged & verified.");
       setForm((f) => ({ ...f, amount: "", odometer: "", liters: "", rate: "" }));
       const det = await api.get(`/api/v1/trips/${tripCode}`);
-      setExpenses((det?.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type)));
+      setExpenses(det?.expenses || []);
     } catch (e) { setError(e.message); toast.error(e.message); } finally { setBusy(false); }
   }
 
@@ -123,7 +121,7 @@ export default function TripWhatsAppPage() {
         : (res?.label_hi ? `कटौती (${res.label_en})` : "Expense deducted ❌");
       toast.success(label);
       const det = await api.get(`/api/v1/trips/${tripCode}`);
-      setExpenses((det?.expenses || []).filter((e) => !PROVISION_TYPES.has(e.exp_type)));
+      setExpenses(det?.expenses || []);
     } catch (e) { setError(e.message || "Action failed"); toast.error(e.message || "Action failed"); }
     finally { setBusyId(null); }
   }
