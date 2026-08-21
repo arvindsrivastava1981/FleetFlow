@@ -38,7 +38,8 @@ export default function OnboardFirmPage() {
     if (!form.phone.trim()) e.phone = "Phone is required.";
     if (!form.username.trim()) e.username = "Manager username is required.";
     if (!form.full_name.trim()) e.full_name = "Manager full name is required.";
-    if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
+    if (!form.password.trim()) e.password = "Manager password is required.";
+    else if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
 
     if (form.vehicle_number) {
       const plate = form.vehicle_number.trim().toUpperCase();

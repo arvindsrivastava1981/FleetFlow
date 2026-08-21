@@ -3,6 +3,8 @@ from __future__ import annotations
 import io
 import logging
 import os
+import re
+import zlib
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from reportlab.lib import colors
@@ -27,8 +29,9 @@ from backend.app.services.audit.cash import ROAD_EXPENSE_BUCKETS, SettlementResu
 _FONT_NAME = "VK-Devanagari"
 _FONT_FILE = "NotoSansDevanagari-Regular.ttf"
 _FONTS_DIR = os.path.dirname(__file__)
+_FONT_PATH = os.path.join(_FONTS_DIR, _FONT_FILE)
 
-pdfmetrics.registerFont(TTFont(_FONT_NAME, os.path.join(_FONTS_DIR, _FONT_FILE)))
+pdfmetrics.registerFont(TTFont(_FONT_NAME, _FONT_PATH))
 
 _HI_STYLE_CTR = [0]
 
@@ -191,6 +194,102 @@ def _build_weasyprint_context(
     }
 
 
+# ---------------------------------------------------------------------------#
+# Post-process the ToUnicode CMap to replace PUA fallback glyphs.
+#
+# When reportlab uses HarfBuzz for complex-script shaping (shaping=True),
+# ligature/conjunct glyphs are emitted for sequences like "क्त" or "त्र".
+# Those glyphs don't correspond to a single Unicode codepoint, so reportlab
+# maps them to the Private Use Area (U+E000–U+E0FF) in the ToUnicode CMap.
+# The PDF *renders* correctly visually, but copy-pasting text from the PDF
+# produces garbled PUA characters (e.g. ``याा`` instead of ``यात्रा``).
+#
+# We intercept the raw PDF bytes, decompress every FlateDecode stream that
+# looks like a ToUnicode CMap, and strip out the PUA bfchar entries so that
+# PDF text-extraction tools fall back to glyph-name heuristics (which map
+# the short glyph names to the correct Unicode decomposition).  This is safe
+# because PUA glyphs are *only* a text-extraction hint — the visual rendering
+# is driven exclusively by the glyph program, not the ToUnicode CMap.
+# ---------------------------------------------------------------------------#
+_PUA_RE = re.compile(rb"<([0-9A-F]{2})>\s*<E0[0-9A-F]{2}>", re.IGNORECASE)
+
+
+def _fix_pua_tounicode(pdf_bytes: bytes) -> bytes:
+    """Remove Private Use Area fallback entries from every ToUnicode CMap in *pdf_bytes*.
+
+    Returns the modified PDF (a new bytes object).  If no PUA entries are
+    found the original bytes are returned unchanged so there is zero cost
+    when the PDF already has a clean CMap.
+    """
+    # Quick rejection: scan for "<E0" which only appears inside compressed
+    # streams (not as literal bytes), so we must decompress first.  Since
+    # this is cheap for typical PDFs (a few streams, small sizes), we skip
+    # the byte-level pre-check and always walk through FlateDecode streams.
+
+    result = bytearray(pdf_bytes)
+    text = pdf_bytes.decode("latin1")
+    modified = False
+
+    # Find every FlateDecode stream and check if it contains beginbfchar with
+    # PUA destination values.  We operate on raw bytes so we never risk
+    # corrupting Devanagari by going through a text codec.
+    for m in re.finditer(r"/Filter\s*\[?\s*/FlateDecode", text):
+        # Walk forward to find the stream content
+        obj_start = m.start()
+        stream_marker = text.find("stream", obj_start)
+        if stream_marker < 0:
+            continue
+        data_start = stream_marker + len("stream")
+        # Skip optional \r\n or \n after "stream"
+        if data_start < len(result) and result[data_start : data_start + 1] == b"\r":
+            data_start += 1
+        if data_start < len(result) and result[data_start : data_start + 1] == b"\n":
+            data_start += 1
+        stream_end = text.find("endstream", data_start)
+        if stream_end < 0:
+            continue
+        # Trim trailing whitespace that is part of the PDF structure, not the
+        # compressed data payload.
+        raw = bytes(result[data_start:stream_end]).rstrip()
+
+        # Try to decompress
+        try:
+            decoded = zlib.decompress(raw)
+        except zlib.error:
+            continue
+
+        # Only process CMap streams (they contain "beginbfchar")
+        if b"beginbfchar" not in decoded:
+            continue
+
+        # Strip PUA entries: replace each "<XX> <E0YY>" line with nothing
+        cleaned = _PUA_RE.sub(b"", decoded)
+        if cleaned == decoded:
+            continue  # no PUA entries in this CMap
+
+        # Re-compress
+        compressed = zlib.compress(cleaned)
+        # Replace the original stream data in-place, padding to keep
+        # the byte offsets of later objects intact.
+        orig_len = len(raw)
+        new_len = len(compressed)
+        if new_len <= orig_len:
+            # Pad with spaces (0x20) which are whitespace in PDF and thus ignored
+            compressed = compressed + b" " * (orig_len - new_len)
+            result[data_start : data_start + orig_len] = compressed
+            modified = True
+        else:
+            # Re-compressed data is larger — very unlikely for this operation,
+            # but if it happens we can't fix this stream without rewriting the
+            # xref table.  Log a warning and skip this stream.
+            logger.warning(
+                "[pdf] _fix_pua_tounicode: compressed size grew from %d to %d; skipping stream",
+                orig_len, new_len,
+            )
+
+    return bytes(result) if modified else pdf_bytes
+
+
 def build_settlement_pdf(
     trip: dict,
     expenses: list[dict],
@@ -252,7 +351,7 @@ def build_settlement_pdf(
     story.append(Paragraph(route_text, meta_style))
     story.append(Spacer(1, 12))
 
-    return _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name)
+    return _fix_pua_tounicode(_render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name))
 
 
 def _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name) -> bytes:
