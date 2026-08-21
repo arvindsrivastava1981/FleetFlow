@@ -46,7 +46,8 @@ class Settings:
         # ---- Email (Resend) ---------------------------------------------------
         self.resend_api_key: str | None = os.getenv("RESEND_API_KEY")
         self.sender_email: str | None = os.getenv("SENDER_EMAIL")
-        self.support_email: str = os.getenv("SUPPORT_EMAIL", "support@vahankhata.com")
+        self.support_email: str = os.getenv("SUPPORT_EMAIL", "support@vahankhata.in")
+        self.app_public_url: str = os.getenv("APP_PUBLIC_URL", "")
 
         # ---- WhatsApp (Phase C) & OCR (Phase D) ----------------------------
         self.whatsapp_access_token: str | None = os.getenv("WHATSAPP_ACCESS_TOKEN")

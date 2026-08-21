@@ -60,5 +60,7 @@ services:
         sync: false # set manually (Neon Postgres connection string)
       - key: USER_PASSWORD
         sync: false # set manually (strong  password)
+      - key: APP_PUBLIC_URL
+        value: https://vahankhata-app.onrender.com
       - key: ENV
         value: production

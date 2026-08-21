@@ -100,21 +100,21 @@ async def send_manager_onboarding_email(
     html_content = template.render(context)
     plain_text = (
         f"Welcome to VahanKhata, {manager_name}!\n\n"
-        f"You have been added as a Trip Manager for {fleet_name}.\n\n"
-        f"LOGIN DETAILS:\n"
+        f"You have been registered as a Trip Manager for {fleet_name}. "
+        f"Your workspace is ready.\n\n"
+        f"LOGIN DETAILS\n"
         f"URL: {login_url}\n"
         f"Username: {username}\n"
         f"Temporary Password: {temporary_password}\n\n"
-        f"SUBSCRIPTION & FLEET LIMITS:\n"
-        f"Plan: {subscription_plan} (Expires: {subscription_expiry})\n"
-        f"Vehicle Limit: {vehicle_limit} trucks\n"
-        f"Driver Limit: {driver_limit} drivers\n"
+        f"SUBSCRIPTION & FLEET LIMITS\n"
+        f"Plan: {subscription_plan} (Valid until: {subscription_expiry})\n"
+        f"Vehicle Capacity: {vehicle_limit} trucks\n"
+        f"Driver Capacity: {driver_limit} drivers\n"
         f"Default Driver Batta: Rs. {default_batta_rate:,.2f} per trip\n\n"
-        f"NEXT STEPS:\n"
-        f"1. Login to {login_url}\n"
-        f"2. Add your fleet vehicles\n"
-        f"3. Add your drivers and configure WhatsApp numbers\n"
-        f"4. Create your first active trip with cash advance.\n"
+        f"GETTING STARTED\n"
+        f"1. Add fleet vehicles - register truck numbers (e.g. UP92T4589).\n"
+        f"2. Add drivers & their WhatsApp numbers (batta pre-filled to Rs. {default_batta_rate:,.2f}).\n"
+        f"3. Dispatch a trip - pick vehicle & driver, enter the advance, and hand off road logging.\n"
     )
     
     return await send_email(

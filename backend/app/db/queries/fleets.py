@@ -66,8 +66,10 @@ def get_fleet_email_context(conn, fleet_id: int) -> dict | None:
     """Return the data a Trip Manager onboarding email needs for a fleet.
 
     Enriches the fleet row with:
-      * ``plan_name``  — subscription plan display name (via `subscription_plans`),
-      * ``driver_limit`` — count of **active** driver users in the fleet.
+      * ``plan_name``   — subscription plan display name (via `subscription_plans`),
+      * ``driver_limit`` — the plan's **driver capacity** from the `features`
+        capability matrix (e.g. TRIAL=5, MONTHLY/YEARLY=10), falling back to 5
+        when the plan row has no `features` payload.
     ``default_batta_rate`` is *not* a fleet attribute; the email context assumes
     the product default and falls back only when present on the row.
     """
@@ -75,9 +77,7 @@ def get_fleet_email_context(conn, fleet_id: int) -> dict | None:
     cur.execute(
         """
         SELECT f.*, sp.name AS plan_name,
-               (SELECT COUNT(*) FROM users u
-                 WHERE u.fleet_id = f.id AND u.role = 'driver'
-                   AND u.is_active = TRUE) AS driver_limit
+               COALESCE((sp.features->>'driver_limit')::int, 5) AS driver_limit
           FROM fleets f
           LEFT JOIN subscription_plans sp ON sp.id = f.plan_id
          WHERE f.id = %s

@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from backend.app.core.config import settings
 from backend.app.core.password import hash_password
 from backend.app.core.security import require_json_role
 from backend.app.db.connection import get_db
@@ -61,7 +62,9 @@ def _fleet_entitled(conn, fleet_id: int) -> bool:
 
 
 def _login_url(request: Request) -> str:
-    base = str(request.base_url).rstrip("/")
+    base = (settings.app_public_url or "").strip().rstrip("/")
+    if not base:
+        base = str(request.base_url).rstrip("/")
     return f"{base}/"
 
 

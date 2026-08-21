@@ -44,8 +44,14 @@ _VALID_PLANS = ("TRIAL", "MONTHLY", "YEARLY")
 
 
 def _login_url(request: Request) -> str:
-    """Derive the web login URL for the manager onboarding email."""
-    base = str(request.base_url).rstrip("/")
+    """Derive the web login URL for the manager onboarding email.
+
+    Prefers `APP_PUBLIC_URL` (the public app SPA origin) and falls back to the
+    request base URL so the link still resolves when the env var is unset.
+    """
+    base = (settings.app_public_url or "").strip().rstrip("/")
+    if not base:
+        base = str(request.base_url).rstrip("/")
     return f"{base}/"
 
 
