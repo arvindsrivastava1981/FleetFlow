@@ -41,7 +41,7 @@ def normalise_number(wa_id: str) -> str:
         return ""
     if not digits.startswith(_COUNTRY_CODE[1:]):  # "91" without the "+"
         digits = _COUNTRY_CODE[1:] + digits
-    return _COUNTRY_CODE + digits
+    return _COUNTRY_CODE[0] + digits
 
 
 def classify_sender(role: str | None) -> str | None:

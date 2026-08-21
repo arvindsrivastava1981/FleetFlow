@@ -71,14 +71,14 @@ def test_webhook_verify_handshake(monkeypatch) -> None:
 
     ok = client.get(
         "/api/v1/whatsapp/webhook",
-        params={"hub.mode": "subscribe", "hub.challenge": "1234", "hub.verify_token": "vk_verify_2024"},
+        params={"hub_mode": "subscribe", "hub_challenge": "1234", "hub_verify_token": "vk_verify_2024"},
     )
     assert ok.status_code == 200
     assert ok.text == "1234"
 
     bad = client.get(
         "/api/v1/whatsapp/webhook",
-        params={"hub.mode": "subscribe", "hub.challenge": "1234", "hub.verify_token": "nope"},
+        params={"hub_mode": "subscribe", "hub_challenge": "1234", "hub_verify_token": "nope"},
     )
     assert bad.status_code == 403
     assert bad.text == "forbidden"

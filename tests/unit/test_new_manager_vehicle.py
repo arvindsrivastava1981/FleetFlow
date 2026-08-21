@@ -73,10 +73,11 @@ def _manager_create_cur():
       1. get_default_fleet      -> {"id": 5, ...}
       2. get_fleet_entitlement  -> TRIAL entitlement (not ACTIVE, no trial clock)
       3. is_trial_active        -> row with subscription_status TRIAL
-      4. create_user            -> {"id": 99}
-      5. get_user_by_id (email) -> {"id": 99, "full_name": "New Manager"}
+      4. _trial_plan (via start_trial_subscription) -> subscription_plans row
+      5. create_user            -> {"id": 99}
       6. get_default_fleet      -> {"id": 5, ...}
       7. get_fleet_email_context -> {"owner_name": "Default Fleet", ...}
+      8. get_user_by_id (email) -> {"id": 99, "full_name": "New Manager"}
     Assertions read the executed SQL/params rather than relying on exact counts.
     """
     cur = mock.MagicMock()
@@ -86,6 +87,7 @@ def _manager_create_cur():
         {"subscription_status": "TRIAL", "trial_ends_at": None,
          "vehicle_limit": 1, "plan_code": "TRIAL"},
         {"subscription_status": "TRIAL", "trial_ends_at": None},
+        {"id": 1, "code": "TRIAL", "vehicle_limit": 1, "price": 0.0},
         {"id": 99},
         {"id": 99, "full_name": "New Manager", "username": "new_mgr"},
         {"id": 5, "owner_name": "Default Fleet", "plan_name": "Trial Pack"},
@@ -220,8 +222,8 @@ def test_manager_creates_fleet_and_rebinds(client, resolve_db):
     )
 
     cur = mock.MagicMock()
-    cur.fetchone.side_effect = [None, {"id": 50}]
-    # fleet_phone_exists -> None (no dup); insert_fleet -> {"id": 50}
+    cur.fetchone.side_effect = [None, {"id": 1, "code": "TRIAL", "vehicle_limit": 1, "price": 0.0}, {"id": 50}]
+    # fleet_phone_exists -> None (no dup); _trial_plan -> plan row; insert_fleet -> {"id": 50}
     cur.fetchall.return_value = []
     cur.rowcount = 1
     db_obj = _make_db(cur)
