@@ -82,6 +82,12 @@ def manager_kpis(conn, manager_id: int | None = None) -> dict:
     """
     cur = conn.cursor()
     scope_sql = " AND created_by = %s" if manager_id else ""
+    advance_scope_sql = (
+        " AND EXISTS (SELECT 1 FROM trips t WHERE t.trip_code = e.trip_code"
+        " AND t.created_by = %s)"
+        if manager_id
+        else ""
+    )
     scope_params = (manager_id,) if manager_id else ()
 
     cur.execute(
@@ -100,8 +106,9 @@ def manager_kpis(conn, manager_id: int | None = None) -> dict:
     pending_escalations = cur.fetchone()["c"]
 
     cur.execute(
-        f"SELECT COALESCE(SUM(COALESCE(approved_amount, amount)), 0) AS total "
-        f"FROM expenses WHERE exp_type = 'CASH_ADVANCE' AND created_at >= CURRENT_DATE{scope_sql}",
+        f"""SELECT COALESCE(SUM(COALESCE(e.approved_amount, e.amount)), 0) AS total
+              FROM expenses e
+             WHERE e.exp_type = 'CASH_ADVANCE' AND e.created_at >= CURRENT_DATE{advance_scope_sql}""",
         scope_params,
     )
     advances_today = cur.fetchone()["total"]

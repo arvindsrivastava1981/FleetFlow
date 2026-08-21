@@ -119,10 +119,11 @@ def api_trip_detail(request: Request, trip_code: str):
             "avg_kml": res.avg_kml,
             "verification_hash": res.verification_hash,
         }
+        ledger_expenses = get_ledger_expenses_for_trip(conn, trip_code)
 
     return _ok({
         "trip": trip,
-        "expenses": get_ledger_expenses_for_trip(conn, trip_code),
+        "expenses": ledger_expenses,
     })
 @router.post("/trips", response_model=Data[CreateTripResult])
 async def api_create_trip(request: Request):
