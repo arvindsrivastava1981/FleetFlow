@@ -6,7 +6,8 @@
 # Both SPAs are client-side routers (React Router v6). The app SPA must call the
 # API cross-origin, so it is built with VITE_API_BASE_URL pointing at the API web
 # service, and the FastAPI web service must allow that origin via CORS. The
-# marketing site builds its "Log in" links from VITE_APP_URL (the app origin).
+# marketing site hard-codes the app origin for its "Log in" links in
+# public-site/src/config.js.
 #
 # NOTE: Render static-site redirect/rewrite rules are configured ONLY from the
 # Render Dashboard — there is no render.yaml field for them. BOTH static sites
@@ -23,10 +24,6 @@ services:
     envVars:
       - key: CI
         value: "false"
-      # Absolute origin of the app SPA used to build "Log in" links on the
-      # marketing site (set this to your app domain, e.g. https://app.fleetflow.app).
-      - key: VITE_APP_URL
-        value: https://vahankhata-app.onrender.com
 
   # ---- Static Site: the React app SPA -----------------------------------------
   - type: static
