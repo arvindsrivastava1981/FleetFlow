@@ -18,8 +18,7 @@ import ChangePasswordPage from "./pages/ChangePassword.jsx";
 import DriversPage from "./pages/Drivers.jsx";
 import DriverSalaryPage from "./pages/DriverSalary.jsx";
 import ReportsPage from "./pages/Reports.jsx";
-import DriverWhatsAppPage from "./pages/DriverWhatsApp.jsx";
-import ManagerWhatsAppPage from "./pages/ManagerWhatsApp.jsx";
+import TripWhatsAppPage from "./pages/TripWhatsApp.jsx";
 import Layout from "./components/Layout.jsx";
 
 function ProtectedRoute({ children, roles }) {
@@ -98,21 +97,21 @@ export default function App() {
         }
       />
       <Route
-        path="/whatsapp-driver"
+        path="/whatsapp/:tripCode"
         element={
-          <ProtectedRoute roles={["driver"]}>
+          <ProtectedRoute>
             <Layout>
-              <DriverWhatsAppPage />
+              <TripWhatsAppPage />
             </Layout>
           </ProtectedRoute>
         }
       />
       <Route
-        path="/whatsapp-manager"
+        path="/whatsapp"
         element={
-          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
+          <ProtectedRoute>
             <Layout>
-              <ManagerWhatsAppPage />
+              <TripWhatsAppPage />
             </Layout>
           </ProtectedRoute>
         }
