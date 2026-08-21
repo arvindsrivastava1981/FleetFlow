@@ -326,10 +326,17 @@ def efficiency_leaderboard(conn, limit: int = 10) -> list[dict]:
 # Driver KPIs
 # ---------------------------------------------------------------------------#
 def driver_today_logged(conn, trip_code: str) -> float:
-    """Sum of approved expense amounts logged today on the given trip."""
+    """Sum of approved expense amounts logged today on the given trip.
+
+    Excludes CASH_ADVANCE/DRIVER_SALARY — those are trip-start provisions,
+    not driver-submitted expenses logged during the trip.
+    """
     cur = conn.cursor()
     cur.execute(
-        """SELECT COALESCE(SUM(amount), 0) AS total FROM expenses
+        """SELECT COALESCE(SUM(
+               CASE WHEN exp_type IN ('CASH_ADVANCE', 'DRIVER_SALARY')
+                    THEN 0 ELSE amount END
+           ), 0) AS total FROM expenses
             WHERE trip_code = %s AND manager_status = 'APPROVED'
               AND created_at >= CURRENT_DATE""",
         (trip_code,),
@@ -338,11 +345,18 @@ def driver_today_logged(conn, trip_code: str) -> float:
 
 
 def approved_cash_net(conn, trip_code: str) -> float:
-    """Net cash impact of all approved expenses (sales increase, others decrease)."""
+    """Net cash impact of approved expenses (sales increase, others decrease).
+
+    CASH_ADVANCE/DRIVER_SALARY are excluded — they represent trip-level
+    provisions (advance float + driver batta), not daily road spend.
+    The advance is added back separately via driver_cash_advance_total.
+    """
     cur = conn.cursor()
     cur.execute(
         """SELECT COALESCE(SUM(
-                   CASE WHEN exp_type = 'GOODS_SALE'
+                   CASE WHEN exp_type IN ('CASH_ADVANCE', 'DRIVER_SALARY')
+                        THEN 0
+                        WHEN exp_type = 'GOODS_SALE'
                         THEN COALESCE(approved_amount, amount)
                         ELSE -COALESCE(approved_amount, amount) END
                ), 0) AS net FROM expenses

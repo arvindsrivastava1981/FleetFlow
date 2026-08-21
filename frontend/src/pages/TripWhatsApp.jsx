@@ -39,7 +39,6 @@ export default function TripWhatsAppPage() {
 
   const [trip, setTrip] = useState(null);
   const [expenses, setExpenses] = useState([]);
-  const [cashInHand, setCashInHand] = useState(0);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState(null);
@@ -80,9 +79,6 @@ export default function TripWhatsAppPage() {
       setTrip(tripData);
       setExpenses(det?.expenses || []);
       setForm((f) => ({ ...f, trip_code: tripCode, state_code: tripData?.state_code || "" }));
-      if (isDriver && tripData?.trip_code) {
-        api.get("/api/v1/dashboard/overview").then((d) => setCashInHand(d?.cash_in_hand ?? 0));
-      }
     }).catch((e) => { setError(e.message); toast.error(e.message); }).finally(() => setLoading(false));
   }, [tripCode, hasTripCode, isDriver]);
   useEffect(() => {
@@ -228,8 +224,8 @@ export default function TripWhatsAppPage() {
                   ? <>Trip <strong>{trip.trip_code}</strong> started on vehicle <strong>{trip.vehicle_no}</strong>.</>
                   : <>Driver: <strong>{trip.driver_name || "—"}</strong> · Started by: <strong>{trip.created_by_name || "Manager"}</strong></>}
               </p>
-              {isDriver && <p className="text-slate-600">Owner Cash In: <strong className="text-emerald-700">₹{fmtRs(cashInHand)}</strong></p>}
-              <p className="text-[10px] text-slate-400">{isDriver ? "Send a diesel or bill photo here." : "All trip transactions appear below."}</p>
+              {isDriver && <p className="text-[10px] text-slate-400">Send a diesel or bill photo here.</p>}
+              {!isDriver && <p className="text-[10px] text-slate-400">All trip transactions appear below.</p>}
             </div>
 
             {expenses.length === 0 && <div className="text-center text-slate-400 text-[11px] pt-6">No receipts logged yet.</div>}
