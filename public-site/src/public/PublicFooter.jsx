@@ -61,8 +61,7 @@ export default function PublicFooter() {
               </span>
             </a>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-brand-100/80">
-              The all-in-one fleet expense &amp; trip management platform built for Indian transport firms — from trip
-              start to Driver Salery settlement.
+              भारतीय ट्रांसपोर्ट फर्मों के लिए बना all-in-one खर्च और ट्रिप प्लेटफ़ॉर्म — ट्रिप शुरू से सेटलमेंट तक।
             </p>
           </div>
 

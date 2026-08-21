@@ -34,6 +34,7 @@ export default {
       fontFamily: {
         sans: [
           "Inter",
+          "Mukta",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",

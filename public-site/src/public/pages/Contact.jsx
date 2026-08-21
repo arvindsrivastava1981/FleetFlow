@@ -31,9 +31,9 @@ export default function Contact() {
         path="/contact"
       />
       <PageHero
-        eyebrow="Contact"
+        eyebrow="Contact · संपर्क"
         title="Let's talk about your fleet."
-        lead="Book a demo, ask a pricing question, or get help setting up — we usually reply within one business day."
+        lead="डेमो बुक करें, कीमत पूछें या सेटअप में मदद लें — एक कार्यदिवस में जवाब।"
       />
 
       <section className="market-section market-wrap">
@@ -62,11 +62,11 @@ export default function Contact() {
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="label">Your name *</label>
+                    <label className="label">Your name * · आपका नाम *</label>
                     <input className="input" required value={form.name} onChange={update("name")} placeholder="Rajesh Kumar" />
                   </div>
                   <div>
-                    <label className="label">Company / fleet</label>
+                    <label className="label">Company / fleet · फर्म</label>
                     <input className="input" value={form.firm} onChange={update("firm")} placeholder="Your firm" />
                   </div>
                 </div>
@@ -76,12 +76,12 @@ export default function Contact() {
                     <input className="input" required type="email" value={form.email} onChange={update("email")} placeholder="you@firm.com" />
                   </div>
                   <div>
-                    <label className="label">Phone</label>
+                    <label className="label">Phone · फ़ोन</label>
                     <input className="input" value={form.phone} onChange={update("phone")} placeholder="+91 …" />
                   </div>
                 </div>
                 <div>
-                  <label className="label">Message *</label>
+                  <label className="label">Message * · संदेश *</label>
                   <textarea
                     className="input min-h-28"
                     required
@@ -100,14 +100,14 @@ export default function Contact() {
           {/* Contact details */}
           <div className="space-y-4">
             <div className="market-card-hover p-6">
-              <h3 className="flex items-center gap-2 text-lg font-bold text-ink-900">📧 Email</h3>
+              <h3 className="flex items-center gap-2 text-lg font-bold text-ink-900">📧 Email · ईमेल</h3>
               <a href={`mailto:${CONTACT_EMAIL}`} className="mt-1 inline-block text-brand-600">
                 {CONTACT_EMAIL}
               </a>
             </div>
             <div className="market-card-hover p-6">
               <h3 className="flex items-center gap-2 text-lg font-bold text-ink-900">💬 WhatsApp</h3>
-              <p className="mt-1 text-sm text-ink-600">Fastest for a quick demo request.</p>
+              <p className="mt-1 text-sm text-ink-600">कम शब्दों में कहें तो सबसे तेज़ रास्ता।</p>
               <a href={whatsappLink} className="market-btn market-btn-brand mt-4">
                 Message on WhatsApp
               </a>

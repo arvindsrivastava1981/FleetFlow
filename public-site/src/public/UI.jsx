@@ -56,6 +56,31 @@ export function PageHero({ eyebrow, title, lead, children }) {
   );
 }
 
+/**
+ * Bilingual heading text: English line with the Hindi line beneath it.
+ * `hiClass` tunes the Hindi tone for dark hero bands vs. light sections.
+ */
+export function BiHead({ en, hi, hiClass = "text-ink-500" }) {
+  return (
+    <span className="block">
+      {en}
+      <span className={`mt-1 block font-semibold ${hiClass}`}>{hi}</span>
+    </span>
+  );
+}
+
+/** Short Hindi summary box used at the top of English legal pages. */
+export function HiNote({ children }) {
+  return (
+    <div className="mx-auto max-w-3xl">
+      <div className="mt-6 rounded-xl border border-brand-100 bg-brand-50 p-4 text-[15px] leading-relaxed text-ink-700">
+        <span className="font-bold text-brand-700">हिंदी में सारांश: </span>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /** Simple prose wrapper for legal/long-form pages. */
 export function Prose({ children }) {
   return (
@@ -68,7 +93,7 @@ export function Prose({ children }) {
 }
 export function CTABand({
   title = "Ready to take control of your fleet?",
-  lead = "See how VahanKhata replaces spreadsheets and WhatsApp hassle with one clean workflow — from trip start to Driver Salery settlement.",
+  lead = "एक डेमो में खुद देखें — ट्रिप शुरू से सेटलमेंट तक का पूरा हिसाब, बिना स्प्रेडशीट।",
   ctaText = "Book a demo",
   ctaHref = "/request-demo",
   ghostText = "Log in",

@@ -4,32 +4,32 @@ import { PageHero, CTABand } from "../UI";
 
 const FAQS = [
   {
-    q: "Do drivers need to install an app?",
-    a: "No. Drivers send fuel and receipt photos straight to WhatsApp. VahanKhata reads the message, runs fuel benchmarking, and routes it for approval — no driver training or logins needed.",
+    q: "Do drivers need to install an app? · कोई ऐप चाहिए?",
+    a: "नहीं। ड्राइवर ईंधन/रसीद की फोटो सीधे WhatsApp पर भेजता है — VahanKhata खुद पढ़ता है, बेंचमार्क करता है और मंज़ूरी के लिए आगे भेजता है।",
   },
   {
-    q: "How does Driver Salery settlement actually work?",
-    a: "You set a Driver Salery profile (fixed, per-km, daily or none) per driver. When a trip is created, the cash advance posts automatically; at settlement the driver gives consent and the Driver Salery & salary post to the ledger, producing a clear, auditable record.",
+    q: "How does salary settlement work? · सेटलमेंट कैसे?",
+    a: "हर ड्राइवर का प्रोफ़ाइल सेट करें (फिक्स्ड, प्रति-किमी, रोज़ाना या शून्य)। ट्रिप शुरू होते ही एडवांस लेजर में; सेटलमेंट पर ड्राइवर की सहमति और सैलरी अपने आप दर्ज — साफ़, ऑडिटेबल रिकॉर्ड।",
   },
   {
-    q: "Will it catch fuel overbilling?",
-    a: "Yes. Every petrol/DEF purchase is compared against per-state fuel bands (with live rate sync). Anything above the band is auto-flagged and held for manager approval, instead of silently draining the month's margin.",
+    q: "Will it catch fuel overbilling? · ज़्यादा दाम पकड़ेगा?",
+    a: "हाँ। हर पेट्रोल/DEF खरीद राज्य के रेट से तुलना होती है — ऊपर का हर खर्च अपने आप फ्लैग और मैनेजर की मंज़ूरी में रुक जाता है।",
   },
   {
-    q: "We run multiple branches / fleets. Does it scale?",
-    a: "VahanKhata supports multi-fleet and multi-manager operations with role-based access, so super-admins see everything while each trip manager sees only their own firm's trips, vehicles and drivers.",
+    q: "We run multiple fleets. Does it scale? · कई फ्लीट हैं?",
+    a: "हाँ — मल्टी-फ्लीट और मल्टी-मैनेजर रोल-बेस्ड ऐक्सेस: सुपर-एडमिन सब देखता है, हर मैनेजर सिर्फ अपनी फर्म का।",
   },
   {
-    q: "Is our data secure?",
-    a: "Access is gated per role, sessions are time-limited, and every entitlement and settlement change is written to an audit ledger. See our Security page for details.",
+    q: "Is our data secure? · डेटा सुरक्षित है?",
+    a: "हर रोल का अलग ऐक्सेस, समय-सीमित सेशन और हर बदलाव का ऑडिट लेजर। Security पेज पर पूरी जानकारी।",
   },
   {
-    q: "How does billing and trial work?",
-    a: "Start with a free 15-day trial on one vehicle. Move to Monthly (₹799) or Yearly (₹7,191 — 25% off), with Razorpay billing and the option to add extra vehicle slots whenever you need them.",
+    q: "How does billing and trial work? · बिलिंग कैसे?",
+    a: "एक गाड़ी पर 15 दिन फ्री ट्रायल। फिर Monthly (₹799) या Yearly (₹7,191 — 25% छूट), Razorpay से — जब चाहें एक्स्ट्रा गाड़ी स्लॉट जोड़ें।",
   },
   {
-    q: "Can drivers see their own earnings?",
-    a: "Yes. Drivers have a read-only salary/Driver Salery view and their own settled-trip receipts, which builds trust and cuts settlement disputes.",
+    q: "Can drivers see their own earnings? · ड्राइवर देख सकता है?",
+    a: "हाँ — ड्राइवर को सिर्फ देखने के लिए अपनी सैलरी/सेटल्ड ट्रिप रसीदें दिखती हैं, जिससे भरोसा बढ़ता है और बहस घटती है।",
   },
 ];
 
@@ -55,13 +55,13 @@ export default function Faq() {
     <>
       <Seo
         title="FAQ"
-        description="Answers to common questions about VahanKhata: WhatsApp expense intake, Driver Salery settlement, fuel benchmarking, security, multi-fleet support and billing."
+        description="Answers to common questions about VahanKhata: WhatsApp expense intake, driver salary settlement, fuel benchmarking, security, multi-fleet support and billing."
         path="/faq"
       />
       <PageHero
         eyebrow="FAQ"
         title="Questions, answered."
-        lead="Everything fleet owners and managers ask us, in plain language. Still curious? Contact our team."
+        lead="आपके सारे सवाल — आसान भाषा में। और कुछ पूछना हो तो हमसे बात करें।"
       />
 
       <section className="market-section market-wrap">

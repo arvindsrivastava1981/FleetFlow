@@ -1,6 +1,6 @@
 import React from "react";
 import Seo from "../Seo";
-import { PageHero, Prose } from "../UI";
+import { PageHero, Prose, HiNote } from "../UI";
 
 const PILLARS = [
   ["🔐", "Role-based access", "Super-admin, trip-manager and driver roles each see only what they should. Fleet and asset data is scoped per firm."],
@@ -20,8 +20,13 @@ export default function Security() {
       <PageHero
         eyebrow="Security"
         title="Your fleet data, guarded like a fleet."
-        lead="We design for the real world: the right person seeing the right thing, every change recorded, and no noise when it matters most."
+        lead="सही इंसान को सही चीज़ दिखे, हर बदलाव दर्ज हो — और ज़रूरत के वक़्त कोई शोर न हो।"
       />
+      <HiNote>
+        आपका फ्लीट डेटा रोल के हिसाब से गेट है — सुपर-एडमिन, ट्रिप-मैनेजर और ड्राइवर सिर्फ अपना हिस्सा देखते हैं। सेशन
+        समय-सीमित हैं, हर बदलाव का ऑडिट लेजर है, और इमरजेंसी अलर्ट anti-spam के साथ आते हैं। कोई सुरक्षा समस्या हो तो:
+        security@vahankhata.in
+      </HiNote>
       <section className="market-section market-wrap">
         <div className="grid gap-5 sm:grid-cols-2">
           {PILLARS.map(([icon, title, text]) => (

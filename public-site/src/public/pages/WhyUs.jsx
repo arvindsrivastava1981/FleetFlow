@@ -1,14 +1,15 @@
 import React from "react";
 import Seo from "../Seo";
 import { PageHero, CTABand, IconChip } from "../UI";
+import { LedgerTick } from "../Illustrations";
 
 const REASONS = [
-  ["📊", "Per-state fuel benchmarking", "Most tools just record what drivers spend. VahanKhata compares every petrol purchase to per-state bands, so overpriced fuel is flagged the moment it's submitted — not caught at audit."],
-  ["💬", "WhatsApp the drivers already use", "No app to install, no training. Drivers send receipt photos to a number; VahanKhata reads, benchmarks and routes them. Adoption happens in days, not months."],
-  ["⚖️", "Driver Salery without battles", "Fixed, per-km or daily Driver Salery rules automate settlement. Drivers see their own numbers and consent digitally — ending the month-end arguments that cost you time and freight."],
-  ["🧾", "Cash advances stay traceable", "Advances post to the ledger automatically at trip creation and reconcile on settlement — no more 'who has what' uncertainty."],
-  ["🛡️", "Emergency alerts that actually route", "Every tag carries a QR and a normalized emergency path, with anti-spam. A real incident reaches the right person in one tap."],
-  ["🏢", "Scales with your firm", "Own one fleet or a multi-branch operation — multi-fleet and multi-manager support, with Razorpay billing built in."],
+  ["📊", "Per-state fuel benchmarking · ईंधन जाँच", "बाक़ी tools सिर्फ खर्च लिखते हैं — VahanKhata हर पेट्रोल की राज्य-वार रेट से जाँच करता है; ज़्यादा दाम उसी वक़्त फ्लैग।"],
+  ["💬", "WhatsApp the drivers already use · WhatsApp ही तो", "कोई ऐप नहीं, ट्रेनिंग नहीं। ड्राइवर फोटो भेजता है; VahanKhata पढ़ता, जाँचता और आगे भेजता है — दिनों में अपनाना शुरू।"],
+  ["⚖️", "Salary without battles · बिना बहस सैलरी", "फिक्स्ड, प्रति-किमी या रोज़ाना नियम अपने आप सेटल — ड्राइवर अपने आँकड़े खुद देखता है, महीने की बहस खत्म।"],
+  ["🧾", "Cash advances stay traceable · एडवांस का हिसाब", "एडवांस ट्रिप शुरू होते ही लेजर में, सेटलमेंट पर मिलान — 'किसके पास कितना' सवाल ही नहीं।"],
+  ["🛡️", "Emergency alerts that route · इमरजेंसी सही जगह", "हर टैग पर QR और सुरक्षित इमरजेंसी रास्ता — असली मामला एक टैप में सही इंसान तक।"],
+  ["🏢", "Scales with your firm · आपके साथ बढ़े", "एक फ्लीट हो या कई शाखाएँ — मल्टी-फ्लीट, मल्टी-मैनेजर और Razorpay बिलिंग शामिल।"],
 ];
 
 export default function WhyUs() {
@@ -16,13 +17,13 @@ export default function WhyUs() {
     <>
       <Seo
         title="Why Us — Compared to Spreadsheets & Other Fleet Tools"
-        description="See why transport firms choose VahanKhata over spreadsheets and ERP-style fleet software: live fuel benchmarking, WhatsApp intake, fair Driver Salery and a full audit trail."
+        description="See why transport firms choose VahanKhata over spreadsheets and ERP-style fleet software: live fuel benchmarking, WhatsApp intake, fair driver salary and a full audit trail."
         path="/why-us"
       />
       <PageHero
         eyebrow="Why VahanKhata"
         title="Spreadsheets didn't scale. Neither will a heavyweight ERP."
-        lead="VahanKhata sits in the sweet spot — the WhatsApp workflow your drivers know, with the airtight accounting and benchmarking your margins demand."
+        lead="VahanKhata वही खूबी है — ड्राइवर का WhatsApp और मालिक का पक्का हिसाब, एक साथ।"
       />
 
       <section className="market-section market-wrap">
@@ -40,8 +41,11 @@ export default function WhyUs() {
       {/* COMPARISON */}
       <section className="market-section market-wrap border-t border-ink-100">
         <div className="flex flex-col items-center">
-          <span className="market-eyebrow">Side by side</span>
-          <h2 className="market-title">Where VahanKhata wins.</h2>
+          <span className="market-eyebrow">Side by side · तुलना</span>
+          <h2 className="market-title">
+            Where VahanKhata wins.
+            <span className="mt-1 block text-xl font-semibold text-ink-500">VahanKhata कहाँ बेहतर है।</span>
+          </h2>
         </div>
         <div className="market-card mt-12 overflow-hidden">
           <div className="hidden grid-cols-3 border-b border-ink-200 bg-ink-50 px-6 py-3 text-sm font-bold text-ink-700 sm:grid">
@@ -49,11 +53,11 @@ export default function WhyUs() {
             <span className="text-brand-600">VahanKhata</span>
           </div>
           {[
-            ["Live fuel benchmarking, not month-end shocks", "✅"],
-            ["Drivers input via WhatsApp — zero training", "✅"],
-            ["Automated Driver Salery & advance settlement", "✅"],
-            ["Full audit trail from trip start to settle", "✅"],
-            ["Built for Indian fleet operations & billing", "✅"],
+            ["लाइव ईंधन जाँच — महीने के आख़िर का झटका नहीं", "✅"],
+            ["ड्राइवर WhatsApp पर — ज़ीरो ट्रेनिंग", "✅"],
+            ["सैलरी और एडवांस सेटलमेंट अपने आप", "✅"],
+            ["ट्रिप शुरू से सेटल तक पूरा ऑडिट", "✅"],
+            ["भारतीय फ्लीट ऑपरेशन और बिलिंग के लिए बना", "✅"],
           ].map(([text, mark]) => (
             <div key={text} className="grid grid-cols-3 gap-2 border-b border-ink-100 px-6 py-4 text-sm last:border-b-0">
               <span className="col-span-2 text-ink-700">{text}</span>
@@ -61,9 +65,10 @@ export default function WhyUs() {
             </div>
           ))}
         </div>
+        <LedgerTick className="mx-auto mt-12 w-full max-w-md rounded-3xl shadow-pop" />
         <div className="mt-8 text-center">
           <a href="/request-demo" className="market-btn market-btn-brand">
-            See it on a live demo
+            See it on a live demo · लाइव डेमो देखें
           </a>
         </div>
       </section>

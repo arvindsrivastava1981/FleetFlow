@@ -1,6 +1,6 @@
 import React from "react";
 import Seo from "../Seo";
-import { PageHero, Prose } from "../UI";
+import { PageHero, Prose, HiNote } from "../UI";
 
 export default function Privacy() {
   return (
@@ -11,6 +11,11 @@ export default function Privacy() {
         path="/privacy"
       />
       <PageHero eyebrow="Legal" title="Privacy Policy" lead="Last updated: August 2026" />
+      <HiNote>
+        यह नीति बताती है कि VahanKhata आपका डेटा (फ़ोन नंबर, OTP, ट्रिप और खर्च की जानकारी) कैसे इकट्ठा करता है, इस्तेमाल
+        करता है और सुरक्षित रखता है। हम आपका डेटा किसी को बेचते नहीं — सिर्फ सेवा चलाने के लिए ज़रूरी पार्टनर्स (Razorpay,
+        messaging, hosting) के साथ साझा करते हैं। पूरी जानकारी नीचे अंग्रेज़ी में है।
+      </HiNote>
       <Prose>
         <p>
           This Privacy Policy explains how VahanKhata ("we", "our") collects, uses and protects your information when
@@ -25,7 +30,7 @@ export default function Privacy() {
         </p>
         <h2>2. How we use your information</h2>
         <ul>
-          <li>To operate and improve the Service (trip, expense, Driver Salery and settlement tracking).</li>
+          <li>To operate and improve the Service (trip, expense, salary and settlement tracking).</li>
           <li>To authenticate you, including one-time passcodes (OTPs).</li>
           <li>To communicate operational updates, billing and support messages.</li>
           <li>To maintain audit logs and comply with legal obligations.</li>

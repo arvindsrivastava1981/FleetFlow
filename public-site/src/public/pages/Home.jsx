@@ -1,12 +1,13 @@
 import React from "react";
 import Seo from "../Seo";
 import { IconChip, CTABand } from "../UI";
+import { PaperChaos } from "../Illustrations";
 
 const HERO_PAINS = [
-  "Fat fuel bills with no way to catch overbilling",
-  "Drivers texting receipts to a number nobody watches",
-  "Driver Salery and advance arguments at settlement time",
-  "Challans, repairs and cash advances lost in notebooks",
+  "ईंधन के बढ़े बिल — ज़्यादा दाम पकड़ने का कोई तरीका नहीं",
+  "ड्राइवर रसीदें उस नंबर पर भेजता है जहाँ कोई देखता ही नहीं",
+  "सेटलमेंट पर सैलरी और एडवांस की रोज़ की बहस",
+  "चालान, मरम्मत और एडवांस कॉपियों में कहीं खो गए",
 ];
 
 // Stats shown in the hero's mock "VahanKhata Dashboard" card.
@@ -18,12 +19,12 @@ const HERO_STATS = [
 ];
 
 const FEATURES = [
-  ["🧾", "brand", "WhatsApp expense intake", "Drivers send fuel & receipt photos to WhatsApp. VahanKhata reads them, auto-flags overpriced or off-route fuel, and routes them for approval."],
-  ["📊", "emerald", "Live fuel benchmarking", "Every petrol/DEF purchase is checked against per-state fuel bands, catching overbilling before it's paid — not at month-end."],
-  ["🚚", "amber", "Trips start to settlement", "Odometer-in to Driver Salery-out. Driver consent, cash advance and salary post to the ledger automatically when a trip settles."],
-  ["⚖️", "violet", "Fair Driver Salery, no disputes", "Fixed, per-km or daily Driver Salery rules make every rupee clear. Drivers see their own settlement. No more month-end arguments."],
-  ["🛡️", "sky", "Emergency alerts & QR", "Every tag carries a QR and a normalized emergency alert path — with anti-spam so a stray scan never floods the inbox."],
-  ["🏢", "rose", "Made for Indian fleets", "Multi-fleet, multi-manager, driver salary and Razorpay billing built in — the way Indian fleet operations actually run."],
+  ["🧾", "brand", "WhatsApp expense intake · WhatsApp पर खर्च", "ड्राइवर रसीद की फोटो WhatsApp पर भेजता है — VahanKhata खुद पढ़कर महँगा ईंधन पकड़ लेता है।"],
+  ["📊", "emerald", "Live fuel benchmarking · ईंधन जाँच", "हर पेट्रोल/DEF खरीद राज्य के रेट से तुरंत तुलना होती है — महीने के आखिर तक इंतज़ार नहीं।"],
+  ["🚚", "amber", "Trip start to settlement · ट्रिप हिसाब", "ओडोमीटर से शुरू, सेटलमेंट पर खत्म — एडवांस, सैलरी और सहमति सब अपने आप दर्ज।"],
+  ["⚖️", "violet", "Fair driver salary · साफ़ सैलरी", "फिक्स्ड, प्रति-किलोमीटर या रोज़ाना नियम — ड्राइवर को अपना हिसाब साफ़ दिखता है, बहस खत्म।"],
+  ["🛡️", "sky", "Emergency alerts & QR · इमरजेंसी", "हर टैग पर QR और सुरक्षित इमरजेंसी अलर्ट — फालतू नॉइज़ नहीं।"],
+  ["🏢", "rose", "Made for Indian fleets · भारतीय फ्लीट", "मल्टी-फ्लीट, मल्टी-मैनेजर, ड्राइवर सैलरी और Razorpay बिलिंग — पहले से शामिल।"],
 ];
 
 function PainItem({ text, i }) {
@@ -38,10 +39,10 @@ function PainItem({ text, i }) {
 }
 
 const HOW = [
-  ["1", "Create the trip", "Log the vehicle, driver and odometer-in. An advance posts to the ledger automatically."],
-  ["2", "Driver sends expenses", "Fuel and DEF photos go to WhatsApp — read, benchmarked and flagged instantly."],
-  ["3", "Manager approves", "Approve or deduct in one tap from the escalation thread. No spreadsheets."],
-  ["4", "Trip settles", "Driver gives consent, Driver Salery posts, and the history locks into an auditable record."],
+  ["1", "Create the trip · ट्रिप शुरू", "गाड़ी, ड्राइवर और ओडोमीटर भरें — एडवांस अपने आप लेजर में।"],
+  ["2", "Driver sends expenses · खर्च आए", "ईंधन/DEF की फोटो WhatsApp पर — तुरंत जाँच और फ्लैग।"],
+  ["3", "Manager approves · मंज़ूरी", "एक टैप में मंज़ूर या कटौती — स्प्रेडशीट का काम खत्म।"],
+  ["4", "Trip settles · हिसाब पक्का", "ड्राइवर की सहमति, सैलरी दर्ज — रिकॉर्ड हमेशा के लिए लॉक।"],
 ];
 
 export default function Home() {
@@ -49,7 +50,7 @@ export default function Home() {
     <>
       <Seo
         title="Smart Fleet Expense & Trip Management for Indian Transport Firms"
-        description="VahanKhata replaces spreadsheets and WhatsApp chaos with live fuel benchmarking, driver Driver Salery settlement and trip management — built for how Indian fleets actually run."
+        description="VahanKhata.in — live fuel benchmarking, driver salary settlement and trip management for Indian transport firms. ट्रिप का पूरा हिसाब: ईंधन जाँच, ड्राइवर सैलरी और सेटलमेंट एक ही जगह।"
         path="/"
       />
 
@@ -59,14 +60,17 @@ export default function Home() {
         <div className="market-wrap relative grid items-center gap-10 py-16 sm:py-24 lg:grid-cols-2">
           <div>
             <span className="market-eyebrow !border-white/25 !bg-white/10 !text-brand-100">
-              Built for Indian transport firms
+              Built for Indian transport firms · भारतीय ट्रांसपोर्ट फर्मों के लिए
             </span>
             <h1 className="mt-5 text-balance text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[3.4rem]">
-              Stop bleeding money on <span className="market-grad-text">fuel, Driver Salery and unsettled trips.</span>
+              Stop bleeding money on{" "}
+              <span className="market-grad-text">fuel, salary and unsettled trips.</span>
+              <span className="mt-3 block text-balance text-2xl font-bold leading-snug text-brand-100 sm:text-3xl">
+                इंधन, सैलरी और अधूरे हिसाब पर पैसा बहाना बंद।
+              </span>
             </h1>
             <p className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-brand-100 sm:text-lg">
-              VahanKhata turns messy WhatsApp receipts and spreadsheets into a live expense ledger — with per-state fuel
-              benchmarking, driver Driver Salery settlement and full trip audit, all in the way your drivers actually work today.
+              हर ट्रिप का पूरा हिसाब एक जगह — WhatsApp रसीद से लेकर सेटलमेंट तक।
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a href="/request-demo" className="market-btn market-btn-brand !bg-white !text-brand-900 hover:!bg-brand-50">
@@ -76,13 +80,13 @@ export default function Home() {
                 See pricing
               </a>
             </div>
-            <p className="mt-4 text-xs text-brand-200/80">15-day free trial · No credit card · Setup in a day</p>
+            <p className="mt-4 text-xs text-brand-200/80">15 दिन का फ्री ट्रायल · कोई क्रेडिट कार्ड नहीं · एक दिन में सेटअप</p>
           </div>
 
           <div className="market-card p-6">
             <div className="flex items-center gap-3 border-b border-ink-100 pb-4">
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-base font-black text-white">
-                F
+                V
               </span>
               <div>
                 <p className="text-sm font-bold text-ink-900">VahanKhata Dashboard</p>
@@ -104,28 +108,31 @@ export default function Home() {
 
       {/* PROBLEM */}
       <section className="market-section market-wrap">
-        <div className="grid items-start gap-10 lg:grid-cols-2">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
           <div>
-            <span className="market-eyebrow">The problem</span>
-            <h2 className="market-title">Fleet profits leak out in a thousand small places.</h2>
-            <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-600">
-              Most transport firms run on WhatsApp forwards, handwritten trip sheets and a spreadsheet that's weeks
-              behind. The cost of that is real — and it shows up every single month.
-            </p>
+            <span className="market-eyebrow">The problem · समस्या</span>
+            <h2 className="market-title">
+              Profits leak from small places.
+              <span className="mt-1 block text-xl font-semibold text-ink-500">छोटी-छोटी जगहों से कमाई बह जाती है।</span>
+            </h2>
+            <ul className="mt-6 space-y-3">
+              {HERO_PAINS.map((p, i) => (
+                <PainItem key={p} text={p} i={i + 1} />
+              ))}
+            </ul>
           </div>
-          <ul className="space-y-3">
-            {HERO_PAINS.map((p, i) => (
-              <PainItem key={p} text={p} i={i + 1} />
-            ))}
-          </ul>
+          <PaperChaos className="w-full max-w-md justify-self-center rounded-3xl shadow-pop" />
         </div>
       </section>
 
       {/* SOLUTION: FEATURES */}
       <section className="market-section market-wrap border-t border-ink-100">
         <div className="flex flex-col items-center">
-          <span className="market-eyebrow">The solution</span>
-          <h2 className="market-title">Everything your fleet sends, turned into money saved.</h2>
+          <span className="market-eyebrow">The solution · समाधान</span>
+          <h2 className="market-title">
+            Every expense, turned into savings.
+            <span className="mt-1 block text-xl font-semibold text-ink-500">फ्लीट का हर खर्च, बचत में बदलें।</span>
+          </h2>
         </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(([icon, tone, title, text]) => (
@@ -146,8 +153,11 @@ export default function Home() {
       {/* HOW IT WORKS STRIP */}
       <section className="market-section market-wrap border-t border-ink-100">
         <div className="flex flex-col items-center">
-          <span className="market-eyebrow">How it works</span>
-          <h2 className="market-title">From trip start to Driver Salery — on one thread.</h2>
+          <span className="market-eyebrow">How it works · ऐसे चलता है</span>
+          <h2 className="market-title">
+            Trip start to settlement — one thread.
+            <span className="mt-1 block text-xl font-semibold text-ink-500">ट्रिप शुरू से सेटलमेंट तक — एक ही जगह।</span>
+          </h2>
         </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {HOW.map(([n, t, d]) => (

@@ -1,6 +1,6 @@
 import React from "react";
 import Seo from "../Seo";
-import { PageHero, Prose } from "../UI";
+import { PageHero, Prose, HiNote } from "../UI";
 
 export default function Cookies() {
   return (
@@ -11,6 +11,10 @@ export default function Cookies() {
         path="/cookies"
       />
       <PageHero eyebrow="Legal" title="Cookie Policy" lead="Last updated: August 2026" />
+      <HiNote>
+        हम कम से कम कुकीज़ इस्तेमाल करते हैं — साइन-इन और सुरक्षा के लिए ज़रूरी कुकीज़ हमेशा लगती हैं, एनालिटिक्स सिर्फ
+        आपकी मर्ज़ी से। विज्ञापन या क्रॉस-साइट ट्रैकिंग कुकीज़ नहीं।
+      </HiNote>
       <Prose>
         <p>
           This Cookie Policy explains how VahanKhata uses cookies and similar technologies when you visit our site or

@@ -4,60 +4,60 @@ import { PageHero, CTABand } from "../UI";
 
 const GROUPS = [
   {
-    title: "Trip management",
+    title: "Trip management · ट्रिप मैनेजमेंट",
     icon: "🚚",
     items: [
-      "Start, complete and settle trips with odometer tracking",
-      "Auto-generated trip codes per vehicle",
-      "Operating state derived from the vehicle plate",
-      "Driver assignment & consent at settlement",
+      "ओडोमीटर के साथ ट्रिप शुरू, पूरी और सेटल",
+      "हर गाड़ी का ट्रिप कोड अपने आप",
+      "गाड़ी के नंबर से राज्य की पहचान",
+      "सेटलमेंट पर ड्राइवर की सहमति दर्ज",
     ],
   },
   {
-    title: "Expense & fuel control",
+    title: "Expense & fuel control · ईंधन कंट्रोल",
     icon: "📊",
     items: [
-      "WhatsApp receipt intake straight from drivers",
-      "Per-state fuel & DEF benchmarking with live rate sync",
-      "Automatic flagging for overpriced or off-route fuel",
-      "Approve or deduct in one tap from an escalation thread",
+      "ड्राइवर सीधे WhatsApp पर रसीद भेजें",
+      "राज्य-वार ईंधन/DEF रेट तुलना (लाइव)",
+      "महँगा या गलत रूट का ईंधन अपने आप फ्लैग",
+      "एक टैप में मंज़ूरी या कटौती",
     ],
   },
   {
-    title: "Driver Driver Salery & salary",
+    title: "Driver salary · ड्राइवर सैलरी",
     icon: "⚖️",
     items: [
-      "Fixed, per-km, daily or none — configurable Driver Salery profiles",
-      "Cash advance auto-posted at trip creation",
-      "Driver Salery & salary post to the ledger on settlement",
-      "Drivers see their own clear settlement view",
+      "फिक्स्ड, प्रति-किमी, रोज़ाना या शून्य — जैसा चाहें",
+      "ट्रिप शुरू होते ही एडवांस लेजर में",
+      "सेटलमेंट पर सैलरी अपने आप दर्ज",
+      "ड्राइवर अपना हिसाब खुद देख सकता है",
     ],
   },
   {
-    title: "Safety & alerts",
+    title: "Safety & alerts · सुरक्षा",
     icon: "🛡️",
     items: [
-      "QR tags with a normalized emergency alert path",
-      "Anti-spam so stray scans never flood the inbox",
-      "Driver consent recorded for audit",
+      "QR टैग से सुरक्षित इमरजेंसी अलर्ट",
+      "फालतू स्कैन से बचाव (anti-spam)",
+      "ऑडिट के लिए ड्राइवर सहमति रिकॉर्ड",
     ],
   },
   {
-    title: "Fleet & users",
+    title: "Fleet & users · फ्लीट और टीम",
     icon: "🏢",
     items: [
-      "Multi-fleet & multi-manager with role-based access",
-      "Vehicles, drivers and benchmark profiles per firm",
-      "Super-admin vs trip-manager scoped views",
+      "मल्टी-फ्लीट और मल्टी-मैनेजर ऐक्सेस",
+      "हर फर्म के लिए गाड़ी, ड्राइवर, बेंचमार्क",
+      "सुपर-एडमिन बनाम मैनेजर अलग नज़र",
     ],
   },
   {
-    title: "Billing & reports",
+    title: "Billing & reports · बिलिंग रिपोर्ट",
     icon: "💳",
     items: [
-      "Razorpay subscriptions & fleet billing",
-      "Settled-trip and driver salary reports as PDF",
-      "Audit ledger of every entitlement change",
+      "Razorpay सब्सक्रिप्शन और फ्लीट बिलिंग",
+      "सेटल्ड ट्रिप और सैलरी PDF रिपोर्ट",
+      "हर बदलाव का ऑडिट लेजर",
     ],
   },
 ];
@@ -67,13 +67,13 @@ export default function Features() {
     <>
       <Seo
         title="Features — Fleet & Trip Management Platform"
-        description="Explore VahanKhata's features: WhatsApp expense intake, per-state fuel benchmarking, driver Driver Salery settlement, trip management, emergency alerts, and Razorpay billing."
+        description="Explore VahanKhata's features: WhatsApp expense intake, per-state fuel benchmarking, driver salary settlement, trip management, emergency alerts, and Razorpay billing."
         path="/features"
       />
       <PageHero
-        eyebrow="Features"
+        eyebrow="Features · फीचर्स"
         title="One platform, every rupee on the road accounted for."
-        lead="From the moment a driver sends a receipt to the day a trip settles, VahanKhata keeps every step tracked, benchmarked and fair."
+        lead="ड्राइवर की रसीद से लेकर ट्रिप सेटलमेंट तक — सब कुछ ट्रैक, बेंचमार्क और साफ़।"
       />
 
       <section className="market-section market-wrap">

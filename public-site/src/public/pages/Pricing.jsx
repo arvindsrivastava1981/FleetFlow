@@ -1,11 +1,12 @@
 import React from "react";
 import Seo from "../Seo";
 import { PageHero, CTABand } from "../UI";
+import { FuelLeak } from "../Illustrations";
 
 const PLANS = [
   {
     name: "Trial",
-    tagline: "See it work on one vehicle — free.",
+    tagline: "एक गाड़ी पर खुद देखें — मुफ़्त।",
     price: "₹0",
     period: "15 days",
     features: ["1 vehicle", "Up to 5 drivers", "WhatsApp expense intake", "Fuel benchmarking"],
@@ -13,7 +14,7 @@ const PLANS = [
   },
   {
     name: "Monthly",
-    tagline: "For growing single-vehicle fleets.",
+    tagline: "बढ़ती फ्लीट के लिए।",
     price: "₹799",
     period: "/month",
     features: ["1 vehicle included", "All core features", "Razorpay billing", "Email support"],
@@ -21,7 +22,7 @@ const PLANS = [
   },
   {
     name: "Yearly",
-    tagline: "Best value, 25% off.",
+    tagline: "सबसे बढ़िया डील — 25% छूट।",
     price: "₹7,191",
     period: "/year",
     features: ["1 vehicle included", "Everything in Monthly", "Priority support", "No setup fee"],
@@ -30,9 +31,9 @@ const PLANS = [
 ];
 
 const FAQ = [
-  ["Can I add extra vehicles?", "Yes — extra vehicle slots can be purchased per firm directly from billing."],
-  ["Do drivers need to install anything?", "No. Drivers send receipts via WhatsApp; VahanKhata reads them."],
-  ["Is there a long-term contract?", "No. Start on the free 15-day Trial, move to Monthly or Yearly when you're ready."],
+  ["Can I add extra vehicles? · गाड़ी बढ़ा सकते हैं?", "हाँ — billing से कभी भी एक्स्ट्रा व्हीकल स्लॉट खरीदें।"],
+  ["Do drivers need to install anything? · ड्राइवर को कुछ चाहिए?", "नहीं — रसीदें WhatsApp पर; VahanKhata खुद पढ़ लेता है।"],
+  ["Is there a long-term contract? · कोई लंबा ठेका?", "नहीं — 15 दिन फ्री ट्रायल से शुरू करें, जब चाहें Monthly/Yearly लें।"],
 ];
 
 export default function Pricing() {
@@ -44,9 +45,9 @@ export default function Pricing() {
         path="/pricing"
       />
       <PageHero
-        eyebrow="Pricing"
+        eyebrow="Pricing · कीमत"
         title="Plans that fit how you run."
-        lead="Start free for 15 days. Scale to one plan, one price — no per-seat surprises, extra vehicle slots whenever you need them."
+        lead="15 दिन फ्री। एक प्लान, एक कीमत — कोई छुपा शुल्क नहीं, ज़रूरत पर एक्स्ट्रा गाड़ी स्लॉट।"
       />
 
       <section className="market-section market-wrap">
@@ -89,6 +90,19 @@ export default function Pricing() {
               </a>
             </div>
           ))}
+        </div>
+
+        <div className="mt-14 grid items-center gap-8 lg:grid-cols-2">
+          <FuelLeak className="w-full rounded-3xl shadow-pop" />
+          <div>
+            <h3 className="text-xl font-bold text-ink-900">Catch overpriced fuel the moment it happens.</h3>
+            <p className="mt-2 text-base leading-relaxed text-ink-600">
+              ज़्यादा दाम वाला ईंधन उसी वक़्त फ्लैग — महीने के आखि़ में झटका नहीं।
+            </p>
+            <a href="/features" className="market-btn market-btn-brand mt-4">
+              See how · ऐसे काम करता है
+            </a>
+          </div>
         </div>
 
         <div className="mx-auto mt-14 max-w-2xl">

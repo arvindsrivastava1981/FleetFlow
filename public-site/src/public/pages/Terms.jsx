@@ -1,6 +1,6 @@
 import React from "react";
 import Seo from "../Seo";
-import { PageHero, Prose } from "../UI";
+import { PageHero, Prose, HiNote } from "../UI";
 
 export default function Terms() {
   return (
@@ -11,6 +11,10 @@ export default function Terms() {
         path="/terms"
       />
       <PageHero eyebrow="Legal" title="Terms of Service" lead="Last updated: August 2026" />
+      <HiNote>
+        ये शर्तें बताती हैं कि VahanKhata सेवा का इस्तेमाल कैसे करें — अकाउंट की ज़िम्मेदारी, Razorpay से बिलिंग, डेटा का
+        मालिकाना हक़ और सेवा रोकने/बंद करने के नियम। पूरी शर्तें नीचे अंग्रेज़ी में हैं।
+      </HiNote>
       <Prose>
         <p>
           These Terms of Service ("Terms") govern your access to and use of VahanKhata ("the Service"). By creating an
