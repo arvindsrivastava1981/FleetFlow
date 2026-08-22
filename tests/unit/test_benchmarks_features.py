@@ -228,6 +228,51 @@ def test_list_states_flags_caller_favorites(client, resolve_db):
     assert other["is_favorite"] is False
 
 
+# ---- GET /states?source=benchmarks reads the DB-backed picker list --------------
+
+
+def test_list_states_benchmark_source_reads_db(client, resolve_db):
+    """`?source=benchmarks` returns ONLY the states priced in `fuel_benchmarks`,
+    each tagged with the caller's favorite flag — the fueling-state picker must
+    never offer a state the rules engine cannot price."""
+    patch_db, as_user = resolve_db
+    cur = mock.MagicMock()
+    cur.fetchall.return_value = [
+        {"state_code": "MH", "state_name": "Maharashtra", "is_favorite": True},
+        {"state_code": "UP", "state_name": "Uttar Pradesh", "is_favorite": False},
+    ]
+    patch_db(_make_db(cur))
+    as_user(MOCK_MANAGER)
+
+    resp = client.get("/api/v1/states?source=benchmarks")
+
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert [(s["code"], s["name"], s["is_favorite"]) for s in data] == [
+        ("MH", "Maharashtra", True),
+        ("UP", "Uttar Pradesh", False),
+    ]
+    stmt = str(cur.execute.call_args_list[0].args[0])
+    assert "FROM fuel_benchmarks" in stmt
+    assert "benchmark_favorites" in stmt
+
+
+def test_list_states_benchmark_source_empty_table_falls_back_to_up(client, resolve_db):
+    """With no rows in `fuel_benchmarks` yet, the picker degrades to UP alone."""
+    patch_db, as_user = resolve_db
+    cur = mock.MagicMock()
+    cur.fetchall.return_value = []
+    patch_db(_make_db(cur))
+    as_user(MOCK_MANAGER)
+
+    resp = client.get("/api/v1/states?source=benchmarks")
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"] == [
+        {"code": "UP", "name": "Uttar Pradesh", "is_favorite": False}
+    ]
+
+
 # ---- Regression: driver dashboard GroupingError masked as "no active trip" -----
 
 

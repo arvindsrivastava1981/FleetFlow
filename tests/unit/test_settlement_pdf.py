@@ -310,3 +310,55 @@ def test_weasyprint_context_carries_full_bilingual_data() -> None:
     assert len(ctx["debit_rows"]) == 2
     assert ctx["net_balance"] is not None
     assert ctx["verification_hash"]
+
+
+# ---- MISC receipt descriptions on the voucher ----------------------------------
+
+
+def test_misc_sublines_escape_and_format() -> None:
+    """Note text is XML-escaped (free-typed input) and amounts formatted."""
+    from backend.app.services.pdf.settlement import _misc_sublines
+
+    assert _misc_sublines([]) == ""
+    out = _misc_sublines([("Kanta <heavy> & load", 1200.0)])
+    assert "Kanta" in out
+    assert "&lt;heavy&gt;" in out and "&amp;" in out  # never raw markup
+    assert "₹1,200.00" in out
+
+
+def test_misc_description_voucher_builds_with_reportlab() -> None:
+    """A MISC expense carrying raw_receipt_text renders without error."""
+    pdf = build_settlement_pdf(
+        _sample_trip(),
+        _sample_expenses()
+        + [
+            {
+                "exp_type": "MISC",
+                "amount": 1200.0,
+                "raw_receipt_text": "Kanta at Bareilly weighbridge",
+                "manager_status": "APPROVED",
+            },
+        ],
+    )
+    assert isinstance(pdf, bytes)
+    assert len(pdf) > 5000
+
+
+def test_weasyprint_context_attaches_notes_to_misc_row() -> None:
+    """The MISC debit row carries its descriptions for the HTML template."""
+    from backend.app.services.audit.cash import compute_settlement
+    from backend.app.services.pdf.settlement import _build_weasyprint_context
+
+    expenses = [
+        {"exp_type": "MISC", "amount": 1200.0, "manager_status": "APPROVED"},
+    ]
+    ctx = _build_weasyprint_context(
+        _sample_trip(),
+        compute_settlement(_sample_trip(), expenses),
+        None,
+        None,
+        misc_notes=[("Kanta at Bareilly", 1200.0)],
+    )
+    misc_row = next(r for r in ctx["debit_rows"] if r[0] == "Misc & Loading")
+    assert misc_row[2] == 1200.0
+    assert misc_row[3] == ["Kanta at Bareilly"]

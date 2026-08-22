@@ -47,19 +47,22 @@ export default function TripWhatsAppPage() {
   const [trips, setTrips] = useState([]);
 
   const [form, setForm] = useState({
-    trip_code: "", exp_type: "FUEL", amount: "", odometer: "", liters: "", rate: "", state_code: "",
+    trip_code: "", exp_type: "FUEL", amount: "", odometer: "", liters: "", rate: "", state_code: "", note: "",
   });
   const [states, setStates] = useState([]);
   const isFuelOrDef = form.exp_type === "FUEL" || form.exp_type === "DEF";
-  // Favorites starred on the Rules & Rates page pin to the top of the picker.
+  // Options are DB-driven (?source=benchmarks -> fuel_benchmarks rows only);
+  // ★ Favorites starred on the Rules & Rates page pin to the top of the picker.
   const sortedStates = [...states].sort(
     (a, b) =>
       Number(b.is_favorite === true) - Number(a.is_favorite === true) ||
       String(a.name).localeCompare(String(b.name)),
   );
+  const favStates = sortedStates.filter((s) => s.is_favorite === true);
+  const restStates = sortedStates.filter((s) => s.is_favorite !== true);
   const threadRef = useRef(null);
 
-  useEffect(() => { api.get("/api/v1/states").then(setStates).catch(() => {}); }, []);
+  useEffect(() => { api.get("/api/v1/states?source=benchmarks").then(setStates).catch(() => {}); }, []);
 
   // Fueling-state preselection: keep any already-chosen/trip state, else the
   // driver's top ★ favorite from Rules & Rates, else UP as the default.
@@ -113,13 +116,16 @@ export default function TripWhatsAppPage() {
         trip_code: form.trip_code, exp_type: form.exp_type, amount: Number(form.amount),
         odometer: Number(form.odometer) || 0, liters: Number(form.liters) || 0,
         rate: Number(form.rate) || 0, state_code: form.state_code || undefined,
+        // MISC receipts carry the free-text description -> expenses.raw_receipt_text.
+        ...(form.exp_type === "MISC" && form.note.trim()
+          ? { raw_receipt_text: form.note.trim() } : {}),
       };
       const res = await api.post("/api/v1/expenses", payload);
       const verdict = res?.verdict || (res?.is_flagged ? "flagged" : "ok");
       toast.success(verdict === "flagged"
         ? `⚠️ ${res?.flag_reason || "Expense flagged for manager review."}`
         : "✅ Receipt logged & verified.");
-      setForm((f) => ({ ...f, amount: "", odometer: "", liters: "", rate: "" }));
+      setForm((f) => ({ ...f, amount: "", odometer: "", liters: "", rate: "", note: "" }));
       const det = await api.get(`/api/v1/trips/${tripCode}`);
       setExpenses(det?.expenses || []);
     } catch (e) { setError(e.message); toast.error(e.message); } finally { setBusy(false); }
@@ -353,6 +359,7 @@ export default function TripWhatsAppPage() {
                         {Number(e.odometer) > 0 && <p>🛣️ Odometer: {e.odometer} KM (कि.मी.)</p>}
                         {e.station_name && <p>⛽ Station: {e.station_name}</p>}
                         {(e.exp_type === "FUEL" || e.exp_type === "DEF") && e.state_code && <p>📍 State: {e.state_code}</p>}
+                        {e.exp_type === "MISC" && e.raw_receipt_text && <p>📝 {e.raw_receipt_text}</p>}
                       </div>
                     </div>
                   </div>
@@ -408,6 +415,14 @@ export default function TripWhatsAppPage() {
                   <input type="number" step="0.01" value={form.amount} onChange={(e) => onField("amount", e.target.value)}
                     placeholder="e.g. 4520" className="w-full text-xs input outline-none" />
                 </div>
+                {form.exp_type === "MISC" && (
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Description / विवरण</label>
+                    <input type="text" value={form.note} onChange={(e) => onField("note", e.target.value)}
+                      placeholder="Kis liye? e.g. Kanta at Bareilly weighbridge" maxLength={500}
+                      className="w-full text-xs input outline-none" />
+                  </div>
+                )}
                 {isFuelOrDef && (<>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 block mb-1">Liters</label>
@@ -423,7 +438,14 @@ export default function TripWhatsAppPage() {
                     <label className="text-[10px] font-bold text-slate-500 block mb-1">Fueling State</label>
                     <select value={form.state_code} onChange={(e) => onField("state_code", e.target.value)} className="w-full text-xs input outline-none">
                       <option value="">Select state</option>
-                      {sortedStates.map((s) => (<option key={s.code} value={s.code}>{s.is_favorite ? "★ " : ""}{s.code} · {s.name}</option>))}
+                      {favStates.length > 0 && (
+                        <optgroup label="★ Favorites by manager">
+                          {favStates.map((s) => (<option key={s.code} value={s.code}>★ {s.code} · {s.name}</option>))}
+                        </optgroup>
+                      )}
+                      <optgroup label="All states">
+                        {restStates.map((s) => (<option key={s.code} value={s.code}>{s.code} · {s.name}</option>))}
+                      </optgroup>
                     </select>
                   </div>
                 </>)}

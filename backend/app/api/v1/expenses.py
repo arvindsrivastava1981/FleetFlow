@@ -84,6 +84,9 @@ async def api_create_expense(request: Request):
     # refuels in Madhya Pradesh). Drives the fuel band below; falls back to the
     # trip's state when omitted.
     state_code = str(body.get("state_code") or "").strip().upper() or None
+    # Free-text description collected for MISC receipts; stored verbatim in
+    # expenses.raw_receipt_text so the manager sees what the money was for.
+    raw_receipt_text = str(body.get("raw_receipt_text") or "").strip() or None
 
     if exp_type not in JSON_EXPENSE_TYPES:
         return _bad("invalid expense type", "INVALID_EXPENSE_TYPE")
@@ -187,6 +190,7 @@ async def api_create_expense(request: Request):
             flag_reason=flag_reason,
             manager_status=manager_status,
             state_code=state_code,
+            raw_receipt_text=raw_receipt_text,
         )
         if odometer > 0:
             update_trip_odometer(conn, trip_code, odometer)

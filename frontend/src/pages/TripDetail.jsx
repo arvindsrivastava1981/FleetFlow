@@ -267,7 +267,14 @@ export default function TripDetailPage() {
           <tbody>
             {expenses.map((e) => (
               <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-3 text-xs font-bold text-slate-800">{e.exp_type}</td>
+                <td className="p-3 text-xs font-bold text-slate-800">
+                  {e.exp_type}
+                  {e.exp_type === "MISC" && e.raw_receipt_text && (
+                    <span className="block font-normal text-[10px] text-slate-500">
+                      📝 {e.raw_receipt_text}
+                    </span>
+                  )}
+                </td>
                 <td className="p-3 text-xs text-slate-600">₹{e.amount}</td>
                 <td className="p-3 text-xs">
                   <span

@@ -13,12 +13,14 @@ def insert_expense(
     flag_reason: str | None,
     manager_status: str,
     state_code: str | None = None,
+    raw_receipt_text: str | None = None,
 ) -> None:
     """Insert an expense row, resolving `trip_id` from the trips table first.
 
     *state_code* records the fueling state the driver picked for a fuel/DEF
     purchase (the state the band was evaluated against). It is omitted for
-    non-fuel/auto-posted rows.
+    non-fuel/auto-posted rows. *raw_receipt_text* carries the driver's
+    free-text description (e.g. what a MISC/Kanta payment was for) verbatim.
     """
     cur = conn.cursor()
     cur.execute("SELECT id FROM trips WHERE trip_code = %s", (trip_code,))
@@ -27,10 +29,12 @@ def insert_expense(
     cur.execute(
         """INSERT INTO expenses
                (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
-                is_flagged, flag_reason, manager_status, state_code)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                is_flagged, flag_reason, manager_status, state_code,
+                raw_receipt_text)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
-         is_flagged, flag_reason, manager_status, state_code),
+         is_flagged, flag_reason, manager_status, state_code,
+         raw_receipt_text),
     )
 
 
