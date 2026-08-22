@@ -38,13 +38,25 @@ def insert_expense(
     )
 
 
-def action_expense_status(conn, expense_id: int, status: str) -> str:
-    """Set an expense's manager_status and return its trip_code for redirect."""
+def action_expense_status(
+    conn, expense_id: int, status: str, reason: str | None = None
+) -> str:
+    """Set an expense's manager_status and return its trip_code for redirect.
+
+    On REJECT an optional manager *reason* is stored verbatim in
+    ``flag_reason`` so the driver's thread/banner can show why it was denied.
+    """
     cur = conn.cursor()
-    cur.execute(
-        "UPDATE expenses SET manager_status = %s WHERE id = %s",
-        (status, expense_id),
-    )
+    if status == "REJECTED" and reason:
+        cur.execute(
+            "UPDATE expenses SET manager_status = %s, flag_reason = %s WHERE id = %s",
+            (status, reason, expense_id),
+        )
+    else:
+        cur.execute(
+            "UPDATE expenses SET manager_status = %s WHERE id = %s",
+            (status, expense_id),
+        )
     cur.execute("SELECT trip_code FROM expenses WHERE id = %s", (expense_id,))
     row = cur.fetchone()
     return row["trip_code"] if row else ""

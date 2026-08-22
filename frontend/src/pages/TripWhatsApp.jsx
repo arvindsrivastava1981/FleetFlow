@@ -20,6 +20,7 @@ const HINDI_LABELS = {
   FUEL: "डीजल", DEF: "यूरिया", TOLL: "टोल", REPAIR: "मरम्मत",
   CHALLAN: "चालान", MISC: "कांटा / विविध",
   GOODS_BUY: "माल खरीद", GOODS_SALE: "माल बिक्री",
+  SETTLEMENT_TRANSFER: "हिसाब / सेटलमेंट",
 };
 
 const HINDI_STATUS = { APPROVED: "स्वीकृत", PENDING: "लंबित", REJECTED: "अस्वीकृत" };
@@ -45,6 +46,10 @@ export default function TripWhatsAppPage() {
   const [selected, setSelected] = useState(() => new Set()); // P-1 bulk approvals
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState([]);
+  const [agree, setAgree] = useState(false); // settlement consent checkbox
+  // Inline "why rejected?" note for the manager's Deduct action.
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectNote, setRejectNote] = useState("");
 
   const [form, setForm] = useState({
     trip_code: "", exp_type: "FUEL", amount: "", odometer: "", liters: "", rate: "", state_code: "", note: "",
@@ -73,6 +78,11 @@ export default function TripWhatsAppPage() {
       return { ...f, state_code: fav?.code || "UP" };
     });
   }, [states]);
+
+  // Leaving the settlement type clears the consent checkbox.
+  useEffect(() => {
+    if (form.exp_type !== "SETTLEMENT_TRANSFER") setAgree(false);
+  }, [form.exp_type]);
 
   useEffect(() => {
     if (isManager) {
@@ -112,20 +122,30 @@ export default function TripWhatsAppPage() {
     if (busy) return;
     setBusy(true); setError("");
     try {
+      // SETTLEMENT_TRANSFER: the closing amount is computed by the server from
+      // the live ledger — the client-sent figure is ignored (read-only flow).
+      const isSettlementSend = form.exp_type === "SETTLEMENT_TRANSFER";
       const payload = {
-        trip_code: form.trip_code, exp_type: form.exp_type, amount: Number(form.amount),
+        trip_code: form.trip_code, exp_type: form.exp_type,
+        amount: isSettlementSend ? 0 : Number(form.amount),
         odometer: Number(form.odometer) || 0, liters: Number(form.liters) || 0,
         rate: Number(form.rate) || 0, state_code: form.state_code || undefined,
-        // MISC receipts carry the free-text description -> expenses.raw_receipt_text.
-        ...(form.exp_type === "MISC" && form.note.trim()
+        // MISC / settlement receipts carry a free-text description
+        // -> expenses.raw_receipt_text.
+        ...((form.exp_type === "MISC" || isSettlementSend) && form.note.trim()
           ? { raw_receipt_text: form.note.trim() } : {}),
       };
       const res = await api.post("/api/v1/expenses", payload);
-      const verdict = res?.verdict || (res?.is_flagged ? "flagged" : "ok");
-      toast.success(verdict === "flagged"
-        ? `⚠️ ${res?.flag_reason || "Expense flagged for manager review."}`
-        : "✅ Receipt logged & verified.");
+      if (isSettlementSend) {
+        toast.success(`🤝 Settlement request of ₹${fmtRs(res?.settlement_amount ?? settlementAmount)} sent to your manager for approval.`);
+      } else {
+        const verdict = res?.verdict || (res?.is_flagged ? "flagged" : "ok");
+        toast.success(verdict === "flagged"
+          ? `⚠️ ${res?.flag_reason || "Expense flagged for manager review."}`
+          : "✅ Receipt logged & verified.");
+      }
       setForm((f) => ({ ...f, amount: "", odometer: "", liters: "", rate: "", note: "" }));
+      setAgree(false);
       const det = await api.get(`/api/v1/trips/${tripCode}`);
       setExpenses(det?.expenses || []);
     } catch (e) { setError(e.message); toast.error(e.message); } finally { setBusy(false); }
@@ -134,11 +154,18 @@ export default function TripWhatsAppPage() {
   async function decide(exp, action) {
     setBusyId(exp.id); setError("");
     try {
-      const res = await api.post(`/api/v1/expenses/${exp.id}/action`, { action });
+      const res = await api.post(`/api/v1/expenses/${exp.id}/action`, {
+        action,
+        // Optional manager note explaining a rejection (stored on the row +
+        // included in the driver's WhatsApp notification).
+        ...(action === "REJECT" && rejectNote.trim()
+          ? { reason: rejectNote.trim() } : {}),
+      });
       const label = action === "APPROVE"
         ? (res?.label_hi ? `स्वीकृत (${res.label_en})` : "Expense approved ✅")
-        : (res?.label_hi ? `कटौती (${res.label_en})` : "Expense deducted ❌");
+        : (res?.label_hi ? `${res.label_en} (${res.label_hi})` : "Expense deducted ❌");
       toast.success(label);
+      setRejectTarget(null); setRejectNote("");
       const det = await api.get(`/api/v1/trips/${tripCode}`);
       setExpenses(det?.expenses || []);
     } catch (e) { setError(e.message || "Action failed"); toast.error(e.message || "Action failed"); }
@@ -189,22 +216,9 @@ export default function TripWhatsAppPage() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  async function initiateSettlement() {
-    if (busy) return;
-    setBusy(true); setError("");
-    try {
-      // Amount is server-computed (read-only for the driver): the closing
-      // entry must equal the live |net_balance|, so we send a placeholder.
-      const res = await api.post("/api/v1/expenses", {
-        trip_code: form.trip_code || tripCode,
-        exp_type: "SETTLEMENT_TRANSFER",
-        amount: 0,
-      });
-      toast.success(`🤝 Settlement of ₹${fmtRs(res?.settlement_amount ?? Math.abs(balance))} sent to manager for approval.`);
-      const det = await api.get(`/api/v1/trips/${tripCode}`);
-      setExpenses(det?.expenses || []);
-    } catch (e) { setError(e.message); toast.error(e.message); } finally { setBusy(false); }
-  }
+  /* ── Removed: standalone "Initiate Settlement" button — the driver now
+     initiates the final settlement through the unified receipt form by
+     choosing the SETTLEMENT_TRANSFER expense type (consent panel included). ── */
 
   const pending = expenses.filter((e) =>
     e.manager_status === "PENDING" || e.manager_status === null || e.manager_status === undefined);
@@ -222,6 +236,21 @@ export default function TripWhatsAppPage() {
     )) / 100;
   // The driver-initiated closing entry (acceptance). REJECTED frees the ledger.
   const transferRow = expenses.find((e) => e.exp_type === "SETTLEMENT_TRANSFER" && e.manager_status !== "REJECTED");
+
+  // Unified settlement entry: the driver picks SETTLEMENT_TRANSFER in the
+  // receipt form itself. The closing amount is server-computed from the live
+  // approved ledger; GET /trips/{code} carries the authoritative figures
+  // (net_balance + direction), with the client mirror as display fallback.
+  const isSettlement = form.exp_type === "SETTLEMENT_TRANSFER";
+  const isDriverRefund = Boolean(trip?.settlement?.is_driver_refund);
+  const settlementAmount = Math.abs(
+    Number(trip?.settlement?.net_balance ?? balance) || 0,
+  );
+  // The most recently REJECTED closing entry (if any) — shown so the driver
+  // knows the request was declined and why; REJECTED frees the ledger again.
+  const rejectedTransfer = expenses.find(
+    (e) => e.exp_type === "SETTLEMENT_TRANSFER" && e.manager_status === "REJECTED",
+  );
 
   /* ── Manager trip picker (no tripCode) ── */
   if (!hasTripCode && isManager && !loading) {
@@ -368,6 +397,9 @@ export default function TripWhatsAppPage() {
                       {isFlaggedOrPending ? (
                         <><p className="font-bold text-[11px]">⚠️ Pending Review (समीक्षा लंबित)</p>
                           <p className="text-[10px]">{e.flag_reason || "Needs trip manager approval."}</p></>
+                      ) : e.manager_status === "REJECTED" ? (
+                        <><p className="font-bold text-[11px]">❌ Rejected (अस्वीकृत)</p>
+                          <p className="text-[10px]">{e.flag_reason || `${HINDI_LABELS[e.exp_type] || e.exp_type} · ₹${fmtRs(e.amount)} denied by manager.`}</p></>
                       ) : (
                         <><p className="font-bold text-[11px]">✅ Verified (सत्यापित)</p>
                           <p className="text-[10px]">{HINDI_LABELS[e.exp_type] || e.exp_type} · ₹{fmtRs(e.amount)} logged.</p></>
@@ -378,16 +410,33 @@ export default function TripWhatsAppPage() {
                       </p>
                     </div>
                     {isManager && needsAction && (
-                      <div className="flex items-center gap-2 max-w-[90%] mt-1">
-                        <label className="flex items-center gap-1 text-[10px] text-slate-600">
-                          <input type="checkbox" checked={selected.has(e.id)}
-                            onChange={() => toggleSel(e.id)} className="accent-amber-600" />
-                          select
-                        </label>
-                        <button onClick={() => decide(e, "APPROVE")} disabled={busyId === e.id}
-                          className="text-[10px] btn-success px-2.5 py-1 rounded-full transition disabled:opacity-50">{busyId === e.id ? "…" : "✅ Approve"}</button>
-                        <button onClick={() => decide(e, "REJECT")} disabled={busyId === e.id}
-                          className="text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-full transition disabled:opacity-50">{busyId === e.id ? "…" : "❌ Deduct"}</button>
+                      <div className="max-w-[90%] mt-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1 text-[10px] text-slate-600">
+                            <input type="checkbox" checked={selected.has(e.id)}
+                              onChange={() => toggleSel(e.id)} className="accent-amber-600" />
+                            select
+                          </label>
+                          <button onClick={() => decide(e, "APPROVE")} disabled={busyId === e.id}
+                            className="text-[10px] btn-success px-2.5 py-1 rounded-full transition disabled:opacity-50">{busyId === e.id ? "…" : "✅ Approve"}</button>
+                          <button
+                            onClick={() => { setRejectNote(""); setRejectTarget(rejectTarget === e.id ? null : e.id); }}
+                            disabled={busyId === e.id}
+                            className="text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-full transition disabled:opacity-50">
+                            {rejectTarget === e.id ? "✕ Cancel" : busyId === e.id ? "…" : "❌ Deduct"}
+                          </button>
+                        </div>
+                        {rejectTarget === e.id && (
+                          <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 rounded-full px-2.5 py-1">
+                            <input value={rejectNote} onChange={(ev) => setRejectNote(ev.target.value)}
+                              placeholder="Reason (optional)… e.g. receipt missing" maxLength={500}
+                              className="flex-1 min-w-0 bg-transparent text-[10px] text-rose-900 outline-none placeholder:text-rose-300" />
+                            <button onClick={() => decide(e, "REJECT")} disabled={busyId === e.id}
+                              className="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-full transition disabled:opacity-50">
+                              {busyId === e.id ? "…" : "Confirm"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                     {isManager && !needsAction && (
@@ -402,22 +451,55 @@ export default function TripWhatsAppPage() {
           </div>
 
           {isDriver && (
+            transferRow ? (
+              <div className="p-3 bg-slate-50 border-t border-slate-200">
+                <p className="text-[10px] font-bold text-slate-700">🔒 Ledger locked / हिसाब लॉक है</p>
+                <p className="text-[10px] text-slate-500">
+                  Settlement request {transferRow.manager_status === "PENDING" ? "awaiting manager approval" : "approved"} —
+                  new receipts are blocked until the trip is settled.
+                </p>
+              </div>
+            ) : (
             <form onSubmit={sendReceipt} className="p-3 bg-white border-t border-slate-200 space-y-2.5 flex-shrink-0">
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 block mb-1">Expense Type</label>
                   <select value={form.exp_type} onChange={(e) => onField("exp_type", e.target.value)} className="w-full text-xs input outline-none">
                     {EXPENSE_TYPES.map((t) => (<option key={t.value} value={t.value}>{t.label}</option>))}
+                    {isDriver && (
+                      <option value="SETTLEMENT_TRANSFER">🤝 Settlement / हिसाब</option>
+                    )}
                   </select>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 block mb-1">Amount (₹)</label>
-                  <input type="number" step="0.01" value={form.amount} onChange={(e) => onField("amount", e.target.value)}
-                    placeholder="e.g. 4520" className="w-full text-xs input outline-none" />
-                </div>
-                {form.exp_type === "MISC" && (
+                {isSettlement ? (
+                  <div className="col-span-2 bg-amber-50 border border-amber-300 p-2.5 rounded-xl">
+                    <p className="text-[10px] font-bold text-amber-900">
+                      ⚠️ यह आपका अंतिम हिसाब अनुरोध है — आप ₹{fmtRs(settlementAmount)}{" "}
+                      {isDriverRefund ? "मालिक को वापस करने के लिए" : "प्राप्त करने के लिए"} सहमत हैं।
+                    </p>
+                    <p className="text-[10px] text-amber-800 mt-0.5">
+                      This is your final settlement request — you agree to{" "}
+                      {isDriverRefund
+                        ? `return ₹${fmtRs(settlementAmount)} to the Owner`
+                        : `receive ₹${fmtRs(settlementAmount)} from the Owner`}
+                      . The amount is auto-calculated from the approved ledger;
+                      manager approval records your acceptance.
+                    </p>
+                    <label className="flex items-center gap-2 mt-2 text-[10px] font-extrabold text-amber-900">
+                      <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} />
+                      I agree / मैं सहमत हूँ
+                    </label>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Amount (₹)</label>
+                    <input type="number" step="0.01" value={form.amount} onChange={(e) => onField("amount", e.target.value)}
+                      placeholder="e.g. 4520" className="w-full text-xs input outline-none" />
+                  </div>
+                )}
+                {(form.exp_type === "MISC" || isSettlement) && (
                   <div className="col-span-2">
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Description / विवरण</label>
+                    <label className="text-[10px] font-bold text-slate-500 block mb-1">Description (optional) / विवरण (वैकल्पिक)</label>
                     <input type="text" value={form.note} onChange={(e) => onField("note", e.target.value)}
                       placeholder="Kis liye? e.g. Kanta at Bareilly weighbridge" maxLength={500}
                       className="w-full text-xs input outline-none" />
@@ -455,11 +537,13 @@ export default function TripWhatsAppPage() {
                     placeholder="e.g. 103650" className="w-full text-xs input outline-none" />
                 </div>
               </div>
-              <button type="submit" disabled={busy} className="w-full btn-success text-xs py-2.5 rounded-xl transition disabled:opacity-50">
-                {busy ? "Sending…" : "📤 Send receipt"}
+              <button type="submit" disabled={busy || (isSettlement && !agree)}
+                className="w-full btn-success text-xs py-2.5 rounded-xl transition disabled:opacity-50">
+                {busy ? "Sending…" : isSettlement ? "🤝 Send settlement request" : "📤 Send receipt"}
               </button>
               <p className="text-[10px] text-slate-400 text-center">Simulates a WhatsApp message to the VahanKhata bot.</p>
             </form>
+            )
           )}
 
         </div>
@@ -502,20 +586,23 @@ export default function TripWhatsAppPage() {
                 )
               ) : (
                 <>
-                  <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl flex items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[9px] uppercase font-bold text-slate-500 block">Current Balance / वर्तमान शेष</span>
-                      <span className={`text-sm font-extrabold ${balance < 0 ? "text-rose-600" : balance > 0 ? "text-slate-800" : "text-emerald-600"}`}>
-                        ₹{fmtRs(Math.abs(balance))} {balance > 0 ? "refundable" : balance < 0 ? "payable" : "settled"}
-                      </span>
+                  {rejectedTransfer && (
+                    <div className="bg-rose-50 border border-rose-200 text-rose-800 p-2.5 rounded-xl mb-2">
+                      <p className="text-[10px] font-bold">❌ Settlement request rejected / हिसाब अस्वीकृत</p>
+                      {rejectedTransfer.flag_reason && (
+                        <p className="text-[10px]">Manager note / कारण: {rejectedTransfer.flag_reason}</p>
+                      )}
+                      <p className="text-[10px]">Log any corrections, then send a fresh 🤝 Settlement / हिसाब request from the receipt form.</p>
                     </div>
-                    <button onClick={initiateSettlement} disabled={busy}
-                      className="btn-success text-[10px] font-bold px-3 py-2 rounded-xl transition disabled:opacity-50">
-                      {busy ? "…" : "🤝 Initiate Settlement"}
-                    </button>
+                  )}
+                  <div className="bg-slate-50 border border-slate-200 p-2.5 rounded-xl">
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">Current Balance / वर्तमान शेष</span>
+                    <span className={`text-sm font-extrabold ${balance < 0 ? "text-rose-600" : balance > 0 ? "text-slate-800" : "text-emerald-600"}`}>
+                      ₹{fmtRs(Math.abs(balance))} {balance > 0 ? "refundable" : balance < 0 ? "payable" : "settled"}
+                    </span>
                   </div>
                   <p className="text-[9px] text-slate-400 mt-1">
-                    Accepting locks this balance and sends it to your manager for approval.
+                    Final settlement? Choose “🤝 Settlement / हिसाब” as the expense type in the receipt form — the amount is auto-calculated.
                   </p>
                 </>
               )}
