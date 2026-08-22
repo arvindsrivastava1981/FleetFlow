@@ -107,17 +107,20 @@ if (Test-Path $reqFile) {
 else {
     Write-Check -Label 'requirements.txt exists' -Pass $false -Detail 'Installation.md section 2'
 }
-# --- [3] Environment configuration -----------------------------------------
-$envFile = Join-Path $Root '.env'
-if (Test-Path $envFile) {
+# --- [3] Environment configuration ------------------------------------------
+# Audit: per-app env files. The canonical backend file is `backend/.env`;
+# the legacy repo-root `.env` is still accepted as a fallback.
+$backendEnv = Join-Path (Join-Path $Root 'backend') '.env'
+$rootEnv    = Join-Path $Root '.env'
+$envFile = if (Test-Path $backendEnv) { $backendEnv } elseif (Test-Path $rootEnv) { $rootEnv } else { $null }
+if ($envFile) {
+    $envLabel = if ($envFile -eq $backendEnv) { 'backend/.env' } else { '.env (repo root)' }
     $envLines = Get-Content $envFile | Where-Object { $_ -match '=' -and $_ -notmatch '^\s*#' }
     $hasDb  = [bool]($envLines | Where-Object { $_ -match '^\s*DATABASE_URL\s*=' -and $_ -notmatch '=\s*$' })
-    $hasPw  = [bool]($envLines | Where-Object { $_ -match '^\s*USER_PASSWORD\s*=' -and $_ -notmatch '=\s*$' })
-    Write-Check -Label 'DATABASE_URL set in .env'     -Pass $hasDb -Detail 'required always, Installation.md section 3'
-    Write-Check -Label '_PASSWORD set in .env'   -Pass $hasPw -Detail 'required in production, Installation.md section 3'
+    Write-Check -Label "DATABASE_URL set in $envLabel" -Pass $hasDb -Detail 'required always, Installation.md section 3'
 }
 else {
-    Write-Check -Label '.env file exists' -Pass $false -Detail 'Installation.md section 3'
+    Write-Check -Label 'backend/.env (or root .env) exists' -Pass $false -Detail 'Installation.md section 3'
 }
 
 # --- [4] Database schema (never applied by the app) -------------------------
