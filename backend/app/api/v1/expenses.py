@@ -84,6 +84,9 @@ async def api_create_expense(request: Request):
     # refuels in Madhya Pradesh). Drives the fuel band below; falls back to the
     # trip's state when omitted.
     state_code = str(body.get("state_code") or "").strip().upper() or None
+    # Free-text description collected for MISC receipts; stored verbatim in
+    # expenses.raw_receipt_text so the manager sees what the money was for.
+    raw_receipt_text = str(body.get("raw_receipt_text") or "").strip() or None
 
     if exp_type not in JSON_EXPENSE_TYPES:
         return _bad("invalid expense type", "INVALID_EXPENSE_TYPE")
@@ -187,6 +190,7 @@ async def api_create_expense(request: Request):
             flag_reason=flag_reason,
             manager_status=manager_status,
             state_code=state_code,
+            raw_receipt_text=raw_receipt_text,
         )
         if odometer > 0:
             update_trip_odometer(conn, trip_code, odometer)
@@ -217,6 +221,11 @@ async def api_action_expense(request: Request, expense_id: int):
     if action not in ("APPROVE", "REJECT"):
         return _bad("action must be APPROVE or REJECT", "INVALID_ACTION")
     status = "APPROVED" if action == "APPROVE" else "REJECTED"
+    # Optional manager note explaining a rejection — stored on the row and
+    # relayed to the driver in the WhatsApp notification.
+    reason = str((body or {}).get("reason") or "").strip() or None
+    if reason and len(reason) > 500:
+        return _bad("reason must be 500 characters or fewer", "INVALID_REASON")
 
     with get_db() as conn:
         expense_code = get_expense_trip_code(conn, expense_id)
@@ -228,11 +237,13 @@ async def api_action_expense(request: Request, expense_id: int):
                 status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
             )
         row = get_expense_by_id(conn, expense_id)
-        is_settlement_request = (
-            status == "APPROVED"
-            and row is not None
+        # The closing entry gets dedicated wording regardless of the action,
+        # so a rejection never reads as a money "deduction".
+        is_settlement_row = (
+            row is not None
             and row.get("exp_type") == SETTLEMENT_TRANSFER_TYPE
         )
+        is_settlement_request = status == "APPROVED" and is_settlement_row
         if is_settlement_request:
             # Re-verify BEFORE flipping status: the PENDING closing entry is
             # excluded by compute_settlement, so net_balance here is the exact
@@ -249,7 +260,7 @@ async def api_action_expense(request: Request, expense_id: int):
                         "code": "LEDGER_CHANGED",
                     },
                 )
-        trip_code = action_expense_status(conn, expense_id, status)
+        trip_code = action_expense_status(conn, expense_id, status, reason=reason)
         if is_settlement_request:
             # The manager's approval records the driver's acceptance on the trip
             # (idempotent, first-wins) so the voucher consent block lights up.
@@ -266,9 +277,21 @@ async def api_action_expense(request: Request, expense_id: int):
             driver_row = None
         driver_phone = (driver_row or {}).get("phone") if driver_row else None
 
-        # Human-facing status labels (bilingual).
-        label_en = "Approved" if status == "APPROVED" else "Deducted"
-        label_hi = "स्वीकृत" if status == "APPROVED" else "कटौती"
+        # Human-facing status labels (bilingual). Settlement decisions use
+        # dedicated wording so the driver is never told a request was
+        # "Deducted" when it was actually declined.
+        if is_settlement_row:
+            label_en = (
+                "Settlement approved"
+                if status == "APPROVED"
+                else "Settlement request rejected"
+            )
+            label_hi = (
+                "हिसाब स्वीकृत" if status == "APPROVED" else "हिसाब अस्वीकृत"
+            )
+        else:
+            label_en = "Approved" if status == "APPROVED" else "Deducted"
+            label_hi = "स्वीकृत" if status == "APPROVED" else "कटौती"
 
         # Best-effort WhatsApp notification to the driver — Phase C (F-1):
         # direct service call (no self-HTTP hop; resolves B-3/B-9 notes).
@@ -279,7 +302,8 @@ async def api_action_expense(request: Request, expense_id: int):
                 send_text(
                     driver_phone,
                     f"{label_en} ({label_hi}) · Trip {trip_code} · "
-                    f"expense #{expense_id}",
+                    f"expense #{expense_id}"
+                    + (f"\nReason / कारण: {reason}" if reason else ""),
                 )
             except Exception:
                 pass  # Notification is best-effort, never block the API response.

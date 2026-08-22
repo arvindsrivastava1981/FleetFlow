@@ -2,10 +2,20 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()  # idempotent; no-op when vars already present in the environment
+# --- Env-file layers (per-app .env support) ---------------------------------
+#   1) repo-root `.env`      — legacy single-file layout, still honored
+#   2) `backend/.env`        — canonical home for API settings; wins on clash
+# Both are optional; real process environment variables always beat files.
+# Paths are resolved from this file's location, so any working directory works
+# (uvicorn from root, pytest from root, scripts, IDE launch configs…).
+_REPO_DIR = Path(__file__).resolve().parents[3]    # repo root
+_APP_DIR = Path(__file__).resolve().parents[2]     # backend/
+load_dotenv(_REPO_DIR / ".env")                    # base layer (optional)
+load_dotenv(_APP_DIR / ".env", override=True)      # app layer wins
 
 
 class Settings:

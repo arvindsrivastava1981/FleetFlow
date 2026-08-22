@@ -141,9 +141,15 @@
         <td class="text-right">—</td>
         <td class="text-right">₹{{ "%.2f"|format(goods_income) }}</td>
       </tr>
-      {% for en, hi, amount in debit_rows %}
+      {% for en, hi, amount, notes in debit_rows %}
       <tr>
-        <td>{{ hi }} / {{ en }}</td>
+        <td>
+          {{ hi }} / {{ en }}
+          {% if notes %}
+          <br>
+          {% for n in notes %}<small>• {{ n }}</small>{% if not loop.last %}<br>{% endif %}{% endfor %}
+          {% endif %}
+        </td>
         <td class="text-right">₹{{ "%.2f"|format(amount) }}</td>
         <td class="text-right">—</td>
       </tr>

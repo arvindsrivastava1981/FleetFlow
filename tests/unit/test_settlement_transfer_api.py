@@ -213,3 +213,60 @@ def test_manager_approval_blocks_drifted_ledger(client, resolve_db):
 
     assert resp.status_code == 409
     assert resp.json()["code"] == "LEDGER_CHANGED"
+
+
+# ---- Rejection wording + manager note ------------------------------------------
+
+
+def test_reject_settlement_uses_settlement_labels_and_stores_reason(
+    client, resolve_db
+):
+    """REJECT of a closing entry: settlement-specific bilingual wording and the
+    manager's reason persisted into ``flag_reason``."""
+    row = _exp(exp_type="SETTLEMENT_TRANSFER", amount=5000.0, liters=0.0,
+               manager_status="PENDING", created_by=2, id=9)
+    # fetchone order: expense->trip_code, trip lookup, expense row,
+    # action_expense_status trip_code reselect.
+    db_obj = _db(
+        [{"trip_code": "TRIP-101"}, _trip(), row, {"trip_code": "TRIP-101"}]
+    )
+    resolve_db(db_obj, user=MANAGER_USER)
+
+    resp = client.post(
+        "/api/v1/expenses/9/action",
+        json={"action": "REJECT", "reason": "Kanta receipt missing"},
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()["data"]
+    assert body["label_en"] == "Settlement request rejected"
+    assert body["label_hi"] == "हिसाब अस्वीकृत"
+    cur = db_obj.__enter__.return_value.cursor.return_value
+    upd = [
+        c for c in cur.execute.call_args_list
+        if str(c.args[0]).startswith("UPDATE expenses")
+    ]
+    assert upd, "status UPDATE never ran"
+    assert upd[0].args[1] == ("REJECTED", "Kanta receipt missing", 9)
+
+
+def test_reject_road_expense_keeps_plain_update_without_reason(
+    client, resolve_db
+):
+    """No reason supplied -> status-only UPDATE; generic 'Deducted' wording."""
+    row = _exp(exp_type="FUEL", amount=100.0)
+    db_obj = _db(
+        [{"trip_code": "TRIP-101"}, _trip(), row, {"trip_code": "TRIP-101"}]
+    )
+    resolve_db(db_obj, user=MANAGER_USER)
+
+    resp = client.post("/api/v1/expenses/99/action", json={"action": "REJECT"})
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["label_en"] == "Deducted"
+    cur = db_obj.__enter__.return_value.cursor.return_value
+    upd = [
+        c for c in cur.execute.call_args_list
+        if str(c.args[0]).startswith("UPDATE expenses")
+    ]
+    assert upd[0].args[1] == ("REJECTED", 99)  # flag_reason untouched

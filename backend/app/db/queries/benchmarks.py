@@ -70,6 +70,27 @@ def get_favorite_state_codes(conn, user_id: int) -> list[str]:
     return [row["state_code"] for row in cur.fetchall()]
 
 
+def get_benchmark_states(conn, user_id: int) -> list[dict]:
+    """Return every state that exists in `fuel_benchmarks`, tagged with the
+    caller's ``is_favorite`` flag.
+
+    Powers the DB-driven fueling-state dropdown (`GET /states?source=benchmarks`)
+    so a driver can only pick a state the rules engine can actually price.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        """SELECT b.state_code,
+                  b.state_name,
+                  (bf.user_id IS NOT NULL) AS is_favorite
+             FROM fuel_benchmarks b
+        LEFT JOIN benchmark_favorites bf
+               ON bf.state_code = b.state_code AND bf.user_id = %s
+         ORDER BY b.state_name""",
+        (user_id,),
+    )
+    return cur.fetchall()
+
+
 def set_home_state(conn, user_id: int, state_code: str | None) -> bool:
     """Store (or clear, passing None) the caller's usual operating state."""
     cur = conn.cursor()

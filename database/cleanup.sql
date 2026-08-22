@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS fuel_benchmarks CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS fleets CASCADE;
 DROP TABLE IF EXISTS subscription_plans CASCADE;
---DROP TABLE IF EXISTS error_logs CASCADE;
+DROP TABLE IF EXISTS error_logs CASCADE;
 DROP TABLE IF EXISTS fleet_billing_events CASCADE;
 
 -- ----------------------------------------------------------------------------
@@ -26,9 +26,13 @@ TRUNCATE TABLE webhook_logs CASCADE;
 TRUNCATE TABLE expenses CASCADE;
 TRUNCATE TABLE trips CASCADE;
 TRUNCATE TABLE vehicles CASCADE;
-TRUNCATE TABLE fuel_benchmarks CASCADE;
 TRUNCATE TABLE users CASCADE;
 TRUNCATE TABLE fleets CASCADE;
 TRUNCATE TABLE subscription_plans CASCADE;
 TRUNCATE TABLE error_logs CASCADE;
 TRUNCATE TABLE fleet_billing_events CASCADE;
+
+
+
+select distinct method,path,status_code, error_type, message, detail,traceback_text
+ from error_logs where  message not like '%coroutine raised StopIteration%' 

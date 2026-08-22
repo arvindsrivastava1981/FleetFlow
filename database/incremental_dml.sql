@@ -1,13 +1,5 @@
 
 -- Incremental script for databases already created from an older schema.sql and this will have only DML statements to bring the database up to date with the latest seed data.
-
--- ----------------------------------------------------------------------------
--- Ensure the subscription_plans catalogue is present (TRIAL/MONTHLY/YEARLY).
--- Onboarding (POST /api/v1/fleets/onboard) and trial activation resolve the
--- TRIAL plan by code; when the catalogue is unseeded/truncated the subquery
--- previously wrote NULL into fleets.vehicle_limit (NOT NULL) and crashed with
--- a 500. The code now degrades safely, but the seed rows should always exist.
--- Idempotent — mirrors database/seed.sql.
 -- ----------------------------------------------------------------------------
 INSERT INTO subscription_plans (code, name, billing_cycle, trial_days, price, vehicle_limit, features)
 VALUES
@@ -24,8 +16,3 @@ VALUES
     ('admin', 'pbkdf2_sha256$100000$e736c77949726881ac49aca9b8d141b0$5824b96852d0a9be488b4d67cb40bf66761cb005a709567861bad3139f805b1d',
      'Super Admin', 'super_admin', '+91 98765 00000', 'admin@vahankhata.in', TRUE, NULL)   
 ON CONFLICT (username) DO NOTHING;
-
-
-
-select distinct method,path,status_code, error_type, message, detail,traceback_text
- from error_logs where  message not like '%coroutine raised StopIteration%' 

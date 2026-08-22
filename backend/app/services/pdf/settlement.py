@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import io
 import logging
 import os
@@ -113,6 +114,23 @@ def _bi(label_en: str | None, label_hi: str | None) -> str:
     return "—"
 
 
+def _misc_sublines(misc_notes: list[tuple[str, float]]) -> str:
+    """Format MISC descriptions as escaped ``<br/>`` bullet sub-lines.
+
+    *misc_notes* is ``(raw_receipt_text, amount)`` pairs collected from the
+    trip's MISC expenses; empty input yields ``""`` so callers append nothing.
+    The text is free-typed driver input embedded into reportlab Paragraph
+    markup, so it is XML-escaped first (never raw ``<``/``&``).
+    """
+    if not misc_notes:
+        return ""
+    lines = "<br/>".join(
+        f"&nbsp;&nbsp;&nbsp;• {html.escape(note, quote=False)} ({_rs(amount)})"
+        for note, amount in misc_notes
+    )
+    return f"<br/>{lines}"
+
+
 # ---------------------------------------------------------------------------#
 # Optional WeasyPrint renderer.
 #
@@ -155,18 +173,25 @@ def _build_weasyprint_context(
     s: SettlementResult,
     manager_consent_name: str | None,
     driver_consent_name: str | None,
+    misc_notes: list[tuple[str, float]] | None = None,
 ) -> dict:
     """Assemble the template context from a trip + computed settlement."""
     odo_dist = (trip.get("end_odo") or trip.get("current_odo") or 0) - (trip.get("start_odo") or 0)
     mileage_text = f"{s.avg_kml:.2f} km/L" if s.avg_kml is not None else "N/A"
 
-    # Debit rows: every non-zero expense bucket in the canonical order.
+    # Debit rows: every non-zero expense bucket in the canonical order. The
+    # MISC row carries its raw_receipt_text descriptions for sub-line printing.
     debit_rows = []
     for bucket in ROAD_EXPENSE_BUCKETS:
         amount = s.expense_buckets.get(bucket, 0.0)
         if amount != 0.0:
             en, hi = BUCKET_LABELS[bucket]
-            debit_rows.append((en, hi, amount))
+            notes = (
+                [text for text, _amt in (misc_notes or [])]
+                if bucket == "MISC"
+                else []
+            )
+            debit_rows.append((en, hi, amount, notes))
 
     return {
         "trip_code": trip.get("trip_code"),
@@ -318,9 +343,23 @@ def build_settlement_pdf(
     """
     s = compute_settlement(trip, expenses)
 
+    # MISC free-text ("what was it for") printed as sub-lines of the
+    # Misc & Loading ledger row on the voucher (both renderers).
+    misc_notes = [
+        (str(e.get("raw_receipt_text") or "").strip(), float(e.get("amount") or 0.0))
+        for e in expenses
+        if e.get("exp_type") == "MISC"
+        and str(e.get("raw_receipt_text") or "").strip()
+    ]
+
     if renderer == "weasyprint" and _WEASYPRINT_AVAILABLE:
         try:
-            return _render_weasyprint(_build_weasyprint_context(trip, s, manager_consent_name, driver_consent_name))
+            return _render_weasyprint(
+                _build_weasyprint_context(
+                    trip, s, manager_consent_name, driver_consent_name,
+                    misc_notes=misc_notes,
+                )
+            )
         except Exception as exc:  # pragma: no cover - environment dependent
             logger.warning("[pdf] weasyprint render failed, using reportlab: %s", exc)
     elif renderer == "weasyprint":
@@ -359,7 +398,11 @@ def build_settlement_pdf(
     return _fix_pua_tounicode(_render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name))
 
 
-def _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name) -> bytes:
+def _render_pdf(
+    doc, buffer, story, styles, s, trip,
+    manager_consent_name, driver_consent_name,
+    misc_notes: list[tuple[str, float]] | None = None,
+) -> bytes:
     """Build the body flowables for a `SettlementResult` ledger + footer."""
     cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
 
@@ -391,8 +434,11 @@ def _render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, drive
         if amount == 0.0:
             continue
         en, hi = BUCKET_LABELS[bucket]
+        label = _bi(en, hi)
+        if bucket == "MISC":
+            label += _misc_sublines(misc_notes or [])
         ledger_rows.append([
-            Paragraph(_bi(en, hi), cell_style),
+            Paragraph(label, cell_style),
             Paragraph(f"<b>{_rs(amount)}</b>", cell_style),
             Paragraph("—", cell_style),
         ])
