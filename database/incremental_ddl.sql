@@ -63,6 +63,12 @@ CREATE TABLE IF NOT EXISTS login_throttle (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Audit P-4/P-5: vehicle compliance dates + driver licence expiry.
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_expiry DATE;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS puc_expiry DATE;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS fitness_expiry DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS licence_expiry DATE;
+
 
 
 

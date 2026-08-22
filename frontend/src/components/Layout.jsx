@@ -47,6 +47,38 @@ const ROLE_LABELS = {
   driver: "Driver",
 };
 
+// Audit P-6: persisted HI/EN toggle for the navigation chrome. Page content
+// stays bilingual at the source (label_en/label_hi payloads); this covers the
+// sidebar labels users see on every screen.
+const SECTION_I18N_HI = {
+  Onboarding: "ऑनबोर्डिंग",
+  Operations: "संचालन",
+  "Fleet & Assets": "बेड़ा व संसाधन",
+  "System & Reports": "सिस्टम व रिपोर्ट",
+  Account: "खाता",
+};
+const LINK_I18N_HI = {
+  "/onboard": "फर्म जोड़ें",
+  "/dashboard": "मेरा डैशबोर्ड",
+  "/trips": "सक्रिय ट्रिप",
+  "/driver-salary": "ड्राइवर वेतन",
+  "/settlements": "निपटान ट्रिप",
+  "/fleets": "बेड़े",
+  "/vehicles": "वाहन",
+  "/drivers": "ड्राइवर",
+  "/benchmarks": "नियम व दरें",
+  "/users": "उपयोगकर्ता",
+  "/subscription": "सदस्यता",
+  "/change-password": "पासवर्ड बदलें",
+};
+function navLang() {
+  try {
+    return localStorage.getItem("vk_lang") === "hi" ? "hi" : "en";
+  } catch {
+    return "en";
+  }
+}
+
 function navClass({ isActive }) {
   return `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
     isActive
@@ -56,6 +88,17 @@ function navClass({ isActive }) {
 }
       function Sidebar({ role }) {
   const { logout } = useAuth();
+  const [lang, setLang] = useState(navLang()); // audit P-6
+  const hi = lang === "hi";
+  const tSection = (title) => (hi ? SECTION_I18N_HI[title] || title : title);
+  const tLink = (label) => (hi && LINK_I18N_HI[label]) || label;
+  const toggleLang = () => {
+    const next = hi ? "en" : "hi";
+    try {
+      localStorage.setItem("vk_lang", next);
+    } catch { /* private mode: session-only fallback */ }
+    setLang(next);
+  };
   const sections = SECTIONS.filter((s) => !s.roles || s.roles.includes(role));
 
   return (
@@ -68,12 +111,13 @@ function navClass({ isActive }) {
         return (
           <div key={section.title}>
             <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-400">
-              {section.title}
+              {tSection(section.title)}
             </p>
             <div className="space-y-0.5">
               {links.map((link) => {
-                const label =
+                const rawLabel =
                   typeof link.label === "function" ? link.label(role) : link.label;
+                const label = hi ? tLink(rawLabel) : rawLabel;
                 return (
                   <NavLink
                     key={link.to}
@@ -95,25 +139,33 @@ function navClass({ isActive }) {
 
       <div>
         <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-400">
-          Account
+          {tSection("Account")}
         </p>
         <div className="space-y-0.5">
+          <button
+            type="button"
+            onClick={toggleLang}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-600 transition hover:bg-brand-50 hover:text-brand-700"
+          >
+            <span className="w-5 text-center text-base leading-none">🌐</span>
+            <span>{hi ? "English" : "हिंदी में"}</span>
+          </button>
           {role !== "driver" && (
             <NavLink to="/subscription" className={navClass}>
               <span className="w-5 text-center text-base leading-none">💳</span>
-              <span>Subscription</span>
+              <span>{tLink("/subscription")}</span>
             </NavLink>
           )}
           <NavLink to="/change-password" className={navClass}>
             <span className="w-5 text-center text-base leading-none">🔒</span>
-            <span>Change Password</span>
+            <span>{tLink("/change-password")}</span>
           </NavLink>
           <button
             onClick={logout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-600 transition hover:bg-rose-50 hover:text-rose-700"
           >
             <span className="w-5 text-center text-base leading-none">🚪</span>
-            <span>Logout</span>
+            <span>{hi ? "लॉग आउट" : "Logout"}</span>
           </button>
         </div>
       </div>

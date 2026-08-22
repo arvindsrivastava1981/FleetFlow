@@ -42,6 +42,7 @@ export default function TripWhatsAppPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  const [selected, setSelected] = useState(() => new Set()); // P-1 bulk approvals
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState([]);
 
@@ -137,6 +138,50 @@ export default function TripWhatsAppPage() {
     } catch (e) { setError(e.message || "Action failed"); toast.error(e.message || "Action failed"); }
     finally { setBusyId(null); }
   }
+
+  // ── P-1: bulk approvals ────────────────────────────────────────────────
+  function toggleSel(id) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkDecide(action) {
+    if (!selected.size || busy) return;
+    setBusy(true); setError("");
+    let ok = 0, fail = 0;
+    for (const id of selected) {
+      try {
+        await api.post(`/api/v1/expenses/${id}/action`, { action });
+        ok += 1;
+      } catch { fail += 1; }
+    }
+    toast.fail?.();
+    toast.success(`${ok} expense${ok === 1 ? "" : "s"} ${action === "APPROVE" ? "approved" : "deducted"}${fail ? ` · ${fail} failed` : ""}`);
+    setSelected(new Set());
+    try {
+      const det = await api.get(`/api/v1/trips/${tripCode}`);
+      setExpenses(det?.expenses || []);
+    } catch { /* refresh is best-effort */ }
+    setBusy(false);
+  }
+
+  // Keyboard shortcuts (P-1): A = approve selected, D = deduct, Esc = clear.
+  useEffect(() => {
+    if (!isManager) return undefined;
+    function onKey(e) {
+      const tag = (e.target?.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      if (e.key === "a" && selected.size) { e.preventDefault(); bulkDecide("APPROVE"); }
+      if (e.key === "d" && selected.size) { e.preventDefault(); bulkDecide("REJECT"); }
+      if (e.key === "Escape") setSelected(new Set());
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   async function initiateSettlement() {
     if (busy) return;
@@ -236,6 +281,10 @@ export default function TripWhatsAppPage() {
         </div>
         <div className="flex items-center gap-2">
           {isManager && (<>
+            <button type="button" onClick={() => setSelected(new Set(pending.map((e) => e.id)))}
+              className="text-[10px] font-bold px-2 py-1 rounded-full bg-ink-100 text-ink-600 hover:bg-ink-200 transition">
+              Select pending ({pending.length})
+            </button>
             <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700">{pending.length} pending</span>
             <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">{resolved.length} resolved</span>
           </>)}
@@ -245,6 +294,17 @@ export default function TripWhatsAppPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
       {tripBar}
+
+      {isManager && selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+          <span className="text-xs font-bold text-amber-800">{selected.size} selected</span>
+          <button type="button" onClick={() => bulkDecide("APPROVE")} disabled={busy}
+            className="btn-success btn-sm rounded-full disabled:opacity-50">✅ Approve all (A)</button>
+          <button type="button" onClick={() => bulkDecide("REJECT")} disabled={busy}
+            className="rounded-full bg-rose-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-rose-700 disabled:opacity-50">❌ Deduct all (D)</button>
+          <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-ink-500 underline">Clear (Esc)</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[560px]">
@@ -311,7 +371,12 @@ export default function TripWhatsAppPage() {
                       </p>
                     </div>
                     {isManager && needsAction && (
-                      <div className="flex gap-1.5 max-w-[90%] mt-1">
+                      <div className="flex items-center gap-2 max-w-[90%] mt-1">
+                        <label className="flex items-center gap-1 text-[10px] text-slate-600">
+                          <input type="checkbox" checked={selected.has(e.id)}
+                            onChange={() => toggleSel(e.id)} className="accent-amber-600" />
+                          select
+                        </label>
                         <button onClick={() => decide(e, "APPROVE")} disabled={busyId === e.id}
                           className="text-[10px] btn-success px-2.5 py-1 rounded-full transition disabled:opacity-50">{busyId === e.id ? "…" : "✅ Approve"}</button>
                         <button onClick={() => decide(e, "REJECT")} disabled={busyId === e.id}

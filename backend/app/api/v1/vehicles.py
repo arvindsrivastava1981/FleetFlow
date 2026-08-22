@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re as _re
+from datetime import date
 from typing import Any
 
 from fastapi import APIRouter, Request
@@ -76,6 +77,18 @@ async def api_create_vehicle(request: Request):
     expected_km_per_liter = float(body.get("expected_km_per_liter", 4.0))
     owner_phone = (body.get("owner_phone") or "").strip() or None
 
+    # Audit P-4: optional compliance dates (YYYY-MM-DD).
+    doc_dates = {}
+    for key in ("insurance_expiry", "puc_expiry", "fitness_expiry"):
+        raw = str(body.get(key) or "").strip() or None
+        if raw is not None:
+            try:
+                doc_dates[key] = date.fromisoformat(raw)
+            except ValueError:
+                return _bad(f"invalid {key} (use YYYY-MM-DD)", "INVALID_DATE")
+        else:
+            doc_dates[key] = None
+
     with get_db() as conn:
         if vehicle_number_exists(conn, number):
             return _bad("vehicle number already exists", "DUP_VEHICLE")
@@ -96,6 +109,15 @@ async def api_create_vehicle(request: Request):
             conn, number, make_model, tank_capacity_liters, expected_km_per_liter,
             owner_phone, created_by=user.get("user_id"), fleet_id=fleet_id,
         )
+        if any(doc_dates.values()):
+            cur = conn.cursor()
+            cur.execute(
+                """UPDATE vehicles
+                      SET insurance_expiry = %s, puc_expiry = %s, fitness_expiry = %s
+                    WHERE id = %s""",
+                (doc_dates["insurance_expiry"], doc_dates["puc_expiry"],
+                 doc_dates["fitness_expiry"], new_id),
+            )
     return _created({"id": new_id})
 
 

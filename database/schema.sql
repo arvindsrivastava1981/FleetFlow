@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS users (
     batta_type VARCHAR(20) DEFAULT NULL,
     default_batta_rate NUMERIC(10, 2) DEFAULT NULL,
     home_state_code VARCHAR(10) DEFAULT NULL, -- manager's usual operating state (highlighted on Rules & Rates)
+    licence_expiry DATE DEFAULT NULL,         -- driver licence expiry (audit P-5)
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -99,6 +100,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
     tank_capacity_liters NUMERIC(8, 2) NOT NULL DEFAULT 350.00,
     expected_km_per_liter NUMERIC(5, 2) NOT NULL DEFAULT 4.00,
     owner_phone VARCHAR(20),
+    insurance_expiry DATE DEFAULT NULL,       -- document vault (audit P-4)
+    puc_expiry DATE DEFAULT NULL,             -- document vault (audit P-4)
+    fitness_expiry DATE DEFAULT NULL,         -- document vault (audit P-4)
     created_by BIGINT REFERENCES users(id),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

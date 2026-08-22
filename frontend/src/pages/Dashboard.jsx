@@ -42,6 +42,13 @@ export default function DashboardPage() {
   }, []);
 
   const role = user?.role;
+  // Audit P-3: 30-day spend/leakage trend (super admin only).
+  const [trends, setTrends] = useState(null);
+  useEffect(() => {
+    if (role !== "super_admin") return undefined;
+    api.get("/api/v1/dashboard/trends").then(setTrends).catch(() => {});
+    return undefined;
+  }, [role]);
   const firstName = user?.full_name ? user.full_name.split(" ")[0] : user?.username || "there";
 
   const greeting = (() => {
@@ -100,6 +107,66 @@ export default function DashboardPage() {
               </p>
             </div>
           </div>
+
+          {trends && (
+            <section className="card p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-base font-bold text-ink-900">30-Day Trends</h3>
+                <span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-600">
+                  🛡️ Leakage prevented (30d): {ic(trends.leakage_total)}
+                </span>
+              </div>
+              <div className="mt-4 grid gap-6 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-400">
+                    Spend by type
+                  </p>
+                  <div className="mt-3 space-y-2">
+                    {Object.entries(trends.totals_by_type).map(([type, total]) => {
+                      const max = Math.max(...Object.values(trends.totals_by_type), 1);
+                      return (
+                        <div key={type} className="flex items-center gap-2">
+                          <span className="w-28 shrink-0 text-xs font-medium text-ink-600">{type}</span>
+                          <div className="h-2.5 flex-1 rounded-full bg-ink-100">
+                            <div
+                              className="h-2.5 rounded-full bg-brand-500"
+                              style={{ width: `${Math.max(4, (total / max) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="w-20 shrink-0 text-right text-xs font-bold text-ink-700">{ic(total)}</span>
+                        </div>
+                      );
+                    })}
+                    {!Object.keys(trends.totals_by_type).length && (
+                      <p className="text-xs text-ink-400">No expenses in the last 30 days.</p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-ink-400">
+                    Daily leakage prevented (₹)
+                  </p>
+                  <div className="mt-3 flex h-24 items-end gap-1">
+                    {trends.leakage_by_day.length ? (
+                      trends.leakage_by_day.map((d) => {
+                        const max = Math.max(...trends.leakage_by_day.map((x) => x.total), 1);
+                        return (
+                          <div
+                            key={d.day}
+                            title={`${d.day}: ${ic(d.total)}`}
+                            className="w-full rounded-t bg-rose-400"
+                            style={{ height: `${Math.max(6, (d.total / max) * 100)}%` }}
+                          />
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-ink-400">No rejections in the last 30 days 🎉</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
         </>
       )}
 
