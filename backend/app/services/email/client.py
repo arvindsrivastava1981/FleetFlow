@@ -1,7 +1,8 @@
-import os
 import logging
+import os
 import threading
 from typing import Any, Optional
+
 import httpx
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -96,7 +97,7 @@ async def send_manager_onboarding_email(
         "default_batta_rate": f"{default_batta_rate:,.2f}",
         "support_email": settings.support_email,
     }
-    
+
     html_content = template.render(context)
     plain_text = (
         f"Welcome to VahanKhata, {manager_name}!\n\n"
@@ -116,7 +117,7 @@ async def send_manager_onboarding_email(
         f"2. Add drivers & their WhatsApp numbers (batta pre-filled to Rs. {default_batta_rate:,.2f}).\n"
         f"3. Dispatch a trip - pick vehicle & driver, enter the advance, and hand off road logging.\n"
     )
-    
+
     return await send_email(
         to_email=to_email,
         subject=f"Welcome to VahanKhata - Manager Credentials for {fleet_name}",
@@ -164,7 +165,8 @@ def manager_onboarding_email_context(
 
 def _mail_subscription_expiry(fleet: dict) -> str:
     """Pick the most meaningful 'valid until' date for the welcome email."""
-    from datetime import datetime, date as _date
+    from datetime import date as _date
+    from datetime import datetime
 
     trial_ends = fleet.get("trial_ends_at")
     billing_date = fleet.get("next_billing_date")

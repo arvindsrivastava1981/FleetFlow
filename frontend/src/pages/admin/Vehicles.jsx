@@ -12,6 +12,9 @@ const emptyForm = {
   tank_capacity_liters: "",
   expected_km_per_liter: "",
   owner_phone: "",
+  insurance_expiry: "",
+  puc_expiry: "",
+  fitness_expiry: "",
 };
 
 const initialErrors = {
@@ -104,6 +107,9 @@ export default function VehiclesPage() {
             ? Number(form.expected_km_per_liter)
             : 4,
         owner_phone: form.owner_phone.trim() || null,
+        insurance_expiry: form.insurance_expiry || null,
+        puc_expiry: form.puc_expiry || null,
+        fitness_expiry: form.fitness_expiry || null,
       };
       if (editingId) {
         await api.put(`/api/v1/vehicles/${editingId}`, payload);
@@ -132,6 +138,9 @@ export default function VehiclesPage() {
       tank_capacity_liters: String(v.tank_capacity_liters ?? ""),
       expected_km_per_liter: String(v.expected_km_per_liter ?? ""),
       owner_phone: v.owner_phone || "",
+      insurance_expiry: v.insurance_expiry ? String(v.insurance_expiry).slice(0, 10) : "",
+      puc_expiry: v.puc_expiry ? String(v.puc_expiry).slice(0, 10) : "",
+      fitness_expiry: v.fitness_expiry ? String(v.fitness_expiry).slice(0, 10) : "",
     });
     setFieldErrors(initialErrors);
     setError("");
@@ -236,6 +245,33 @@ export default function VehiclesPage() {
               className={fieldClass(!!fieldErrors.expected_km_per_liter)}
             />
             <FieldError msg={fieldErrors.expected_km_per_liter} />
+          </div>
+
+          {/* Insurance Expiry (P-4) */}
+          <div>
+            <label className="label" htmlFor="insurance_expiry">Insurance Expiry</label>
+            <input id="insurance_expiry" type="date" value={form.insurance_expiry}
+              onChange={(e) => set("insurance_expiry", e.target.value)}
+              className={fieldClass(!!fieldErrors.insurance_expiry)} />
+            <FieldError msg={fieldErrors.insurance_expiry} />
+          </div>
+
+          {/* PUC Expiry (P-4) */}
+          <div>
+            <label className="label" htmlFor="puc_expiry">PUC Expiry</label>
+            <input id="puc_expiry" type="date" value={form.puc_expiry}
+              onChange={(e) => set("puc_expiry", e.target.value)}
+              className={fieldClass(!!fieldErrors.puc_expiry)} />
+            <FieldError msg={fieldErrors.puc_expiry} />
+          </div>
+
+          {/* Fitness Expiry (P-4) */}
+          <div>
+            <label className="label" htmlFor="fitness_expiry">Fitness Expiry</label>
+            <input id="fitness_expiry" type="date" value={form.fitness_expiry}
+              onChange={(e) => set("fitness_expiry", e.target.value)}
+              className={fieldClass(!!fieldErrors.fitness_expiry)} />
+            <FieldError msg={fieldErrors.fitness_expiry} />
           </div>
 
           {/* Owner Phone */}

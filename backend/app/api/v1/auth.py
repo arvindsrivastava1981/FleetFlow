@@ -3,28 +3,31 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
+from backend.app.api.v1.deps import _bad, _not_found, _ok
 from backend.app.core.config import settings
 from backend.app.core.password import hash_password, verify_password
 from backend.app.core.security import (
     AUTH_COOKIE,
+    _bearer_token_from_request,
     clear_login_failures,
     create_session,
     destroy_session,
+    get_current_user,
     login_allowed,
+    refresh_session,
     register_login_failure,
     require_json_auth,
-    get_current_user,
+    revoke_user_sessions,
 )
 from backend.app.db.connection import get_db
 from backend.app.db.queries.users import get_user_by_id, get_user_by_username, update_user
-
-from backend.app.api.v1.deps import _bad, _not_found, _ok
 from backend.app.schemas.api_v1 import (
     AuthMe,
     ChangePasswordResult,
     Data,
     LoginResult,
     LogoutResult,
+    SessionRefreshResult,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -92,13 +95,15 @@ async def api_auth_login(request: Request, response: Response):
         "trip_manager": "/dashboard",
         "driver": "/dashboard",
     }.get(user["role"], "/dashboard")
-    response.set_cookie(
-        key=AUTH_COOKIE,
-        value=token,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.session_ttl_hours * 3600,
-    )
+    if settings.auth_cookie_enabled:
+        response.set_cookie(
+            key=AUTH_COOKIE,
+            value=token,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="lax",
+            max_age=settings.session_ttl_hours * 3600,
+        )
     return {
         "token": token,
         "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
@@ -108,14 +113,48 @@ async def api_auth_login(request: Request, response: Response):
 
 @router.get("/auth/me", response_model=AuthMe)
 def api_auth_me(request: Request):
-    """Return the current session user (cookie or Bearer) as JSON, or 401."""
+    """Return the current session user + expiry (audit E-10), or 401."""
     guard = require_json_auth(request)
     if guard is not None:
         return guard
-    user = get_current_user(request)
+    session = get_current_user(request)
     return {
-        "user": {"id": user["user_id"], "username": user["username"], "role": user["role"]},
+        "user": {
+            "id": session["user_id"],
+            "username": session["username"],
+            "role": session["role"],
+        },
+        "expires_at": int(session.get("expires_at") or 0) or None,
     }
+
+
+@router.post("/auth/refresh", response_model=Data[SessionRefreshResult])
+def api_auth_refresh(request: Request, response: Response):
+    """Sliding renewal (audit E-10): extend the caller's session TTL.
+
+    Called by the SPA when the session enters its warning window. Rotates the
+    auth cookie too when cookie issuance is enabled.
+    """
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    token = request.cookies.get(AUTH_COOKIE) or _bearer_token_from_request(request)
+    expires_at = refresh_session(token)
+    if expires_at is None:
+        return JSONResponse(
+            status_code=401,
+            content={"error": "unauthorized", "code": "UNAUTHORIZED"},
+        )
+    if settings.auth_cookie_enabled:
+        response.set_cookie(
+            key=AUTH_COOKIE,
+            value=token,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="lax",
+            max_age=settings.session_ttl_hours * 3600,
+        )
+    return _ok({"expires_at": expires_at})
 
 
 @router.post("/auth/logout", response_model=Data[LogoutResult])
@@ -169,5 +208,10 @@ async def api_change_password(request: Request):
             db_user["email"],
             password_hash=new_hash,
         )
+
+    # Audit B-1: every existing session for this user dies with the old
+    # credential — including this device's. The SPA clears its local token and
+    # returns to the login screen on success (ChangePassword.jsx).
+    revoke_user_sessions(user["user_id"])
 
     return _ok({"id": user["user_id"], "password_changed": True})

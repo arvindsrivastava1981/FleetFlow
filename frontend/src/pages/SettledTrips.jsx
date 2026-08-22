@@ -21,6 +21,35 @@ export default function SettledTripsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
+  // Audit P-2: month filter ("YYYY-MM") + CSV export of the filtered list.
+  const [month, setMonth] = useState("");
+  const filtered = month
+    ? trips.filter((t) => (t.settled_at || "").slice(0, 7) === month)
+    : trips;
+
+  function exportCsv() {
+    const rows = [
+      ["trip_code", "vehicle_no", "driver_name", "settled_at"],
+      ...filtered.map((t) => [
+        t.trip_code,
+        t.vehicle_no ?? "",
+        t.driver_name ?? "",
+        t.settled_at ? new Date(t.settled_at).toISOString() : "",
+      ]),
+    ];
+    const csv = rows
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    // Leading BOM so Excel detects UTF-8 when opening the file directly.
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `settled-trips${month ? "-" + month : ""}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   useEffect(() => {
     api
       .get("/api/v1/settlements")
@@ -67,11 +96,31 @@ export default function SettledTripsPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-xs font-semibold text-ink-600">
+          <span className="mr-2">Settled in month</span>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="input max-w-[190px]"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={exportCsv}
+          disabled={!filtered.length}
+          className="btn-secondary btn-sm disabled:opacity-50"
+        >
+          ⬇️ Export CSV ({filtered.length})
+        </button>
+      </div>
       {loading ? (
         <Loader label="Loading settled trips…" />
       ) : (
       <div className="space-y-3">
-        {trips.map((t) => (
+        {filtered.map((t) => (
           <div
             key={t.trip_code}
             className="card card-hover flex flex-wrap items-center justify-between gap-4 p-5"
@@ -99,6 +148,14 @@ export default function SettledTripsPage() {
           <div className="empty card">
             <p className="text-3xl">📑</p>
             <p className="mt-2 font-medium text-ink-500">No settled trips yet.</p>
+          </div>
+        )}
+        {trips.length > 0 && !filtered.length && (
+          <div className="empty card">
+            <p className="font-medium text-ink-500">No trips settled in {month}.</p>
+            <button type="button" onClick={() => setMonth("")} className="btn-secondary btn-sm mt-2">
+              Clear filter
+            </button>
           </div>
         )}
       </div>

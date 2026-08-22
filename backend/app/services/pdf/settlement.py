@@ -14,7 +14,11 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from backend.app.services.audit.cash import ROAD_EXPENSE_BUCKETS, SettlementResult, compute_settlement
+from backend.app.services.audit.cash import (
+    ROAD_EXPENSE_BUCKETS,
+    SettlementResult,
+    compute_settlement,
+)
 
 # ---------------------------------------------------------------------------#
 # Devanagari-capable font registration.
@@ -330,7 +334,6 @@ def build_settlement_pdf(
     title_style = ParagraphStyle("TitleStyle", parent=styles["Heading1"], fontName=_FONT_NAME, boldFontName=_FONT_NAME, fontSize=18, leading=22, textColor=colors.HexColor("#0f172a"), shaping=True)
     sub_style = _hi_style(styles["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
     meta_style = _hi_style(styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
-    cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
 
     story.append(Paragraph("<b>VahanKhata</b>", title_style))
     story.append(Paragraph("Official Trip Settlement & Advance Reconciliation Ledger", sub_style))

@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from backend.app.api.v1.deps import _bad, _ok
 from backend.app.core.security import (
     get_current_user,
     require_json_auth,
@@ -18,15 +19,13 @@ from backend.app.db.queries.benchmarks import (
     set_home_state,
     upsert_benchmarks_from_live,
 )
-from backend.app.services.fuel_live import get_live_prices
-from backend.app.services.states import INDIAN_STATES
-
-from backend.app.api.v1.deps import _bad, _ok
 from backend.app.schemas.api_v1 import (
     BenchmarkFavoriteAck,
     Data,
     HomeStateResult,
 )
+from backend.app.services.fuel_live import get_live_prices
+from backend.app.services.states import INDIAN_STATES
 
 router = APIRouter(prefix="/api/v1")
 

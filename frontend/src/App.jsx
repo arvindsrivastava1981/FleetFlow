@@ -1,22 +1,45 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
-import LoginPage from "./pages/index.jsx";
-import DashboardPage from "./pages/Dashboard.jsx";
-import TripsPage from "./pages/Trips.jsx";
-import TripDetailPage from "./pages/TripDetail.jsx";
-import NewTripPage from "./pages/NewTrip.jsx";
-import FleetsPage from "./pages/admin/Fleets.jsx";
-import UsersPage from "./pages/admin/Users.jsx";
-import VehiclesPage from "./pages/admin/Vehicles.jsx";
-import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
-import OnboardFirmPage from "./pages/admin/OnboardFirm.jsx";
-import SubscriptionPage from "./pages/Billing.jsx";
-import SettledTripsPage from "./pages/SettledTrips.jsx";
-import ChangePasswordPage from "./pages/ChangePassword.jsx";
-import DriversPage from "./pages/Drivers.jsx";
-import DriverSalaryPage from "./pages/DriverSalary.jsx";
-import TripWhatsAppPage from "./pages/TripWhatsApp.jsx";
-import Layout from "./components/Layout.jsx";
+
+// Audit E-3: route-level code splitting — every page is its own chunk, so the
+// initial bundle only carries the shell + the route being visited.
+const LoginPage = lazy(() => import("./pages/index.jsx"));
+const DashboardPage = lazy(() => import("./pages/Dashboard.jsx"));
+const TripsPage = lazy(() => import("./pages/Trips.jsx"));
+const TripDetailPage = lazy(() => import("./pages/TripDetail.jsx"));
+const NewTripPage = lazy(() => import("./pages/NewTrip.jsx"));
+const FleetsPage = lazy(() => import("./pages/admin/Fleets.jsx"));
+const UsersPage = lazy(() => import("./pages/admin/Users.jsx"));
+const VehiclesPage = lazy(() => import("./pages/admin/Vehicles.jsx"));
+const BenchmarksPage = lazy(() => import("./pages/admin/Benchmarks.jsx"));
+const OnboardFirmPage = lazy(() => import("./pages/admin/OnboardFirm.jsx"));
+const AnalyticsPage = lazy(() => import("./pages/admin/Analytics.jsx"));
+const SubscriptionPage = lazy(() => import("./pages/Billing.jsx"));
+const SettledTripsPage = lazy(() => import("./pages/SettledTrips.jsx"));
+const ChangePasswordPage = lazy(() => import("./pages/ChangePassword.jsx"));
+const DriversPage = lazy(() => import("./pages/Drivers.jsx"));
+const DriverSalaryPage = lazy(() => import("./pages/DriverSalary.jsx"));
+const TripWhatsAppPage = lazy(() => import("./pages/TripWhatsApp.jsx"));
+const NotFoundPage = lazy(() => import("./pages/NotFound.jsx"));
+const Layout = lazy(() => import("./components/Layout.jsx"));
+
+function SuspenseShell({ children }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-ink-200 border-t-brand-600" />
+            <p className="text-sm text-ink-500">Loading…</p>
+          </div>
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  );
+}
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -37,7 +60,8 @@ function ProtectedRoute({ children, roles }) {
 export default function App() {
   const { user } = useAuth();
   return (
-    <Routes>
+    <SuspenseShell>
+      <Routes>
       {/* Login is the default entry point of the app SPA. */}
       <Route
         path="/"
@@ -165,6 +189,16 @@ export default function App() {
         }
       />
       <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute roles={["super_admin"]}>
+            <Layout>
+              <AnalyticsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/onboard"
         element={
           <ProtectedRoute roles={["super_admin"]}>
@@ -204,6 +238,9 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-    </Routes>
+      {/* Catch-all: unknown SPA URLs render a friendly 404 (audit E-1). */}
+      <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </SuspenseShell>
   );
 }

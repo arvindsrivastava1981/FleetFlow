@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 
 import psycopg2.extras
 
-
 # --- Plans ---------------------------------------------------------------
 
 def get_all_plans(conn) -> list[dict]:

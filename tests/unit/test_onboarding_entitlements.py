@@ -55,8 +55,9 @@ def resolve_db(monkeypatch):
 
 def test_create_trip_manager_uses_requested_fleet(client, resolve_db):
     """A Super Admin can target a non-default fleet when creating a manager."""
-    import backend.app.api.v1.users as users_mod
     from unittest.mock import patch
+
+    import backend.app.api.v1.users as users_mod
 
     cur = mock.MagicMock()
     # Order: get_fleet_by_id (validate) -> get_fleet_entitlement -> create_user

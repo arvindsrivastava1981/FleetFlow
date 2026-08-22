@@ -10,13 +10,12 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from backend.app.api.v1.deps import _ok
 from backend.app.core.security import get_current_user, require_json_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.benchmarks import get_favorite_state_codes
-from backend.app.services.states import INDIAN_STATES
-
-from backend.app.api.v1.deps import _ok
 from backend.app.schemas.api_v1 import Data
+from backend.app.services.states import INDIAN_STATES
 
 router = APIRouter(prefix="/api/v1")
 

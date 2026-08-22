@@ -1,6 +1,4 @@
-﻿from __future__ import annotations
-
-"""Transactional transport-firm onboarding wizard.
+﻿"""Transactional transport-firm onboarding wizard.
 
 A Super Admin creates a whole transport firm — fleet, owner Trip Manager,
 trial subscription, and optionally a first vehicle + driver — in ONE atomic
@@ -8,11 +6,15 @@ request. This collapses the previously-fragile multi-step manual flow (G2) and
 makes subscription choice inline with onboarding.
 """
 
+from __future__ import annotations
+
+import re as _re
 from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from backend.app.api.v1.deps import _bad, _created, _identity, _read_json_body
 from backend.app.core.config import settings
 from backend.app.core.password import hash_password
 from backend.app.core.security import require_json_role
@@ -27,15 +29,11 @@ from backend.app.db.queries.fleets import (
 )
 from backend.app.db.queries.users import create_user
 from backend.app.db.queries.vehicles import insert_vehicle, vehicle_number_exists
+from backend.app.schemas.api_v1 import Data
 from backend.app.services.email.client import (
     manager_onboarding_email_context,
     send_manager_onboarding_email_sync,
 )
-from backend.app.schemas.api_v1 import Data
-
-from backend.app.api.v1.deps import _bad, _created, _identity, _read_json_body
-
-import re as _re
 
 router = APIRouter(prefix="/api/v1")
 _PLATE_RE = _re.compile(settings.plate_regex)

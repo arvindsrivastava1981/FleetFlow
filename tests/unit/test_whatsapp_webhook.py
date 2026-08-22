@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from backend.app.api.v1 import whatsapp as whatsapp_router
 from backend.app.main import app
 from backend.app.services import whatsapp as wa
-from backend.app.api.v1 import whatsapp as whatsapp_router
 
 
 def test_normalise_number_adds_country_code() -> None:
@@ -58,6 +58,27 @@ def test_extract_text_and_wa_id_from_delivery() -> None:
     }
     assert wa.extract_wa_id(payload) == "919876543210"
     assert wa.extract_text(payload) == "Diesel 2000"
+
+
+# ---- F-1: manager chat-approval command parsing --------------------------------
+
+
+def test_parse_manager_action_accepts_all_variants() -> None:
+    from backend.app.api.v1.whatsapp import _parse_manager_action
+
+    assert _parse_manager_action("APPROVE 42") == ("APPROVE", 42)
+    assert _parse_manager_action("reject #7") == ("REJECT", 7)
+    assert _parse_manager_action("Approved 128") == ("APPROVE", 128)
+    assert _parse_manager_action("  approve 5  ") == ("APPROVE", 5)
+
+
+def test_parse_manager_action_rejects_non_commands() -> None:
+    from backend.app.api.v1.whatsapp import _parse_manager_action
+
+    assert _parse_manager_action("approve") is None
+    assert _parse_manager_action("approve abc") is None
+    assert _parse_manager_action("Diesel 2000") is None
+    assert _parse_manager_action("") is None
     # Empty / non-message payloads degrade to safe values.
     assert wa.extract_wa_id({}) == ""
     assert wa.extract_text({}) == ""

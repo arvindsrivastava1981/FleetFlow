@@ -19,6 +19,7 @@ const emptyForm = {
   password: "",
   batta_type: "FIXED_TRIP",
   default_batta_rate: "2500.00",
+  licence_expiry: "",
 };
 
 export default function DriversPage() {
@@ -73,6 +74,7 @@ export default function DriversPage() {
       password: "",
       batta_type: d.batta_type || "FIXED_TRIP",
       default_batta_rate: d.default_batta_rate != null ? String(d.default_batta_rate) : "2500.00",
+      licence_expiry: d.licence_expiry ? String(d.licence_expiry).slice(0, 10) : "",
     });
   }
 
@@ -162,6 +164,13 @@ export default function DriversPage() {
             disabled={form.batta_type === "NONE"}
             className="input disabled:opacity-50"
           />
+          <input
+            value={form.licence_expiry}
+            onChange={(e) => set("licence_expiry", e.target.value)}
+            placeholder="Licence Expiry (YYYY-MM-DD)"
+            type="date"
+            className="input"
+          />
           <div className="col-span-2 md:col-span-3 flex gap-2">
             <button type="submit" className="btn-primary py-2 px-4 rounded-xl transition shadow">
               {editingId ? "Save Changes" : "Add Driver"}
@@ -199,7 +208,17 @@ export default function DriversPage() {
             {drivers.map((d) => (
               <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="p-3 text-xs font-bold text-slate-800">{d.username}</td>
-                <td className="p-3 text-xs text-slate-600">{d.full_name}</td>
+                <td className="p-3 text-xs text-slate-600">
+                  {d.full_name}
+                  {d.licence_expiry && new Date(d.licence_expiry) <= new Date(Date.now() + 14 * 864e5) && (
+                    <span
+                      className="ml-1 rounded bg-rose-100 px-1 py-0.5 text-[9px] font-bold text-rose-700"
+                      title={`Licence expires ${d.licence_expiry}`}
+                    >
+                      licence ⚠
+                    </span>
+                  )}
+                </td>
                 <td className="p-3 text-xs text-slate-600">
                   {d.batta_type === "NONE" ? (
                     <span className="text-slate-400">—</span>

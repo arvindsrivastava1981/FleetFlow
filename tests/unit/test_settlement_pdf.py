@@ -18,8 +18,8 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate
 
 from backend.app.services.audit.cash import DEFAULT_DRIVER_BATTA
 from backend.app.services.pdf.settlement import (
-    BUCKET_LABELS,
     _FONT_NAME,
+    BUCKET_LABELS,
     _hi_style,
     build_settlement_pdf,
 )
@@ -276,8 +276,8 @@ def test_weasyprint_unavailable_falls_back_to_reportlab() -> None:
 
 def test_weasyprint_context_carries_full_bilingual_data() -> None:
     """The Jinja2 context must contain every field the template needs."""
-    from backend.app.services.pdf.settlement import _build_weasyprint_context
     from backend.app.services.audit.cash import compute_settlement
+    from backend.app.services.pdf.settlement import _build_weasyprint_context
 
     trip = _sample_trip(
         trip_code="4191-1",

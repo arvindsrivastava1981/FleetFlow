@@ -5,6 +5,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [expiresAt, setExpiresAt] = useState(null); // audit E-10 (epoch s)
   const [loading, setLoading] = useState(true);
 
   // On boot, validate the stored token via /me. This runs on EVERY route,
@@ -16,9 +17,11 @@ export function AuthProvider({ children }) {
       try {
         const data = await api.get("/api/v1/auth/me");
         setUser(data.user);
+        setExpiresAt(data.expires_at ?? null);
       } catch {
         setToken(null);
         setUser(null);
+        setExpiresAt(null);
       } finally {
         setLoading(false);
       }
@@ -48,9 +51,17 @@ export function AuthProvider({ children }) {
     }
     setToken(null);
     setUser(null);
+    setExpiresAt(null);
   }, []);
 
-  const value = { user, setUser, loading, login, logout };
+  // Audit E-10: sliding renewal — extend the session and track the new expiry.
+  const refreshSession = useCallback(async () => {
+    const data = await api.post("/api/v1/auth/refresh");
+    if (data?.expires_at) setExpiresAt(data.expires_at);
+    return data?.expires_at ?? null;
+  }, []);
+
+  const value = { user, setUser, loading, login, logout, expiresAt, refreshSession };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

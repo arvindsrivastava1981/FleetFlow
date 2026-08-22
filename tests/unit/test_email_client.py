@@ -74,7 +74,7 @@ async def test_send_manager_onboarding_email_renders_and_posts(monkeypatch, flee
         return {"status": "sent", "error": None}
 
     monkeypatch.setattr(email_client, "send_email", fake_send_email)
-    setattr(email_client, "_is_email_configured", lambda: True)
+    email_client._is_email_configured = lambda: True
 
     result = await email_client.send_manager_onboarding_email(
         to_email="ravi@manager.example",

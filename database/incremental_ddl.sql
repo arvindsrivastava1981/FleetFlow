@@ -40,6 +40,54 @@ CREATE TABLE IF NOT EXISTS benchmark_favorites (
 
 CREATE INDEX IF NOT EXISTS idx_benchmark_favorites_user ON benchmark_favorites(user_id);
 
+-- ---------------------------------------------------------------------------- 
+-- Audit R-1: durable auth sessions + persistent login throttle.
+-- Mirrors the in-process dicts in core/security.py; see db/queries/auth_store.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS login_throttle (
+    ip VARCHAR(64) PRIMARY KEY,
+    failures INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Audit P-4/P-5: vehicle compliance dates + driver licence expiry.
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS insurance_expiry DATE;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS puc_expiry DATE;
+ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS fitness_expiry DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS licence_expiry DATE;
+
+-- Audit E-5: request correlation ids on persisted error rows.
+ALTER TABLE error_logs ADD COLUMN IF NOT EXISTS request_id VARCHAR(32);
+
+-- Feature F-6: reusable trip templates (one-tap dispatch for regular routes).
+CREATE TABLE IF NOT EXISTS trip_templates (
+    id BIGSERIAL PRIMARY KEY,
+    fleet_id BIGINT NOT NULL REFERENCES fleets(id) ON DELETE CASCADE,
+    name VARCHAR(80) NOT NULL,
+    vehicle_id BIGINT REFERENCES vehicles(id) ON DELETE SET NULL,
+    driver_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    origin VARCHAR(100),
+    destination VARCHAR(100),
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (fleet_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_trip_templates_fleet ON trip_templates(fleet_id);
+
 
 
 

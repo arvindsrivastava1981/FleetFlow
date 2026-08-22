@@ -82,9 +82,17 @@ def _log_error(*, request: Request | None, status_code: int, error_type: str,
         if request is not None:
             url = getattr(request, "url", None)
             path = url.path if url is not None else None
+        # Audit E-5: correlate DB error rows with the X-Request-Id response
+        # header set by main.py's tracing middleware.
+        request_id = (
+            getattr(getattr(request, "state", None), "request_id", None)
+            if request is not None
+            else None
+        )
         detail_json = json.dumps(detail, default=str) if detail is not None else None
     except Exception:  # noqa: BLE001
         method, path, detail_json = None, None, None
+        request_id = None
 
     # Surface the real failure to the application log stream (visible in the
     # deploy platform's log dashboard in production) as well as the DB sink.
@@ -106,11 +114,11 @@ def _log_error(*, request: Request | None, status_code: int, error_type: str,
                 """
                 INSERT INTO error_logs
                     (method, path, status_code, error_type, message, detail,
-                     traceback_text, endpoint, source)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     traceback_text, endpoint, source, request_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (method, path, status_code, error_type, message, detail_json,
-                 traceback_text, endpoint, source),
+                 traceback_text, endpoint, source, request_id),
             )
     except Exception:  # noqa: BLE001 - logging is best-effort
         pass

@@ -101,8 +101,9 @@ def _manager_create_cur():
 
 def test_create_trip_manager_binds_default_fleet_and_starts_trial(client, resolve_db):
     """The manager's user row gets fleet_id AND a non-entitled fleet gets a trial."""
-    import backend.app.api.v1.users as users_mod
     from unittest.mock import patch
+
+    import backend.app.api.v1.users as users_mod
 
     cur = _manager_create_cur()
     db_obj = _make_db(cur)
@@ -169,8 +170,8 @@ def test_manager_reads_own_fleet(client, resolve_db):
     GET /api/v1/fleets is now scoped for trip_managers: it returns the single
     fleet bound to the caller (users.fleet_id), never the full list.
     """
-    import backend.app.core.security as sec
     import backend.app.api.v1.deps as deps
+    import backend.app.core.security as sec
 
     # Patch identity to a trip_manager for this request.
     sec_patcher = mock.patch.object(
@@ -211,8 +212,8 @@ def test_manager_creates_fleet_and_rebinds(client, resolve_db):
     manager's users.fleet_id is re-pointed to the new fleet so a subsequent
     vehicle creation resolves into it. Toggle/update stay Super-Admin-only.
     """
-    import backend.app.core.security as sec
     import backend.app.api.v1.deps as deps
+    import backend.app.core.security as sec
 
     sec_patcher = mock.patch.object(
         sec, "get_current_user", lambda request: MOCK_MANAGER
@@ -254,8 +255,8 @@ def test_manager_creates_fleet_and_rebinds(client, resolve_db):
 
 def test_manager_cannot_toggle_fleet(client, resolve_db):
     """Fleet toggle/update remain Super-Admin only (403 for a manager)."""
-    import backend.app.core.security as sec
     import backend.app.api.v1.deps as deps
+    import backend.app.core.security as sec
 
     sec_patcher = mock.patch.object(
         sec, "get_current_user", lambda request: MOCK_MANAGER

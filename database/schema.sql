@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS users (
     batta_type VARCHAR(20) DEFAULT NULL,
     default_batta_rate NUMERIC(10, 2) DEFAULT NULL,
     home_state_code VARCHAR(10) DEFAULT NULL, -- manager's usual operating state (highlighted on Rules & Rates)
+    licence_expiry DATE DEFAULT NULL,         -- driver licence expiry (audit P-5)
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -99,6 +100,9 @@ CREATE TABLE IF NOT EXISTS vehicles (
     tank_capacity_liters NUMERIC(8, 2) NOT NULL DEFAULT 350.00,
     expected_km_per_liter NUMERIC(5, 2) NOT NULL DEFAULT 4.00,
     owner_phone VARCHAR(20),
+    insurance_expiry DATE DEFAULT NULL,       -- document vault (audit P-4)
+    puc_expiry DATE DEFAULT NULL,             -- document vault (audit P-4)
+    fitness_expiry DATE DEFAULT NULL,         -- document vault (audit P-4)
     created_by BIGINT REFERENCES users(id),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -107,6 +111,25 @@ CREATE TABLE IF NOT EXISTS vehicles (
 
 CREATE INDEX IF NOT EXISTS idx_vehicles_number ON vehicles(vehicle_number);
 CREATE INDEX IF NOT EXISTS idx_vehicles_fleet_id ON vehicles(fleet_id);
+
+-- ----------------------------------------------------------------------------
+-- 4b. TRIP TEMPLATES (feature F-6) — reusable routes for one-tap dispatch.
+--     Unique per fleet so two managers can't define the same template name.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS trip_templates (
+    id BIGSERIAL PRIMARY KEY,
+    fleet_id BIGINT NOT NULL REFERENCES fleets(id) ON DELETE CASCADE,
+    name VARCHAR(80) NOT NULL,
+    vehicle_id BIGINT REFERENCES vehicles(id) ON DELETE SET NULL,
+    driver_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    origin VARCHAR(100),
+    destination VARCHAR(100),
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (fleet_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_trip_templates_fleet ON trip_templates(fleet_id);
 
 -- ----------------------------------------------------------------------------
 -- 5. TRIPS
@@ -273,6 +296,7 @@ CREATE TABLE IF NOT EXISTS error_logs (
     detail TEXT,                               -- JSON-encoded payload (validation errors, details)
     traceback_text TEXT,                       -- full stack trace for INTERNAL errors
     endpoint VARCHAR(255),                     -- route/path identifier used for grouping
+    request_id VARCHAR(32),                    -- X-Request-Id correlation id (audit E-5)
     source VARCHAR(20) DEFAULT 'BACKEND'
         CHECK (source IN ('BACKEND', 'PAYMENT', 'WHATSAPP', 'WEBHOOK')),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -322,3 +346,29 @@ CREATE TRIGGER trg_fuel_benchmarks_updated_at
     BEFORE UPDATE ON fuel_benchmarks
     FOR EACH ROW
     EXECUTE PROCEDURE update_timestamp_column();
+
+-- ----------------------------------------------------------------------------
+-- Auth session store (audit R-1): durable sessions surviving restarts and
+-- shared across instances. Only the SHA-256 hash of each token is stored,
+-- never the raw token itself.
+-- ----------------------------------------------------------------------------
+CREATE TABLE auth_sessions (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_auth_sessions_user ON auth_sessions(user_id);
+CREATE INDEX idx_auth_sessions_expires ON auth_sessions(expires_at);
+
+-- Login brute-force throttle (audit R-1): per-IP counters persist across
+-- deploys instead of living only in process memory.
+CREATE TABLE login_throttle (
+    ip VARCHAR(64) PRIMARY KEY,
+    failures INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

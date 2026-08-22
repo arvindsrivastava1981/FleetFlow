@@ -3,8 +3,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok, _trip_forbidden
 from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
+from backend.app.db.queries.benchmarks import get_benchmark_price_and_tolerance
 from backend.app.db.queries.dashboards import open_escalations_detail
 from backend.app.db.queries.expenses import (
     action_expense_status,
@@ -14,25 +16,24 @@ from backend.app.db.queries.expenses import (
     insert_expense,
     open_settlement_request,
 )
-from backend.app.db.queries.benchmarks import get_benchmark_price_and_tolerance
 from backend.app.db.queries.trips import (  # noqa: PLC2701 (action owns driver consent stamp)
     driver_consent as record_driver_consent,
+)
+from backend.app.db.queries.trips import (
     get_trip_by_code,
     trip_status,
     update_trip_odometer,
 )
-from backend.app.services.audit.cash import SETTLEMENT_TRANSFER_TYPE, compute_settlement
-from backend.app.services.rules.bands import DEFAULT_BAND, derive_band
-from backend.app.services.rules.constants import GOODS_TYPES
-from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
-
-from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok, _trip_forbidden
 from backend.app.schemas.api_v1 import (
     Data,
     EscalationRow,
     ExpenseAccepted,
     ExpenseActionResult,
 )
+from backend.app.services.audit.cash import SETTLEMENT_TRANSFER_TYPE, compute_settlement
+from backend.app.services.rules.bands import DEFAULT_BAND, derive_band
+from backend.app.services.rules.constants import GOODS_TYPES
+from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
 
 router = APIRouter(prefix="/api/v1")
 
@@ -269,23 +270,16 @@ async def api_action_expense(request: Request, expense_id: int):
         label_en = "Approved" if status == "APPROVED" else "Deducted"
         label_hi = "स्वीकृत" if status == "APPROVED" else "कटौती"
 
-        # Best-effort WhatsApp notification to the driver.
+        # Best-effort WhatsApp notification to the driver — Phase C (F-1):
+        # direct service call (no self-HTTP hop; resolves B-3/B-9 notes).
         if driver_phone:
             try:
-                import requests as _req
-                _req.post(
-                    f"{request.url.scheme}://{request.url.netloc}/api/v1/whatsapp/send",
-                    json={
-                        "to": driver_phone,
-                        "template": "expense_action",
-                        "params": {
-                            "trip_code": trip_code,
-                            "expense_id": expense_id,
-                            "action_en": label_en,
-                            "action_hi": label_hi,
-                        },
-                    },
-                    timeout=5,
+                from backend.app.services.whatsapp.send import send_text
+
+                send_text(
+                    driver_phone,
+                    f"{label_en} ({label_hi}) · Trip {trip_code} · "
+                    f"expense #{expense_id}",
                 )
             except Exception:
                 pass  # Notification is best-effort, never block the API response.

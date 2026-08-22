@@ -26,6 +26,13 @@ class AuthMe(BaseModel):
     """`GET /auth/me` — no `data` wrapper (client reads `user` directly)."""
 
     user: AuthUser
+    expires_at: Optional[int] = None  # epoch seconds (audit E-10)
+
+
+class SessionRefreshResult(BaseModel):
+    """`POST /auth/refresh` — new sliding expiry (audit E-10)."""
+
+    expires_at: int
 
 
 class LoginResult(BaseModel):

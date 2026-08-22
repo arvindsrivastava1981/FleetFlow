@@ -5,7 +5,8 @@ from typing import Any
 
 from fastapi import Request
 
-from backend.app.core.errors import bad_request as _err_bad, not_found as _err_not_found
+from backend.app.core.errors import bad_request as _err_bad
+from backend.app.core.errors import not_found as _err_not_found
 from backend.app.core.security import get_current_user
 from backend.app.db.queries.users import get_user_fleet_id
 
