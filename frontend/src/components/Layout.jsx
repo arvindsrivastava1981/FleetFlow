@@ -8,40 +8,45 @@ import SessionWarningBanner from "./SessionWarningBanner.jsx";
 const SECTIONS = [
   {
     title: "Onboarding",
+    titleHi: "ऑनबोर्डिंग",
     roles: ["super_admin"],
     links: [
-      { to: "/onboard", label: "Onboard Firm", icon: "🚧", roles: ["super_admin"] },
+      { to: "/onboard", label: "Onboard Firm", labelHi: "फर्म जोड़ें", icon: "🚧", roles: ["super_admin"] },
     ],
   },
   {
     title: "Operations",
+    titleHi: "संचालन",
     links: [
-      { to: "/dashboard", label: "My Dashboard", icon: "📊" },
-      { to: "/trips", label: "Active Trips", icon: "🚚", roles: ["trip_manager", "super_admin"] },
+      { to: "/dashboard", label: "My Dashboard", labelHi: "मेरा डैशबोर्ड", icon: "📊" },
+      { to: "/trips", label: "Active Trips", labelHi: "सक्रिय ट्रिप", icon: "🚚", roles: ["trip_manager", "super_admin"] },
       {
         to: "/whatsapp",
         icon: "💬",
         label: (role) => (role === "driver" ? "WhatsApp View" : "Expense Approvals"),
+        labelHi: (role) => (role === "driver" ? "व्हाट्सऐप व्यू" : "खर्च स्वीकृति"),
       },
-      { to: "/driver-salary", label: "Driver Salary", icon: "💰", roles: ["driver"] },
-      { to: "/settlements", label: "Settled Trips", icon: "📒" },
+      { to: "/driver-salary", label: "Driver Salary", labelHi: "ड्राइवर वेतन", icon: "💰", roles: ["driver"] },
+      { to: "/settlements", label: "Settled Trips", labelHi: "निपटान ट्रिप", icon: "📒" },
     ],
   },
   {
     title: "Fleet & Assets",
+    titleHi: "बेड़ा व संसाधन",
     links: [
-      { to: "/fleets", label: "Fleets", icon: "🏢", roles: ["super_admin"] },
-      { to: "/vehicles", label: "Vehicles", icon: "🚛", roles: ["trip_manager", "super_admin"] },
-      { to: "/drivers", label: "Drivers", icon: "👨", roles: ["trip_manager", "super_admin"] },
-      { to: "/benchmarks", label: "Rules & Rates", icon: "⚖️", roles: ["trip_manager", "super_admin"] },
+      { to: "/fleets", label: "Fleets", labelHi: "बेड़े", icon: "🏢", roles: ["super_admin"] },
+      { to: "/vehicles", label: "Vehicles", labelHi: "वाहन", icon: "🚛", roles: ["trip_manager", "super_admin"] },
+      { to: "/drivers", label: "Drivers", labelHi: "ड्राइवर", icon: "👨", roles: ["trip_manager", "super_admin"] },
+      { to: "/benchmarks", label: "Rules & Rates", labelHi: "नियम व दरें", icon: "⚖️", roles: ["trip_manager", "super_admin"] },
     ],
   },
   {
     title: "System & Reports",
+    titleHi: "सिस्टम व रिपोर्ट",
     roles: ["super_admin"],
     links: [
-      { to: "/users", label: "Users", icon: "👨", roles: ["super_admin"] },
-      { to: "/analytics", label: "Analytics", icon: "📈", roles: ["super_admin"] },
+      { to: "/users", label: "Users", labelHi: "उपयोगकर्ता", icon: "👨", roles: ["super_admin"] },
+      { to: "/analytics", label: "Analytics", labelHi: "एनालिटिक्स", icon: "📈", roles: ["super_admin"] },
     ],
   },
 ];
@@ -52,30 +57,10 @@ const ROLE_LABELS = {
   driver: "Driver",
 };
 
-// Audit P-6: persisted HI/EN toggle for the navigation chrome. Page content
-// stays bilingual at the source (label_en/label_hi payloads); this covers the
-// sidebar labels users see on every screen.
-const SECTION_I18N_HI = {
-  Onboarding: "ऑनबोर्डिंग",
-  Operations: "संचालन",
-  "Fleet & Assets": "बेड़ा व संसाधन",
-  "System & Reports": "सिस्टम व रिपोर्ट",
-  Account: "खाता",
-};
-const LINK_I18N_HI = {
-  "/onboard": "फर्म जोड़ें",
-  "/dashboard": "मेरा डैशबोर्ड",
-  "/trips": "सक्रिय ट्रिप",
-  "/driver-salary": "ड्राइवर वेतन",
-  "/settlements": "निपटान ट्रिप",
-  "/fleets": "बेड़े",
-  "/vehicles": "वाहन",
-  "/drivers": "ड्राइवर",
-  "/benchmarks": "नियम व दरें",
-  "/users": "उपयोगकर्ता",
-  "/subscription": "सदस्यता",
-  "/change-password": "पासवर्ड बदलें",
-};
+// Audit P-6: persisted HI/EN toggle covering the full sidebar chrome (section
+// headers, every link, and the Account items). The language state lives in
+// <Layout> so the desktop and mobile sidebar instances stay in sync; the
+// choice persists in localStorage ("vk_lang").
 function navLang() {
   try {
     return localStorage.getItem("vk_lang") === "hi" ? "hi" : "en";
@@ -91,23 +76,49 @@ function navClass({ isActive }) {
       : "font-medium text-ink-600 hover:bg-ink-100 hover:text-ink-900"
   }`;
 }
-      function Sidebar({ role }) {
+function Sidebar({ role, lang = "en", onToggleLang }) {
   const { logout } = useAuth();
-  const [lang, setLang] = useState(navLang()); // audit P-6
   const hi = lang === "hi";
-  const tSection = (title) => (hi ? SECTION_I18N_HI[title] || title : title);
-  const tLink = (label) => (hi && LINK_I18N_HI[label]) || label;
-  const toggleLang = () => {
-    const next = hi ? "en" : "hi";
-    try {
-      localStorage.setItem("vk_lang", next);
-    } catch { /* private mode: session-only fallback */ }
-    setLang(next);
-  };
   const sections = SECTIONS.filter((s) => !s.roles || s.roles.includes(role));
+  const resolve = (value) => (typeof value === "function" ? value(role) : value);
+  const labelFor = (link) => {
+    const en = resolve(link.label);
+    return hi ? resolve(link.labelHi) || en : en;
+  };
 
   return (
-    <nav className="flex flex-col gap-6">
+    <nav className="flex flex-col gap-5">
+      {/* Language switch pinned to the top of the sidebar (audit P-6). */}
+      <div className="flex items-center justify-between rounded-lg border border-ink-200 bg-white px-3 py-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-ink-400">
+          {hi ? "भाषा" : "Language"}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[11px] font-bold ${!hi ? "text-brand-700" : "text-ink-400"}`}>
+            EN
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={hi}
+            aria-label={hi ? "Switch to English" : "हिंदी में बदलें"}
+            onClick={onToggleLang}
+            className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors ${
+              hi ? "bg-brand-600" : "bg-ink-300"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                hi ? "translate-x-4" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+          <span className={`text-[11px] font-bold ${hi ? "text-brand-700" : "text-ink-400"}`}>
+            हिं
+          </span>
+        </div>
+      </div>
+
       {sections.map((section) => {
         const links = section.links.filter(
           (l) => !l.roles || l.roles.includes(role)
@@ -116,27 +127,22 @@ function navClass({ isActive }) {
         return (
           <div key={section.title}>
             <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-400">
-              {tSection(section.title)}
+              {hi ? section.titleHi || section.title : section.title}
             </p>
             <div className="space-y-0.5">
-              {links.map((link) => {
-                const rawLabel =
-                  typeof link.label === "function" ? link.label(role) : link.label;
-                const label = hi ? tLink(rawLabel) : rawLabel;
-                return (
-                  <NavLink
-                    key={link.to}
-                    to={link.to}
-                    end={link.to === "/trips"}
-                    className={navClass}
-                  >
-                    <span className="w-5 text-center text-base leading-none">
-                      {link.icon}
-                    </span>
-                    <span>{label}</span>
-                  </NavLink>
-                );
-              })}
+              {links.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  end={link.to === "/trips"}
+                  className={navClass}
+                >
+                  <span className="w-5 text-center text-base leading-none">
+                    {link.icon}
+                  </span>
+                  <span>{labelFor(link)}</span>
+                </NavLink>
+              ))}
             </div>
           </div>
         );
@@ -144,26 +150,18 @@ function navClass({ isActive }) {
 
       <div>
         <p className="px-3 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-400">
-          {tSection("Account")}
+          {hi ? "खाता" : "Account"}
         </p>
         <div className="space-y-0.5">
-          <button
-            type="button"
-            onClick={toggleLang}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-medium text-ink-600 transition hover:bg-brand-50 hover:text-brand-700"
-          >
-            <span className="w-5 text-center text-base leading-none">🌐</span>
-            <span>{hi ? "English" : "हिंदी में"}</span>
-          </button>
           {role !== "driver" && (
             <NavLink to="/subscription" className={navClass}>
               <span className="w-5 text-center text-base leading-none">💳</span>
-              <span>{tLink("/subscription")}</span>
+              <span>{hi ? "सदस्यता" : "Subscription"}</span>
             </NavLink>
           )}
           <NavLink to="/change-password" className={navClass}>
             <span className="w-5 text-center text-base leading-none">🔒</span>
-            <span>{tLink("/change-password")}</span>
+            <span>{hi ? "पासवर्ड बदलें" : "Change Password"}</span>
           </NavLink>
           <button
             onClick={logout}
@@ -182,6 +180,17 @@ export default function Layout({ children }) {
   const { user } = useAuth();
   const role = user?.role || "super_admin";
   const [mobileNavOpen, setMobileNavOpen] = useState(false); // audit E-7
+  const [lang, setLang] = useState(navLang()); // audit P-6: shared HI/EN state
+
+  const toggleLang = () => {
+    setLang((prev) => {
+      const next = prev === "hi" ? "en" : "hi";
+      try {
+        localStorage.setItem("vk_lang", next);
+      } catch { /* private mode: session-only fallback */ }
+      return next;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-ink-50 font-sans">
@@ -213,14 +222,14 @@ export default function Layout({ children }) {
       {/* Mobile nav drawer (audit E-7): replaces the old always-stacked card. */}
       {mobileNavOpen && (
         <div className="border-b border-ink-200 bg-white px-4 py-3 shadow-sm lg:hidden">
-          <Sidebar role={role} />
+          <Sidebar role={role} lang={lang} onToggleLang={toggleLang} />
         </div>
       )}
 
       <div className="mx-auto flex max-w-screen-2xl items-start gap-6 px-4 py-6 md:px-6">
         <aside className="sticky top-[73px] hidden w-60 flex-shrink-0 self-start lg:block">
           <div className="card p-2">
-            <Sidebar role={role} />
+            <Sidebar role={role} lang={lang} onToggleLang={toggleLang} />
           </div>
         </aside>
 
