@@ -202,7 +202,7 @@ def test_manager_reads_own_fleet(client, resolve_db):
     fleet_select = next(
         c for c in cur.execute.call_args_list if "SELECT f.*, sp.name" in str(c.args[0])
     )
-    assert fleet_select.args[1] == [12], fleet_select.args[1]
+    assert fleet_select.args[1] == [12, 100, 0], fleet_select.args[1]  # R-7 defaults
 
 
 def test_manager_creates_fleet_and_rebinds(client, resolve_db):

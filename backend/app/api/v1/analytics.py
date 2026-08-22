@@ -55,12 +55,14 @@ def api_analytics_overview(request: Request):
                 }
             )
 
-        # Driver-wise leakage prevented (rejected claims).
+        # Driver-wise leakage prevented (rejected claims), attributed via the
+        # trip's driver — expenses rows carry no creator column of their own.
         cur.execute(
             """SELECT u.full_name AS driver_name,
                       COALESCE(SUM(e.amount), 0) AS total
                  FROM expenses e
-                 JOIN users u ON u.id = e.created_by
+                 JOIN trips t ON t.trip_code = e.trip_code
+                 JOIN users u ON u.id = t.driver_user_id
                 WHERE e.manager_status = 'REJECTED'
                   AND e.exp_type <> 'SETTLEMENT_TRANSFER'
                 GROUP BY u.full_name

@@ -105,9 +105,33 @@ def test_webhook_verify_handshake(monkeypatch) -> None:
     assert bad.text == "forbidden"
 
 
-def test_webhook_post_acknowledges_unknown_delivery() -> None:
+def test_webhook_post_acknowledges_unknown_delivery(monkeypatch) -> None:
     """An inbound delivery with no resolvable number returns OK (never fails)."""
+    # B-2 signature enforcement is env-driven (WHATSAPP_APP_SECRET); this test
+    # covers the ack contract, so run it with signatures disabled.
+    monkeypatch.setattr(whatsapp_router.settings, "whatsapp_app_secret", None)
     client = TestClient(app)
     resp = client.post("/api/v1/whatsapp/webhook", json={})
     assert resp.status_code == 200
     assert resp.json() == "ok"
+
+
+def test_webhook_rejects_unsigned_when_secret_configured(monkeypatch) -> None:
+    """B-2: with WHATSAPP_APP_SECRET set, unsigned deliveries are rejected 401."""
+    import hashlib
+    import hmac as _hmac
+
+    monkeypatch.setattr(whatsapp_router.settings, "whatsapp_app_secret", "test_secret")
+    client = TestClient(app)
+
+    unsigned = client.post("/api/v1/whatsapp/webhook", json={"from": "919876543210"})
+    assert unsigned.status_code == 401
+
+    raw = b'{"from": "919876543210"}'
+    sig = "sha256=" + _hmac.new(b"test_secret", raw, hashlib.sha256).hexdigest()
+    signed = client.post(
+        "/api/v1/whatsapp/webhook",
+        content=raw,
+        headers={"Content-Type": "application/json", "X-Hub-Signature-256": sig},
+    )
+    assert signed.status_code == 200  # valid signature → ack path

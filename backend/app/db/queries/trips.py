@@ -171,7 +171,13 @@ def insert_trip(
     return trip_code
 
 
-def get_trips_for_user(conn, user_id: int, role: str) -> list[dict]:
+def get_trips_for_user(
+    conn,
+    user_id: int,
+    role: str,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[dict]:
     """Return trips visible to *user_id* based on their *role*.
 
     - super_admin: all trips
@@ -187,24 +193,23 @@ def get_trips_for_user(conn, user_id: int, role: str) -> list[dict]:
           FROM trips t
           LEFT JOIN users u ON u.id = t.driver_user_id
     """
+    order = " ORDER BY CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC"
+    page_sql = " LIMIT %s OFFSET %s" if limit is not None else ""  # audit R-7
+
     if role == "super_admin":
-        cur.execute(
-            base + " ORDER BY CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC"
-        )
+        cur.execute(base + order + page_sql,
+                    [limit, offset] if limit is not None else [])
         return cur.fetchall()
     if role == "trip_manager":
-        cur.execute(
-            base + " WHERE t.created_by = %s ORDER BY "
-            "CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC",
-            (user_id,),
-        )
-        return cur.fetchall()
+        where = " WHERE t.created_by = %s"
+        params: list = [user_id]
     # driver
-    cur.execute(
-        base + " WHERE t.driver_user_id = %s ORDER BY "
-        "CASE WHEN t.status = 'ACTIVE' THEN 0 ELSE 1 END, t.id DESC",
-        (user_id,),
-    )
+    else:
+        where = " WHERE t.driver_user_id = %s"
+        params = [user_id]
+    if limit is not None:
+        params += [limit, offset]
+    cur.execute(base + where + order + page_sql, params)
     return cur.fetchall()
 
 

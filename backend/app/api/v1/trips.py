@@ -13,6 +13,7 @@ from backend.app.api.v1.deps import (
     _jsonable,
     _not_found,
     _ok,
+    _page_params,
     _trip_forbidden,
 )
 from backend.app.core.config import settings
@@ -75,9 +76,12 @@ def api_trips(request: Request):
     user = _identity(request)
     role = user.get("role", "super_admin")
     user_id = user.get("user_id")
+    limit, offset = _page_params(request)  # audit R-7
 
     with get_db() as conn:
-        trips = get_trips_for_user(conn, user_id, role)
+        trips = get_trips_for_user(
+            conn, user_id, role, limit=limit, offset=offset
+        )
         stats = get_trip_stats_by_code(conn)
     for t in trips:
         t["stats"] = stats.get(t["trip_code"], {})
@@ -326,9 +330,14 @@ def api_settled_trips(request: Request):
     if guard is not None:
         return guard
     user = _identity(request)
+    limit, offset = _page_params(request)  # audit R-7
     with get_db() as conn:
         trips = get_settled_trips(
-            conn, role=user.get("role", "super_admin"), user_id=user.get("user_id")
+            conn,
+            role=user.get("role", "super_admin"),
+            user_id=user.get("user_id"),
+            limit=limit,
+            offset=offset,
         )
     return _ok(trips)
 
