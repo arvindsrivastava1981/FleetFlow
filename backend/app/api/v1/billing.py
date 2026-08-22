@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
+from backend.app.api.v1.deps import _bad, _identity, _ok, _read_json_body
 from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.fleets import (
@@ -15,17 +16,15 @@ from backend.app.db.queries.fleets import (
     start_trial_subscription,
 )
 from backend.app.db.queries.users import get_user_fleet_id
-from backend.app.services.billing.razorpay import (
-    VEHICLE_SLOT_PRICE,
-    create_payment_link,
-)
-
-from backend.app.api.v1.deps import _bad, _ok, _read_json_body, _identity
 from backend.app.schemas.api_v1 import (
     BillingOverview,
     BillingSubscribeResult,
     BillingVehicleSlotResult,
     Data,
+)
+from backend.app.services.billing.razorpay import (
+    VEHICLE_SLOT_PRICE,
+    create_payment_link,
 )
 
 router = APIRouter(prefix="/api/v1")

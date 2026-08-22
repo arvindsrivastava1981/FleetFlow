@@ -16,6 +16,7 @@ import ChangePasswordPage from "./pages/ChangePassword.jsx";
 import DriversPage from "./pages/Drivers.jsx";
 import DriverSalaryPage from "./pages/DriverSalary.jsx";
 import TripWhatsAppPage from "./pages/TripWhatsApp.jsx";
+import NotFoundPage from "./pages/NotFound.jsx";
 import Layout from "./components/Layout.jsx";
 
 function ProtectedRoute({ children, roles }) {
@@ -204,6 +205,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      {/* Catch-all: unknown SPA URLs render a friendly 404 (audit E-1). */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

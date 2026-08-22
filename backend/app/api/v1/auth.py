@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
+from backend.app.api.v1.deps import _bad, _not_found, _ok
 from backend.app.core.config import settings
 from backend.app.core.password import hash_password, verify_password
 from backend.app.core.security import (
@@ -10,15 +11,14 @@ from backend.app.core.security import (
     clear_login_failures,
     create_session,
     destroy_session,
+    get_current_user,
     login_allowed,
     register_login_failure,
     require_json_auth,
-    get_current_user,
+    revoke_user_sessions,
 )
 from backend.app.db.connection import get_db
 from backend.app.db.queries.users import get_user_by_id, get_user_by_username, update_user
-
-from backend.app.api.v1.deps import _bad, _not_found, _ok
 from backend.app.schemas.api_v1 import (
     AuthMe,
     ChangePasswordResult,
@@ -92,13 +92,15 @@ async def api_auth_login(request: Request, response: Response):
         "trip_manager": "/dashboard",
         "driver": "/dashboard",
     }.get(user["role"], "/dashboard")
-    response.set_cookie(
-        key=AUTH_COOKIE,
-        value=token,
-        httponly=True,
-        samesite="lax",
-        max_age=settings.session_ttl_hours * 3600,
-    )
+    if settings.auth_cookie_enabled:
+        response.set_cookie(
+            key=AUTH_COOKIE,
+            value=token,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="lax",
+            max_age=settings.session_ttl_hours * 3600,
+        )
     return {
         "token": token,
         "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
@@ -169,5 +171,10 @@ async def api_change_password(request: Request):
             db_user["email"],
             password_hash=new_hash,
         )
+
+    # Audit B-1: every existing session for this user dies with the old
+    # credential — including this device's. The SPA clears its local token and
+    # returns to the login screen on success (ChangePassword.jsx).
+    revoke_user_sessions(user["user_id"])
 
     return _ok({"id": user["user_id"], "password_changed": True})

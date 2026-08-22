@@ -3,8 +3,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok, _trip_forbidden
+from backend.app.core.config import settings
 from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
+from backend.app.db.queries.benchmarks import get_benchmark_price_and_tolerance
 from backend.app.db.queries.dashboards import open_escalations_detail
 from backend.app.db.queries.expenses import (
     action_expense_status,
@@ -14,25 +17,24 @@ from backend.app.db.queries.expenses import (
     insert_expense,
     open_settlement_request,
 )
-from backend.app.db.queries.benchmarks import get_benchmark_price_and_tolerance
 from backend.app.db.queries.trips import (  # noqa: PLC2701 (action owns driver consent stamp)
     driver_consent as record_driver_consent,
+)
+from backend.app.db.queries.trips import (
     get_trip_by_code,
     trip_status,
     update_trip_odometer,
 )
-from backend.app.services.audit.cash import SETTLEMENT_TRANSFER_TYPE, compute_settlement
-from backend.app.services.rules.bands import DEFAULT_BAND, derive_band
-from backend.app.services.rules.constants import GOODS_TYPES
-from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
-
-from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok, _trip_forbidden
 from backend.app.schemas.api_v1 import (
     Data,
     EscalationRow,
     ExpenseAccepted,
     ExpenseActionResult,
 )
+from backend.app.services.audit.cash import SETTLEMENT_TRANSFER_TYPE, compute_settlement
+from backend.app.services.rules.bands import DEFAULT_BAND, derive_band
+from backend.app.services.rules.constants import GOODS_TYPES
+from backend.app.services.rules.evaluate import RuleInput, evaluate_expense
 
 router = APIRouter(prefix="/api/v1")
 
@@ -273,8 +275,16 @@ async def api_action_expense(request: Request, expense_id: int):
         if driver_phone:
             try:
                 import requests as _req
+                # Audit B-9: prefer the configured public base URL — behind a
+                # proxy, request.url can carry the wrong scheme/host.
+                # NOTE(Phase C): this hop is auth-gated since audit B-3; the
+                # bot should call the send service directly instead of HTTP.
+                base_url = (
+                    settings.app_public_url
+                    or f"{request.url.scheme}://{request.url.netloc}"
+                ).rstrip("/")
                 _req.post(
-                    f"{request.url.scheme}://{request.url.netloc}/api/v1/whatsapp/send",
+                    f"{base_url}/api/v1/whatsapp/send",
                     json={
                         "to": driver_phone,
                         "template": "expense_action",

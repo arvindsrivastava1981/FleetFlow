@@ -322,3 +322,29 @@ CREATE TRIGGER trg_fuel_benchmarks_updated_at
     BEFORE UPDATE ON fuel_benchmarks
     FOR EACH ROW
     EXECUTE PROCEDURE update_timestamp_column();
+
+-- ----------------------------------------------------------------------------
+-- Auth session store (audit R-1): durable sessions surviving restarts and
+-- shared across instances. Only the SHA-256 hash of each token is stored,
+-- never the raw token itself.
+-- ----------------------------------------------------------------------------
+CREATE TABLE auth_sessions (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_auth_sessions_user ON auth_sessions(user_id);
+CREATE INDEX idx_auth_sessions_expires ON auth_sessions(expires_at);
+
+-- Login brute-force throttle (audit R-1): per-IP counters persist across
+-- deploys instead of living only in process memory.
+CREATE TABLE login_throttle (
+    ip VARCHAR(64) PRIMARY KEY,
+    failures INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

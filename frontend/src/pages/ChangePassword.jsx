@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../lib/api.js";
+import { api, setToken } from "../lib/api.js";
 import { useToast } from "../context/ToastContext.jsx";
 
 export default function ChangePasswordPage() {
@@ -22,8 +22,11 @@ export default function ChangePasswordPage() {
     setBusy(true);
     try {
       await api.post("/api/v1/auth/change-password", form);
-      toast.success("Password changed successfully.");
-      setForm({ current_password: "", new_password: "", confirm_password: "" });
+      // Backend revokes ALL sessions for this user on password change
+      // (audit B-1) — sign out locally and send the user to the login page.
+      toast.success("Password changed. Please sign in again.");
+      setToken(null);
+      window.location.replace("/");
     } catch (err) {
       setError(err.message);
       toast.error(err.message);

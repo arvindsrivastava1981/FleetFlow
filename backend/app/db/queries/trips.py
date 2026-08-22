@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+
 from backend.app.services.audit.cash import compute_settlement
 
 
@@ -150,8 +151,13 @@ def insert_trip(
     + driver batta are posted as CASH_ADVANCE / DRIVER_SALARY expense rows by
     the route (single-source ledger), not duplicated on the trip row.
     """
-    trip_code = next_trip_code(conn, vehicle_no)
+    # Serialize trip-code generation per plate (audit B-4): two concurrent
+    # creations for one vehicle previously raced `next_trip_code`'s SELECT-max
+    # against this INSERT and died on the UNIQUE constraint (raw 500). The
+    # transaction-scoped advisory lock auto-releases on commit/rollback.
     cur = conn.cursor()
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (vehicle_no,))
+    trip_code = next_trip_code(conn, vehicle_no)
     cur.execute(
         """INSERT INTO trips
                (fleet_id, trip_code, vehicle_id, vehicle_no,

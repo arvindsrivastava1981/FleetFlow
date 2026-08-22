@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 
 from fastapi import APIRouter, Request
@@ -38,6 +39,10 @@ async def billing_webhook(request: Request):
     # Razorpay stable event id — used to dedupe retried deliveries.
     event_id = (payload.get("payload", {}).get("payment_link", {})
                 .get("entity", {}).get("id", ""))
+    # Audit B-8: never bypass dedupe. If the id is missing, fall back to a
+    # content hash so a retried delivery of the same payload still no-ops.
+    if not event_id:
+        event_id = "sha256:" + hashlib.sha256(body).hexdigest()
     link = payload.get("payload", {}).get("payment_link", {}).get("entity", {})
     ref = link.get("reference_id", "")
     parts = ref.split("_")  # fleet_<id>_<action>

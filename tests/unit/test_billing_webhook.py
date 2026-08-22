@@ -3,7 +3,8 @@ from __future__ import annotations
 import json
 
 from backend.app.db.queries.billing import (
-    mark_webhook_processed, webhook_already_processed,
+    mark_webhook_processed,
+    webhook_already_processed,
 )
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from backend.app.api.v1.deps import _identity, _jsonable, _ok
 from backend.app.core.security import require_json_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.dashboards import (
@@ -15,8 +16,6 @@ from backend.app.db.queries.dashboards import (
     open_escalations,
 )
 from backend.app.db.queries.trips import get_active_trip_for_driver
-
-from backend.app.api.v1.deps import _identity, _jsonable, _ok
 from backend.app.schemas.api_v1 import DashboardOverview, Data
 
 router = APIRouter(prefix="/api/v1")

@@ -38,7 +38,6 @@ def fetch_static_fallback() -> list[dict]:
 def _goodreturns_fetch() -> list[dict]:
     """Best-effort BeautifulSoup scrape of the goodreturns state fuel-price table."""
     import httpx
-
     from bs4 import BeautifulSoup
 
     url = "https://www.goodreturns.in/diesel-price.html"

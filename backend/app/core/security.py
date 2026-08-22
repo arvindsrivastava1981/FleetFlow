@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import secrets
 import threading
 import time
+from datetime import datetime, timezone
 
-from fastapi import Depends, Request
+from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from backend.app.core.config import settings
+from backend.app.db.connection import get_db
+from backend.app.db.queries import auth_store
 
 AUTH_COOKIE: str = settings.auth_cookie
 
@@ -21,6 +25,55 @@ _session_lock = threading.Lock()
 # Per-IP login attempt tracker for brute-force defense: ip -> (count, locked_until)
 _login_attempts: dict[str, tuple[int, float]] = {}
 _login_lock = threading.Lock()
+
+# Durable mirror (audit R-1): session/throttle state is also written to
+# Postgres (db.queries.auth_store) so restarts and extra instances keep
+# working. In-memory dicts remain the hot path; DB access is best-effort.
+_logger = logging.getLogger(__name__)
+_db_purge_last: float = 0.0
+# Simple circuit breaker: after 2 consecutive durable-store failures, skip DB
+# attempts for a cooldown so an unreachable DB can't stall request handling.
+_db_fail_streak: int = 0
+_db_open_until: float = 0.0
+
+
+def _token_hash(token: str) -> str:
+    """Only SHA-256 hashes of tokens are ever persisted, never raw tokens."""
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _db(fn, /, *args):
+    """Best-effort durable-store call — persistence must never break auth."""
+    global _db_fail_streak, _db_open_until
+    now = _now()
+    if now < _db_open_until:
+        return None  # breaker open: fail fast without touching the network
+    try:
+        with get_db() as conn:
+            result = fn(conn, *args)
+        _db_fail_streak = 0
+        return result
+    except Exception as exc:  # noqa: BLE001 - opportunistic by design
+        _db_fail_streak += 1
+        if _db_fail_streak >= 2:
+            _db_open_until = now + 60
+            _logger.warning(
+                "auth_store unavailable (%s); skipping persistence for 60s", exc
+            )
+        else:
+            _logger.warning(
+                "auth_store.%s failed: %s", getattr(fn, "__name__", "?"), exc
+            )
+        return None
+
+
+def _maybe_purge_expired() -> None:
+    """Opportunistic DB-side cleanup of expired rows (max once per 10 min)."""
+    global _db_purge_last
+    if _now() - _db_purge_last < 600:
+        return
+    _db_purge_last = _now()
+    _db(auth_store.delete_expired_auth_sessions)
 
 
 # ---------------------------------------------------------------------------#
@@ -40,6 +93,19 @@ def create_session(user_id: int, username: str, role: str) -> str:
             "role": role,
             "issued_at": _now(),
         }
+    # Durable mirror (audit R-1): the session survives restarts and is visible
+    # to other instances via cold-token rehydration in `_get_session_data`.
+    expires = _now() + settings.session_ttl_hours * 3600
+    _db(
+        auth_store.insert_auth_session,
+        _token_hash(token),
+        user_id,
+        username,
+        role,
+        datetime.now(timezone.utc),
+        datetime.fromtimestamp(expires, tz=timezone.utc),
+    )
+    _maybe_purge_expired()
     return token
 
 
@@ -53,10 +119,32 @@ def _sweep_expired() -> None:
 
 
 def destroy_session(request: Request) -> None:
-    token = request.cookies.get(AUTH_COOKIE)
+    """Revoke whichever transport carried the request — cookie OR Bearer."""
+    token = request.cookies.get(AUTH_COOKIE) or _bearer_token_from_request(request)
     if token:
         with _session_lock:
             _auth_sessions.pop(token, None)
+        _db(auth_store.delete_auth_session, _token_hash(token))
+
+
+def revoke_user_sessions(user_id: int) -> int:
+    """Drop every session token bound to *user_id* (audits B-1 + R-1).
+
+    Called on password change and account deactivation so stale tokens cannot
+    outlive the credential / active-state change. Purges both this process's
+    dict AND the durable Postgres mirror, making revocation fleet-wide.
+    Returns the number of in-process tokens revoked.
+    """
+    with _session_lock:
+        victims = [
+            token
+            for token, data in _auth_sessions.items()
+            if data.get("user_id") == user_id
+        ]
+        for token in victims:
+            _auth_sessions.pop(token, None)
+    _db(auth_store.delete_auth_sessions_for_user, user_id)
+    return len(victims)
 
 
 def _get_session_data(token: str | None) -> dict | None:
@@ -65,7 +153,23 @@ def _get_session_data(token: str | None) -> dict | None:
         return None
     _sweep_expired()
     with _session_lock:
-        return _auth_sessions.get(token)
+        data = _auth_sessions.get(token)
+    if data is not None:
+        return data
+    # Cold token — this process restarted or the request landed on another
+    # instance: rehydrate the session from the durable Postgres mirror (R-1).
+    row = _db(auth_store.fetch_auth_session, _token_hash(token))
+    if not row:
+        return None
+    data = {
+        "user_id": row["user_id"],
+        "username": row["username"],
+        "role": row["role"],
+        "issued_at": row["issued_at"].timestamp() if row["issued_at"] else _now(),
+    }
+    with _session_lock:
+        _auth_sessions[token] = data
+    return data
 
 
 # ---------------------------------------------------------------------------#
@@ -74,6 +178,12 @@ def _get_session_data(token: str | None) -> dict | None:
 def login_allowed(ip: str) -> tuple[bool, int]:
     """Return (allowed, seconds_remaining_lock)."""
     with _login_lock:
+        if ip not in _login_attempts:
+            # First sight of this IP since (re)start: rehydrate any persisted
+            # brute-force counter so a deploy cannot reset an attacker's clock.
+            persisted = _db(auth_store.get_login_throttle, ip)
+            if persisted is not None:
+                _login_attempts[ip] = persisted
         count, locked_until = _login_attempts.get(ip, (0, 0.0))
     if locked_until > _now():
         return False, int(locked_until - _now())
@@ -89,12 +199,21 @@ def register_login_failure(ip: str) -> int:
             locked_until = _now() + settings.login_lockout_seconds
             count = 0
         _login_attempts[ip] = (count, locked_until)
-        return max(0, settings.login_max_attempts - count)
+        remaining = max(0, settings.login_max_attempts - count)
+    # Mirror so brute-force progress survives a deploy / spans instances.
+    locked_dt = (
+        datetime.fromtimestamp(locked_until, tz=timezone.utc)
+        if locked_until > 0
+        else None
+    )
+    _db(auth_store.upsert_login_throttle, ip, count, locked_dt)
+    return remaining
 
 
 def clear_login_failures(ip: str) -> None:
     with _login_lock:
         _login_attempts.pop(ip, None)
+    _db(auth_store.clear_login_throttle, ip)
 
 
 # ---------------------------------------------------------------------------#
@@ -115,8 +234,8 @@ def get_current_user(request: Request) -> dict | None:
     """Return the bound user dict {user_id, username, role} or None.
 
     Accepts auth from either the session cookie (browser) or a Bearer header
-    (web client, mobile). This keeps the single in-memory session store shared
-    by both transport paths.
+    (web client, mobile). This keeps the single session store — memory
+    hot-path + durable Postgres mirror — shared by both transport paths.
     """
     token = request.cookies.get(AUTH_COOKIE) or _bearer_token_from_request(request)
     return _get_session_data(token)

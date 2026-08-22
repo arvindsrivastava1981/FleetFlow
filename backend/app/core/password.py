@@ -4,7 +4,9 @@ import hashlib
 import hmac
 import secrets
 
-_ITERATIONS = 100_000
+_ITERATIONS = 600_000  # OWASP 2023+ guidance for PBKDF2-SHA256 (audit R-6).
+# Older hashes embed their own iteration count, so they still verify; new
+# hashes are simply written with the stronger parameter.
 
 
 def hash_password(password: str) -> str:

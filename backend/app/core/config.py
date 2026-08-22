@@ -16,11 +16,29 @@ class Settings:
         self.database_url: str = _require("DATABASE_URL")
 
         # ----  auth ----------------------------------------------------
-        # Per-user login replaces the single USER_PASSWORD. The env var is
-        # still read for backwards-compat but is no longer used for login.
-        default_password = "123"
-        _ = os.getenv("USER_PASSWORD", default_password)  # deprecated, kept for compat
         self.auth_cookie: str = "ff_auth_session"
+        # Secure-cookie flag for the session cookie (audit B-6). Defaults ON;
+        # set COOKIE_SECURE=0 only for plain-HTTP local dev over a LAN IP
+        # (localhost is exempt — browsers treat it as a trustworthy origin).
+        self.cookie_secure: bool = (
+            os.getenv("COOKIE_SECURE", "1").strip().lower() not in ("0", "false", "no")
+        )
+
+        self.auth_cookie_enabled: bool = (
+            os.getenv("AUTH_COOKIE", "0").strip().lower() in ("1", "true", "yes")
+        )
+
+        # ---- HTTP / CORS (audit R-5) --------------------------------------
+        # A CORS_ORIGINS CSV overrides; otherwise fall back to the historical
+        # allowlist (prod hosts + local Vite dev server).
+        self.cors_origins: list[str] = [
+            o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
+        ] or [
+            "https://app.vahankhata.in",
+            "https://api.vahankhata.in",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ]
 
         # ---- Session / security -------------------------------------------
         self.session_ttl_hours: int = 72
@@ -53,6 +71,9 @@ class Settings:
         self.whatsapp_access_token: str | None = os.getenv("WHATSAPP_ACCESS_TOKEN")
         self.whatsapp_phone_id: str | None = os.getenv("WHATSAPP_PHONE_ID")
         self.webhook_verify_token: str | None = os.getenv("WEBHOOK_VERIFY_TOKEN")
+        # Meta App Secret — enables X-Hub-Signature-256 verification on the
+        # inbound WhatsApp webhook (audit B-2). Optional until configured.
+        self.whatsapp_app_secret: str | None = os.getenv("WHATSAPP_APP_SECRET")
 
         # ---- Razorpay billing (subscription + per-vehicle payments) --------
         self.razorpay_key_id: str | None = os.getenv("RAZORPAY_API_KEY")

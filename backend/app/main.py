@@ -7,6 +7,7 @@ from backend.app.api import (
     api_v1,
     webhook,
 )
+from backend.app.core.config import settings
 from backend.app.core.errors import register_error_handlers
 from backend.app.db.connection import healthcheck
 
@@ -18,15 +19,11 @@ app = FastAPI(
 
 # ---- CORS -------------------------------------------------------------------
 # Allow browser requests from the hosted web client (VahanKhata on Render) so
-# clients can call these APIs cross-origin. Local dev origins are included for
-# convenience; wildcard is intentionally NOT used so credentials are never
-# leaked to arbitrary origins.
-CORS_ALLOWED_ORIGINS = [
-    "https://app.vahankhata.in",
-    "https://api.vahankhata.in",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+# clients can call these APIs cross-origin. Origins are env-driven via
+# CORS_ORIGINS (CSV) with the historical allowlist as fallback — audit R-5.
+# Wildcard is intentionally NOT used so credentials are never leaked to
+# arbitrary origins.
+CORS_ALLOWED_ORIGINS = settings.cors_origins
 
 app.add_middleware(
     CORSMiddleware,

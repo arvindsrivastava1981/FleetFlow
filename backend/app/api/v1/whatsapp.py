@@ -20,13 +20,21 @@ simulators untouched.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from backend.app.core.config import settings
+from backend.app.core.security import require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.trips import (  # noqa: PLC2701 (webhook owns driver consent)
     driver_consent as record_driver_consent,
+)
+from backend.app.db.queries.trips import (
     get_active_trip_for_driver,
 )
 from backend.app.db.queries.users import get_user_by_phone
@@ -47,6 +55,22 @@ router = APIRouter(prefix="/api/v1/whatsapp")
 def _configured() -> bool:
     """True when the runtime has the Meta Cloud credentials wired."""
     return bool(settings.whatsapp_access_token and settings.whatsapp_phone_id)
+
+
+def _signature_valid(raw: bytes, header: str | None) -> bool:
+    """Verify Meta's ``X-Hub-Signature-256`` ("sha256=<hex>" HMAC of raw body).
+
+    Enforcement activates only once ``WHATSAPP_APP_SECRET`` is configured
+    (audit B-2): unconfigured dev/test environments keep accepting unsigned
+    payloads so local simulators and the test-suite stay friction-free.
+    """
+    secret = settings.whatsapp_app_secret
+    if not secret:
+        return True
+    if not header or not header.lower().startswith("sha256="):
+        return False
+    digest = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(digest, header.split("=", 1)[1].strip().lower())
 
 
 @router.get("/webhook")
@@ -76,8 +100,17 @@ async def whatsapp_webhook(request: Request) -> JSONResponse:
     acknowledges-and-drops unknown/unsupported senders. Always returns a quick 200
     so Meta does not retry undeliverable events.
     """
+    # Audit B-2: verify Meta's X-Hub-Signature-256 BEFORE parsing/routing.
+    # See _signature_valid: enforcement is active whenever WHATSAPP_APP_SECRET
+    # is configured (i.e., every production deployment).
+    raw = await request.body()
+    if not _signature_valid(raw, request.headers.get("x-hub-signature-256")):
+        logging.getLogger(__name__).warning(
+            "WhatsApp webhook rejected: missing/invalid X-Hub-Signature-256"
+        )
+        return JSONResponse(content={"error": "invalid signature"}, status_code=401)
     try:
-        payload = await request.json()
+        payload = json.loads(raw)
     except Exception:  # noqa: BLE001 - malformed body
         return JSONResponse(content="ok", status_code=200)
 
@@ -147,13 +180,17 @@ async def whatsapp_webhook(request: Request) -> JSONResponse:
 
 
 @router.post("/send")
-async def whatsapp_send(body: dict | None = None) -> JSONResponse:
+async def whatsapp_send(request: Request, body: dict | None = None) -> JSONResponse:
     """Send an outbound template message (idempotent, best-effort).
 
-    Without a configured ``WHATSAPP_ACCESS_TOKEN`` this is a documented no-op so
-    the callers (manager approvals / driver confirmations) can fire-and-forget.
-    Replace the body with a live Meta Graph call when credentials are present.
+    Auth-gated (audit B-3): only an authenticated trip_manager/super_admin may
+    trigger outbound sends, so Phase-C credentials can never be used as an
+    open relay. Without a configured ``WHATSAPP_ACCESS_TOKEN`` this remains a
+    documented no-op so callers can fire-and-forget.
     """
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
     _ = body or {}
     if not _configured():
         return JSONResponse(content={"sent": False, "reason": "unconfigured"}, status_code=200)

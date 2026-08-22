@@ -10,9 +10,9 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from backend.app.api.v1 import whatsapp as whatsapp_router
 from backend.app.main import app
 from backend.app.services import whatsapp as wa
-from backend.app.api.v1 import whatsapp as whatsapp_router
 
 
 def test_normalise_number_adds_country_code() -> None:

@@ -40,6 +40,29 @@ CREATE TABLE IF NOT EXISTS benchmark_favorites (
 
 CREATE INDEX IF NOT EXISTS idx_benchmark_favorites_user ON benchmark_favorites(user_id);
 
+-- ---------------------------------------------------------------------------- 
+-- Audit R-1: durable auth sessions + persistent login throttle.
+-- Mirrors the in-process dicts in core/security.py; see db/queries/auth_store.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    token_hash VARCHAR(64) PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user ON auth_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires ON auth_sessions(expires_at);
+
+CREATE TABLE IF NOT EXISTS login_throttle (
+    ip VARCHAR(64) PRIMARY KEY,
+    failures INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 
 
 

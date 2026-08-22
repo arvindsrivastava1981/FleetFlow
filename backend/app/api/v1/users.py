@@ -4,10 +4,19 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
+from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
 from backend.app.core.config import settings
 from backend.app.core.password import hash_password
-from backend.app.core.security import require_json_role
+from backend.app.core.security import require_json_role, revoke_user_sessions
 from backend.app.db.connection import get_db
+from backend.app.db.queries.fleets import (
+    get_default_fleet,
+    get_fleet_by_id,
+    get_fleet_email_context,
+    get_fleet_entitlement,
+    is_trial_active,
+    start_trial_subscription,
+)
 from backend.app.db.queries.users import (
     create_user,
     deactivate_user,
@@ -17,21 +26,11 @@ from backend.app.db.queries.users import (
     reactivate_user,
     update_user,
 )
-from backend.app.db.queries.fleets import (
-    get_default_fleet,
-    get_fleet_by_id,
-    get_fleet_email_context,
-    get_fleet_entitlement,
-    is_trial_active,
-    start_trial_subscription,
-)
+from backend.app.schemas.api_v1 import Data, ResourceAck, ToggleAck
 from backend.app.services.email.client import (
     manager_onboarding_email_context,
     send_manager_onboarding_email_sync,
 )
-
-from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
-from backend.app.schemas.api_v1 import Data, ResourceAck, ToggleAck
 
 router = APIRouter(prefix="/api/v1")
 
@@ -219,6 +218,9 @@ async def api_toggle_user(request: Request, uid: int):
             reactivate_user(conn, uid)
         else:
             deactivate_user(conn, uid)
+            # Audit B-1: a deactivated account must lose live access NOW,
+            # not when its (up to 72 h) session TTL expires.
+            revoke_user_sessions(uid)
     return _ok({"id": uid, "is_active": should_activate})
 # ---- Drivers (Trip Manager / Super Admin) ----------------------------------
 
@@ -341,4 +343,6 @@ async def api_toggle_driver(request: Request, uid: int):
             reactivate_user(conn, uid)
         else:
             deactivate_user(conn, uid)
+            # Audit B-1: deactivation kills live sessions immediately.
+            revoke_user_sessions(uid)
     return _ok({"id": uid, "is_active": should_activate})

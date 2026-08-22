@@ -1,37 +1,10 @@
 from __future__ import annotations
 
+import re as _re
 from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
-
-from backend.app.core.config import settings
-from backend.app.core.security import require_json_auth, require_json_role
-from backend.app.db.connection import get_db
-from backend.app.db.queries.settlement import get_settled_trips
-from backend.app.db.queries.trips import (
-    active_trip_exists,
-    get_trip_by_code,
-    get_trip_stats_by_code,
-    get_trips_for_user,
-    insert_trip,
-    pending_expense_count,
-    settle_trip as mark_trip_settled,
-)
-from backend.app.db.queries.users import (
-    get_driver_batta_profile,
-    get_user_by_id,
-    get_user_fleet_id,
-)
-from backend.app.db.queries.fleets import get_default_fleet
-from backend.app.db.queries.expenses import (
-    get_expenses_for_trip,
-    get_ledger_expenses_for_trip,
-    insert_expense,
-)
-from backend.app.services.audit.cash import compute_settlement, resolve_trip_batta
-from backend.app.services.pdf.settlement import build_settlement_pdf
-from backend.app.services.state import state_code_from_plate
 
 from backend.app.api.v1.deps import (
     _bad,
@@ -42,6 +15,32 @@ from backend.app.api.v1.deps import (
     _ok,
     _trip_forbidden,
 )
+from backend.app.core.config import settings
+from backend.app.core.security import require_json_auth, require_json_role
+from backend.app.db.connection import get_db
+from backend.app.db.queries.expenses import (
+    get_expenses_for_trip,
+    get_ledger_expenses_for_trip,
+    insert_expense,
+)
+from backend.app.db.queries.fleets import get_default_fleet
+from backend.app.db.queries.settlement import get_settled_trips
+from backend.app.db.queries.trips import (
+    active_trip_exists,
+    get_trip_by_code,
+    get_trip_stats_by_code,
+    get_trips_for_user,
+    insert_trip,
+    pending_expense_count,
+)
+from backend.app.db.queries.trips import (
+    settle_trip as mark_trip_settled,
+)
+from backend.app.db.queries.users import (
+    get_driver_batta_profile,
+    get_user_by_id,
+    get_user_fleet_id,
+)
 from backend.app.schemas.api_v1 import (
     CreateTripResult,
     Data,
@@ -50,8 +49,9 @@ from backend.app.schemas.api_v1 import (
     TripDetailData,
     TripListItem,
 )
-
-import re as _re
+from backend.app.services.audit.cash import compute_settlement, resolve_trip_batta
+from backend.app.services.pdf.settlement import build_settlement_pdf
+from backend.app.services.state import state_code_from_plate
 
 router = APIRouter(prefix="/api/v1")
 _PLATE_RE = _re.compile(settings.plate_regex)

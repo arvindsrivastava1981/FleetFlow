@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
 from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.fleets import (
@@ -14,15 +15,11 @@ from backend.app.db.queries.fleets import (
     get_all_plans,
     get_fleet_by_id,
     insert_fleet,
-    log_fleet_billing_event,
     reactivate_fleet,
-    start_trial_subscription,
     update_fleet,
 )
-from backend.app.db.queries.users import update_user as _update_user_row
-
-from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
 from backend.app.db.queries.users import get_user_fleet_id
+from backend.app.db.queries.users import update_user as _update_user_row
 from backend.app.schemas.api_v1 import Data, ResourceAck, ToggleAck
 
 router = APIRouter(prefix="/api/v1")

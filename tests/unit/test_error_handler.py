@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
+from backend.app.api.v1.deps import _bad, _not_found
 from backend.app.core import errors as err_mod
 from backend.app.core.errors import (
     ApiError,
@@ -21,7 +22,6 @@ from backend.app.core.errors import (
     not_found,
     register_error_handlers,
 )
-from backend.app.api.v1.deps import _bad, _not_found
 
 
 class _ReqBody(BaseModel):
