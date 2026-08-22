@@ -48,6 +48,7 @@ export default function NewTripPage() {
   const [form, setForm] = useState(emptyForm);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
+  const [templates, setTemplates] = useState([]); // audit F-6
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,12 +64,35 @@ export default function NewTripPage() {
       .then(setDrivers)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+    // Audit F-6: reusable route templates for one-tap prefill.
+    api
+      .get("/api/v1/trip-templates")
+      .then(setTemplates)
+      .catch(() => {}); // templates are optional polish — never block dispatch
   }
   useEffect(load, []);
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
     setFieldErrors((e) => ({ ...e, [k]: "" }));
+  }
+
+  // Audit F-6: fill vehicle/driver from a saved route template.
+  function applyTemplate(id) {
+    const t = templates.find((x) => String(x.id) === String(id));
+    if (!t) return;
+    setForm((f) => ({
+      ...f,
+      vehicle_id: t.vehicle_id ? String(t.vehicle_id) : f.vehicle_id,
+      driver_user_id: t.driver_user_id
+        ? String(t.driver_user_id)
+        : f.driver_user_id,
+      vehicle_no: t.vehicle_id
+        ? vehicles.find((v) => String(v.id) === String(t.vehicle_id))
+            ?.vehicle_number || f.vehicle_no
+        : f.vehicle_no,
+    }));
+    toast.success(`Template "${t.name}" loaded — review & start the trip.`);
   }
 
   async function onSubmit(e) {
@@ -129,6 +153,28 @@ export default function NewTripPage() {
           <p className="page-sub">Dispatch a vehicle with an assigned driver.</p>
         </div>
       </div>
+
+      {templates.length > 0 && (
+        <div className="card-pad flex flex-wrap items-center gap-3">
+          <span className="text-xs font-bold uppercase tracking-wider text-ink-500">
+            📋 Start from template
+          </span>
+          <select
+            className="input max-w-[280px]"
+            value=""
+            onChange={(e) => applyTemplate(e.target.value)}
+          >
+            <option value="">Choose a saved route…</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.vehicle_number ? ` · ${t.vehicle_number}` : ""}
+                {t.driver_name ? ` · ${t.driver_name}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {error && (
         <div className="alert alert-error">

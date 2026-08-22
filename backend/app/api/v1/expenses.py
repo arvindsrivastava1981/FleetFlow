@@ -4,7 +4,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok, _trip_forbidden
-from backend.app.core.config import settings
 from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.benchmarks import get_benchmark_price_and_tolerance
@@ -271,31 +270,16 @@ async def api_action_expense(request: Request, expense_id: int):
         label_en = "Approved" if status == "APPROVED" else "Deducted"
         label_hi = "स्वीकृत" if status == "APPROVED" else "कटौती"
 
-        # Best-effort WhatsApp notification to the driver.
+        # Best-effort WhatsApp notification to the driver — Phase C (F-1):
+        # direct service call (no self-HTTP hop; resolves B-3/B-9 notes).
         if driver_phone:
             try:
-                import requests as _req
-                # Audit B-9: prefer the configured public base URL — behind a
-                # proxy, request.url can carry the wrong scheme/host.
-                # NOTE(Phase C): this hop is auth-gated since audit B-3; the
-                # bot should call the send service directly instead of HTTP.
-                base_url = (
-                    settings.app_public_url
-                    or f"{request.url.scheme}://{request.url.netloc}"
-                ).rstrip("/")
-                _req.post(
-                    f"{base_url}/api/v1/whatsapp/send",
-                    json={
-                        "to": driver_phone,
-                        "template": "expense_action",
-                        "params": {
-                            "trip_code": trip_code,
-                            "expense_id": expense_id,
-                            "action_en": label_en,
-                            "action_hi": label_hi,
-                        },
-                    },
-                    timeout=5,
+                from backend.app.services.whatsapp.send import send_text
+
+                send_text(
+                    driver_phone,
+                    f"{label_en} ({label_hi}) · Trip {trip_code} · "
+                    f"expense #{expense_id}",
                 )
             except Exception:
                 pass  # Notification is best-effort, never block the API response.

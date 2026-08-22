@@ -113,6 +113,25 @@ CREATE INDEX IF NOT EXISTS idx_vehicles_number ON vehicles(vehicle_number);
 CREATE INDEX IF NOT EXISTS idx_vehicles_fleet_id ON vehicles(fleet_id);
 
 -- ----------------------------------------------------------------------------
+-- 4b. TRIP TEMPLATES (feature F-6) — reusable routes for one-tap dispatch.
+--     Unique per fleet so two managers can't define the same template name.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS trip_templates (
+    id BIGSERIAL PRIMARY KEY,
+    fleet_id BIGINT NOT NULL REFERENCES fleets(id) ON DELETE CASCADE,
+    name VARCHAR(80) NOT NULL,
+    vehicle_id BIGINT REFERENCES vehicles(id) ON DELETE SET NULL,
+    driver_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    origin VARCHAR(100),
+    destination VARCHAR(100),
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (fleet_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_trip_templates_fleet ON trip_templates(fleet_id);
+
+-- ----------------------------------------------------------------------------
 -- 5. TRIPS
 --    fleet_id is NOT NULL so trip-level data is always tied to an owning fleet
 --    (multi-tenant isolation / clean cascade on fleet deletion).

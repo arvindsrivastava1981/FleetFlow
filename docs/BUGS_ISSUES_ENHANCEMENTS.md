@@ -64,14 +64,14 @@
 
 | # | Feature | Value | Effort | Sketch |
 |---|---------|-------|--------|--------|
-| F-1 | **Phase C: real WhatsApp send + chat approvals** | Closes the loop for low-smartphone drivers; approvals happen inside chat. | M | Implement existing `TODO(Phase C)` Graph-API send; **requires B-2 verify + B-3 guard first**; manager replies map onto existing `/expenses/{id}/action`. |
+| F-1 | **Phase C: real WhatsApp send + chat approvals** ✅ **DONE (core)** | Closes the loop for low-smartphone drivers; approvals happen inside chat. | M | ✅ 2026-08: `services/whatsapp/send.py` (Graph API v20.0, failure-isolating); `POST /api/v1/whatsapp/send` now live-sends (`to`+`text`); webhook parses manager replies **`APPROVE/REJECT <expense_id>`** with full role+ownership authorization (settlement acceptances stay app-only); driver notifications are direct service calls. **Deploy:** set `WHATSAPP_ACCESS_TOKEN` + `WHATSAPP_PHONE_ID`. *Optional next:* rich template messages/buttons. |
 | F-2 | **Receipt OCR intake (Phase D)** | Kills driver typing errors; auto-fills amount/liters/odometer/rate. | M-L | `services/ocr/` package is pre-scaffolded; multipart image on `POST /expenses` → vision extract → prefill with confidence score; low confidence routes to human review. |
 | F-3 | **Notifications & digest center** | Owners hear about flagged expenses/expiring trials without living in the app. | M | In-app bell + nightly Resend email digest: approvals pending >24 h, trial ending ≤3 days, settlement-ready count. Underlying tables already exist. |
 | F-4 | **Super-admin analytics page** | Cost/km per vehicle, driver-wise leakage prevented, monthly heatmap — turns the audit ledger into a sales asset. | M | Read-only aggregate endpoint over `expenses`+`trips`; the removed KPI SQL scaffolds are a proven starting point. |
 | F-5 | **Driver payout run (payday batch)** | One-click monthly batta settlement per driver + printable payslip PDF. | M | Aggregate `DRIVER_SALARY` rows + net balances from the unified ledger; extends the reportlab service. |
-| F-6 | **Recurring trip templates** | Daily routes become one tap on `/trips/new`. | S | `trip_templates` table + "Start from template" action. |
+| F-6 | **Recurring trip templates** ✅ **DONE** | Daily routes become one tap on `/trips/new`. | S | ✅ 2026-08: `trip_templates` table (fleet-scoped, unique name) + `GET/POST/DELETE /api/v1/trip-templates` + "📋 Start from template" picker on NewTrip that pre-fills vehicle & driver. |
 | F-7 | **Offline-first driver PWA** | Rural connectivity: queue receipts offline, background-sync later. | L | Service worker + IndexedDB outbox; idempotency-key on `POST /expenses`. |
-| F-8 | **Automation crons** | Daily fuel-price `sync-live` + drift alerts; document-expiry reminders (pairs with P-4/F-3). | S-M | Scheduled job hitting an internal-token-guarded endpoint. |
+| F-8 | **Automation crons** ✅ **DONE** | Daily housekeeping without manual clicks. | S-M | ✅ 2026-08: `scripts/cron_daily.py` (purge expired sessions + refresh live fuel benchmarks, snapshot-fallback) + `.github/workflows/cron.yml` scheduled 02:30 UTC daily (requires repo secret `DATABASE_URL`). Render Cron Job (`python scripts/cron_daily.py`) is an equivalent alternative. *Deferred:* document-expiry reminders (pairs P-4/F-3). |
 
 ## 6. Suggested Execution Order
 

@@ -11,6 +11,7 @@ from backend.app.api.v1 import (
     fleets,
     onboard,
     states,
+    trip_templates,
     trips,
     users,
     vehicles,
@@ -30,6 +31,7 @@ _DOMAIN_ROUTERS = (
     benchmarks.router,
     billing.router,
     onboard.router,
+    trip_templates.router,
     whatsapp.router,
     states.router,
 )

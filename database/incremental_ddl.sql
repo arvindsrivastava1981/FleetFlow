@@ -69,6 +69,22 @@ ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS puc_expiry DATE;
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS fitness_expiry DATE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS licence_expiry DATE;
 
+-- Feature F-6: reusable trip templates (one-tap dispatch for regular routes).
+CREATE TABLE IF NOT EXISTS trip_templates (
+    id BIGSERIAL PRIMARY KEY,
+    fleet_id BIGINT NOT NULL REFERENCES fleets(id) ON DELETE CASCADE,
+    name VARCHAR(80) NOT NULL,
+    vehicle_id BIGINT REFERENCES vehicles(id) ON DELETE SET NULL,
+    driver_user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    origin VARCHAR(100),
+    destination VARCHAR(100),
+    created_by BIGINT REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (fleet_id, name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_trip_templates_fleet ON trip_templates(fleet_id);
+
 
 
 

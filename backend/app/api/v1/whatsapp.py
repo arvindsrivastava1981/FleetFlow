@@ -24,18 +24,26 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
+from backend.app.api.v1.deps import _trip_forbidden
 from backend.app.core.config import settings
 from backend.app.core.security import require_json_role
 from backend.app.db.connection import get_db
+from backend.app.db.queries.expenses import (
+    action_expense_status,
+    get_expense_by_id,
+    get_expense_trip_code,
+)
 from backend.app.db.queries.trips import (  # noqa: PLC2701 (webhook owns driver consent)
     driver_consent as record_driver_consent,
 )
 from backend.app.db.queries.trips import (
     get_active_trip_for_driver,
+    get_trip_by_code,
 )
 from backend.app.db.queries.users import get_user_by_phone
 from backend.app.services.whatsapp import (
@@ -46,6 +54,7 @@ from backend.app.services.whatsapp import (
     extract_wa_id,
     normalise_number,
 )
+from backend.app.services.whatsapp.send import send_text
 
 router = APIRouter(prefix="/api/v1/whatsapp")
 
@@ -71,6 +80,25 @@ def _signature_valid(raw: bytes, header: str | None) -> bool:
         return False
     digest = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
     return hmac.compare_digest(digest, header.split("=", 1)[1].strip().lower())
+
+
+# "APPROVE 42" / "REJECT #42" / "Approved 42" — manager chat-approval syntax.
+_MANAGER_ACTION_RE = re.compile(
+    r"^(APPROV(?:E|ED)|REJECT(?:ED)?)\s+#?(\d{1,9})$", re.IGNORECASE
+)
+
+
+def _parse_manager_action(text: str):
+    """Parse an approval command → ``(action, expense_id)`` or ``None``.
+
+    Accepts APPROVE/APPROVED/REJECT/REJECTED (case-insensitive, optional '#')
+    followed by the numeric expense id, e.g. ``"approve 128"``.
+    """
+    match = _MANAGER_ACTION_RE.match((text or "").strip().upper())
+    if not match:
+        return None
+    action = "APPROVE" if match.group(1).startswith("APPROV") else "REJECT"
+    return action, int(match.group(2))
 
 
 @router.get("/webhook")
@@ -165,6 +193,63 @@ async def whatsapp_webhook(request: Request) -> JSONResponse:
                     },
                     status_code=200,
                 )
+    # ── F-1: manager chat-approvals ("APPROVE 42" / "REJECT 42") ───────────
+    # Mirrors POST /api/v1/expenses/{id}/action's authorization (role +
+    # trip-ownership via _trip_forbidden) without duplicating its HTTP layer.
+    if dialect == ROLE_MANAGER and user:
+        parsed = _parse_manager_action(text)
+        if parsed:
+            action, expense_id = parsed
+            status = "APPROVED" if action == "APPROVE" else "REJECTED"
+            with get_db() as conn:
+                expense_code = get_expense_trip_code(conn, expense_id)
+                if not expense_code:
+                    return JSONResponse(content={
+                        "received": True, "routed_to": ROLE_MANAGER,
+                        "applied": False, "reason": "expense_not_found",
+                    }, status_code=200)
+                trip = get_trip_by_code(conn, expense_code)
+                if trip is None or _trip_forbidden(conn, user, trip):
+                    return JSONResponse(content={
+                        "received": True, "routed_to": ROLE_MANAGER,
+                        "applied": False, "reason": "forbidden",
+                    }, status_code=200)
+                row = get_expense_by_id(conn, expense_id)
+                if (
+                    status == "APPROVED"
+                    and row is not None
+                    and row.get("exp_type") == "SETTLEMENT_TRANSFER"
+                ):
+                    # Settlement acceptances carry a ledger-recheck in the app;
+                    # keep those on the authenticated surface for safety.
+                    return JSONResponse(content={
+                        "received": True, "routed_to": ROLE_MANAGER,
+                        "applied": False,
+                        "reason": "settlement_needs_app_confirmation",
+                    }, status_code=200)
+                action_expense_status(conn, expense_id, status)
+                driver_phone = None
+                try:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "SELECT phone FROM users WHERE id = %s",
+                        (trip.get("driver_user_id"),),
+                    )
+                    driver_phone = (cur.fetchone() or {}).get("phone")
+                except Exception:  # noqa: BLE001 - notification lookup only
+                    driver_phone = None
+            label = "✅ Approved" if status == "APPROVED" else "❌ Deducted"
+            if driver_phone:
+                send_text(
+                    driver_phone,
+                    f"{label} · Trip {expense_code} · expense #{expense_id}",
+                )
+            return JSONResponse(content={
+                "received": True, "routed_to": ROLE_MANAGER,
+                "applied": True, "action": action,
+                "expense_id": expense_id, "trip_code": expense_code,
+            }, status_code=200)
+
     # Surface the routing decision so operational logs/deploys can follow a
     # single message through the single-bot pipeline. The actual intake/approval
     # side-effects live in the role-scoped endpoints (expenses.py).
@@ -191,10 +276,16 @@ async def whatsapp_send(request: Request, body: dict | None = None) -> JSONRespo
     guard = require_json_role(request, "trip_manager", "super_admin")
     if guard is not None:
         return guard
-    _ = body or {}
-    if not _configured():
-        return JSONResponse(content={"sent": False, "reason": "unconfigured"}, status_code=200)
-    # TODO(Phase C): POST to https://graph.facebook.com/v20.0/{phone_id}/messages
+    payload = body or {}
+    to = str(payload.get("to") or "").strip()
+    text = str(payload.get("text") or "").strip()
+    if not to or not text:
+        return JSONResponse(
+            content={"error": "to and text are required"}, status_code=400
+        )
+    # Phase C (F-1): live Graph-API send when configured; graceful no-op
+    # payload otherwise (identical contract to the pre-Phase-C stub).
+    return JSONResponse(content=send_text(to, text), status_code=200)
     # with an approved template; today this is a stub to keep the contract stable.
     return JSONResponse(content={"sent": False, "reason": "not_wired"}, status_code=200)
 
