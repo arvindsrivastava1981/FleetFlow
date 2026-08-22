@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
@@ -10,6 +10,40 @@ const FEATURES = [
   "WhatsApp-style receipt & escalation flow",
 ];
 
+// Show the "server waking up" reassurance after this many seconds. Render's
+// free tier spins the API down when idle and a cold start can take ~50s, so
+// the UI must explain the wait instead of looking frozen.
+const COLD_START_HINT_AFTER_S = 8;
+
+// Marketing site origin (mirrors VITE_APP_URL on the public site, which links
+// back here). Overridable at build time; defaults to the production domain.
+const PUBLIC_SITE_URL = import.meta.env.VITE_SITE_URL || "https://vahankhata.in";
+
+function ButtonSpinner() {
+  return (
+    <svg
+      className="h-4 w-4 shrink-0 animate-spin"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      />
+    </svg>
+  );
+}
+
 export default function LoginPage() {
   const { login } = useAuth();
   const toast = useToast();
@@ -18,6 +52,20 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Seconds since the sign-in request started — powers the live counter and
+  // the cold-start hint so a slow first login doesn't feel like a hang.
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!busy) return undefined;
+    setElapsed(0);
+    const startedAt = Date.now();
+    const id = setInterval(
+      () => setElapsed(Math.floor((Date.now() - startedAt) / 1000)),
+      1000,
+    );
+    return () => clearInterval(id);
+  }, [busy]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -27,10 +75,17 @@ export default function LoginPage() {
       const landing = await login(username, password);
       navigate(landing, { replace: true });
     } catch (err) {
-      setError(err.message || "Login failed");
-      toast.error(err.message || "Login failed");
+      // A dropped/timed-out fetch surfaces as "Failed to fetch" — during a
+      // cold start that almost always means the server was still waking up.
+      const message =
+        err.message === "Failed to fetch"
+          ? "Couldn't reach the server. It may still be waking up — please try again in a minute."
+          : err.message || "Login failed";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusy(false);
+      setElapsed(0);
     }
   }
 
@@ -71,7 +126,15 @@ export default function LoginPage() {
             </ul>
           </div>
           <p className="text-xs text-brand-300">
-            © {new Date().getFullYear()} VahanKhata. All rights reserved.
+            © {new Date().getFullYear()} VahanKhata. All rights reserved. ·{" "}
+            <a
+              href={PUBLIC_SITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand-200 underline-offset-2 transition hover:text-white hover:underline"
+            >
+              vahankhata.in ↗
+            </a>
           </p>
         </div>
 
@@ -111,6 +174,7 @@ export default function LoginPage() {
                 required
                 placeholder="you@fleet"
                 autoComplete="username"
+                disabled={busy}
                 className="input"
               />
             </div>
@@ -126,6 +190,7 @@ export default function LoginPage() {
                 required
                 placeholder="••••••••"
                 autoComplete="current-password"
+                disabled={busy}
                 className="input"
               />
             </div>
@@ -134,9 +199,42 @@ export default function LoginPage() {
               disabled={busy}
               className="btn-primary w-full"
             >
-              {busy ? "Signing in…" : "Sign in"}
+              {busy ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <ButtonSpinner />
+                  <span>Signing in…</span>
+                  {elapsed > 0 && (
+                    <span className="tabular-nums opacity-80">
+                      {elapsed}s
+                    </span>
+                  )}
+                </span>
+              ) : (
+                "Sign in"
+              )}
             </button>
           </form>
+
+          {busy && elapsed >= COLD_START_HINT_AFTER_S && (
+            <div className="alert alert-info mt-4">
+              Still connecting — our free-tier server sleeps when idle and can
+              take up to a minute to wake up on the first sign-in. Keep this
+              tab open; you&apos;ll be signed in automatically once it
+              responds.
+            </div>
+          )}
+
+          <p className="mt-6 text-center text-xs text-ink-400">
+            Learn more at{" "}
+            <a
+              href={PUBLIC_SITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand-600 underline-offset-2 transition hover:text-brand-700 hover:underline"
+            >
+              vahankhata.in ↗
+            </a>
+          </p>
         </div>
       </div>
     </div>
