@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 
 const SECTIONS = [
   {
@@ -37,6 +39,7 @@ const SECTIONS = [
     roles: ["super_admin"],
     links: [
       { to: "/users", label: "Users", icon: "👨", roles: ["super_admin"] },
+      { to: "/analytics", label: "Analytics", icon: "📈", roles: ["super_admin"] },
     ],
   },
 ];
@@ -182,7 +185,10 @@ export default function Layout({ children }) {
       <header className="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-3 md:px-6">
           <Brand />
-          <UserChip user={user} role={role} />
+          <div className="flex items-center gap-3">
+            <NotificationBell />
+            <UserChip user={user} role={role} />
+          </div>
         </div>
       </header>
 

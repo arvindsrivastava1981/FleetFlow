@@ -15,11 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from backend.app.core.config import settings  # noqa: E402
+
 
 def main() -> int:
     ok = True
 
-    print("[1/2] purge expired auth sessions")
+    print("[1/3] purge expired auth sessions")
     purged = -1
     try:
         from backend.app.db.connection import get_db
@@ -32,7 +34,7 @@ def main() -> int:
         print(f"      FAILED: {exc}")
     print(f"      rows deleted: {purged}")
 
-    print("[2/2] refresh live fuel benchmarks")
+    print("[2/3] refresh live fuel benchmarks")
     touched = -1
     try:
         from backend.app.db.connection import get_db
@@ -47,6 +49,52 @@ def main() -> int:
                 touched = upsert_benchmarks_from_live(conn, rows)
             print(f"      states updated: {touched}")
     except Exception as exc:  # noqa: BLE001 - snapshot fallback is fine
+        print(f"      SKIPPED: {exc}")
+
+    print("[3/3] manager email digests")
+    try:
+        from backend.app.db.connection import get_db
+        from backend.app.db.queries.notifications import (
+            fleet_trial_ending,
+            managers_with_emails,
+            pending_approvals,
+            settlement_ready_count,
+        )
+        from backend.app.services.email.client import dispatch_sync, send_email
+
+        with get_db() as conn:
+            recipients = managers_with_emails(conn)
+        dispatched = 0
+        for m in recipients:
+            scope = m["id"] if m["role"] == "trip_manager" else None
+            with get_db() as conn:
+                pending = pending_approvals(conn, scope)
+                ready = settlement_ready_count(conn, scope)
+                trial = fleet_trial_ending(conn, m["id"])
+            if not pending and not ready and not trial:
+                continue
+            lines = [f"Hello {m['username']},", "", "Your VahanKhata daily digest:"]
+            if pending:
+                lines.append(f"• {len(pending)} expense(s) awaiting approval >24h")
+            if ready:
+                lines.append(f"• {ready} trip(s) ready to settle")
+            if trial:
+                lines.append(
+                    f"• Trial for fleet '{trial['owner_name']}' ends "
+                    f"{trial['trial_ends_at'].isoformat()[:10]}"
+                )
+            lines += ["", f"— {settings.support_email}"]
+            body_text = "\n".join(lines)
+            dispatch_sync(
+                send_email,
+                to_email=m["email"],
+                subject="VahanKhata daily digest",
+                body=body_text,
+                html_body=f"<pre style=\"font-family:inherit\">{body_text}</pre>",
+            )
+            dispatched += 1
+        print(f"      digests dispatched: {dispatched}")
+    except Exception as exc:  # noqa: BLE001 - email is best-effort
         print(f"      SKIPPED: {exc}")
 
     print("CRON", "OK" if ok else "PARTIAL")

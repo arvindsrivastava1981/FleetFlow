@@ -14,6 +14,7 @@ import SubscriptionPage from "./pages/Billing.jsx";
 import SettledTripsPage from "./pages/SettledTrips.jsx";
 import ChangePasswordPage from "./pages/ChangePassword.jsx";
 import DriversPage from "./pages/Drivers.jsx";
+import AnalyticsPage from "./pages/admin/Analytics.jsx";
 import DriverSalaryPage from "./pages/DriverSalary.jsx";
 import TripWhatsAppPage from "./pages/TripWhatsApp.jsx";
 import NotFoundPage from "./pages/NotFound.jsx";
@@ -161,6 +162,16 @@ export default function App() {
           <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <FleetsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute roles={["super_admin"]}>
+            <Layout>
+              <AnalyticsPage />
             </Layout>
           </ProtectedRoute>
         }
