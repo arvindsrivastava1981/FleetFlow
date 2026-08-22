@@ -56,41 +56,6 @@ def get_latest_active_trip(conn) -> dict | None:
     return cur.fetchone()
 
 
-def get_latest_active_trip_for_user(conn, user_id: int | None, role: str) -> dict | None:
-    """Latest ACTIVE trip visible to *user_id* based on their *role*.
-
-    Mirrors `get_trips_for_user` scoping so a trip_manager only resolves their
-    own active trip and a driver only their assigned one.
-    """
-    cur = conn.cursor()
-    if role == "trip_manager":
-        cur.execute(
-            """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
-                 FROM trips t
-                 LEFT JOIN users u ON u.id = t.driver_user_id
-                WHERE t.created_by = %s AND t.status = 'ACTIVE'
-                ORDER BY t.id DESC LIMIT 1""",
-            (user_id,),
-        )
-    elif role == "driver":
-        cur.execute(
-            """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
-                 FROM trips t
-                 LEFT JOIN users u ON u.id = t.driver_user_id
-                WHERE t.driver_user_id = %s AND t.status = 'ACTIVE'
-                ORDER BY t.id DESC LIMIT 1""",
-            (user_id,),
-        )
-    else:  # super_admin
-        cur.execute(
-            """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
-                 FROM trips t
-                 LEFT JOIN users u ON u.id = t.driver_user_id
-                WHERE t.status = 'ACTIVE' ORDER BY t.id DESC LIMIT 1"""
-        )
-    return cur.fetchone()
-
-
 def get_trip_stats_by_code(conn) -> dict[str, dict]:
     """Per-trip expense aggregates keyed by trip_code, for the trips/ listings."""
     cur = conn.cursor()

@@ -38,21 +38,6 @@ def _amount_paise(amount: float) -> int:
     return int(round(amount * 100))
 
 
-# ── customers ───────────────────────────────────────────────────────────
-
-def create_customer(name: str, phone: str, email: str | None = None) -> dict:
-    """Create a Razorpay customer to be mapped with fleet for billing."""
-    return _post(
-        "/customers",
-        {
-            "name": name,
-            "contact": phone,
-            "email": email or "",
-            "fail_existing": "0",
-        },
-    )
-
-
 # ── payment links (monthly / yearly / vehicle slot) ─────────────────────
 
 def create_payment_link(

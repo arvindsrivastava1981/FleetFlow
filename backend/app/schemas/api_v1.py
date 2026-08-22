@@ -59,14 +59,6 @@ class DashboardOverview(BaseModel):
 # ---------------------------------------------------------------------------#
 # Trips & settlements
 # ---------------------------------------------------------------------------#
-class TripRow(BaseModel):
-    """A `trips.*` row plus the per-trip `stats` dict attached by the route."""
-
-    model_config = ConfigDict(extra="allow")
-
-    trip_code: Optional[str] = None
-
-
 class TripStats(BaseModel):
     """Aggregated stats for a trip (attached as `stats` on list rows)."""
 
@@ -79,19 +71,6 @@ class TripListItem(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     stats: Optional[TripStats] = None
-
-
-class SettlementSummary(BaseModel):
-    """The computed settlement block on trip detail."""
-
-    model_config = ConfigDict(extra="allow")
-
-    advance_amount: float = 0.0
-    driver_batta: float = 0.0
-    net_balance: float = 0.0
-    is_driver_refund: bool = False
-    status_label_en: str = ""
-    status_label_hi: str = ""
 
 
 class TripDetailData(BaseModel):
@@ -167,10 +146,6 @@ class EscalationRow(BaseModel):
 # ---------------------------------------------------------------------------#
 # Benchmarks
 # ---------------------------------------------------------------------------#
-class BenchmarkRow(BaseModel):
-    model_config = ConfigDict(extra="allow")
-
-
 class BenchmarkFavoriteAck(BaseModel):
     """`POST/DELETE /benchmarks/{state_code}/favorite` acknowledgement."""
 

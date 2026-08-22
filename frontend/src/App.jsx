@@ -1,23 +1,20 @@
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 import LoginPage from "./pages/index.jsx";
 import DashboardPage from "./pages/Dashboard.jsx";
 import TripsPage from "./pages/Trips.jsx";
 import TripDetailPage from "./pages/TripDetail.jsx";
 import NewTripPage from "./pages/NewTrip.jsx";
-import ExpensesPage from "./pages/Expenses.jsx";
 import FleetsPage from "./pages/admin/Fleets.jsx";
 import UsersPage from "./pages/admin/Users.jsx";
 import VehiclesPage from "./pages/admin/Vehicles.jsx";
 import BenchmarksPage from "./pages/admin/Benchmarks.jsx";
 import OnboardFirmPage from "./pages/admin/OnboardFirm.jsx";
 import SubscriptionPage from "./pages/Billing.jsx";
-import RuleEnginePage from "./pages/RuleEngine.jsx";
 import SettledTripsPage from "./pages/SettledTrips.jsx";
 import ChangePasswordPage from "./pages/ChangePassword.jsx";
 import DriversPage from "./pages/Drivers.jsx";
 import DriverSalaryPage from "./pages/DriverSalary.jsx";
-import ReportsPage from "./pages/Reports.jsx";
 import TripWhatsAppPage from "./pages/TripWhatsApp.jsx";
 import Layout from "./components/Layout.jsx";
 
@@ -87,16 +84,6 @@ export default function App() {
         }
       />
       <Route
-        path="/expenses"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <ExpensesPage />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/whatsapp/:tripCode"
         element={
           <ProtectedRoute>
@@ -137,16 +124,6 @@ export default function App() {
         }
       />
       <Route
-        path="/reports"
-        element={
-          <ProtectedRoute roles={["driver"]}>
-            <Layout>
-              <ReportsPage />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/drivers"
         element={
           <ProtectedRoute roles={["trip_manager", "super_admin"]}>
@@ -177,16 +154,6 @@ export default function App() {
         }
       />
       <Route path="/billing" element={<Navigate to="/subscription" replace />} />
-      <Route
-        path="/rule-engine"
-        element={
-          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
-            <Layout>
-              <RuleEnginePage />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
       <Route
         path="/fleets"
         element={
@@ -237,9 +204,6 @@ export default function App() {
           </ProtectedRoute>
         }
       />
-      <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/manager" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/driver" element={<Navigate to="/dashboard" replace />} />      
     </Routes>
   );
 }
