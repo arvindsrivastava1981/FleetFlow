@@ -22,10 +22,6 @@ _session_lock = threading.Lock()
 _login_attempts: dict[str, tuple[int, float]] = {}
 _login_lock = threading.Lock()
 
-# Per-request CSRF token store for POST endpoints.
-_csrf_tokens: set[str] = set()
-_csrf_lock = threading.Lock()
-
 
 # ---------------------------------------------------------------------------#
 # Session management
@@ -72,14 +68,6 @@ def _get_session_data(token: str | None) -> dict | None:
         return _auth_sessions.get(token)
 
 
-def is_valid_token(token: str | None) -> bool:
-    return _get_session_data(token) is not None
-
-
-def is_authorized_user(request: Request) -> bool:
-    return get_current_user(request) is not None
-
-
 # ---------------------------------------------------------------------------#
 # Login brute-force defense
 # ---------------------------------------------------------------------------#
@@ -107,26 +95,6 @@ def register_login_failure(ip: str) -> int:
 def clear_login_failures(ip: str) -> None:
     with _login_lock:
         _login_attempts.pop(ip, None)
-
-
-# ---------------------------------------------------------------------------#
-# CSRF (mitigation for unauthenticated/data-wiping GET/POST routes, §2.4)
-# ---------------------------------------------------------------------------#
-def issue_csrf_token() -> str:
-    token = secrets.token_urlsafe(32)
-    with _csrf_lock:
-        _csrf_tokens.add(token)
-    return token
-
-
-def validate_csrf_token(token: str | None) -> bool:
-    if not token:
-        return False
-    with _csrf_lock:
-        if token in _csrf_tokens:
-            _csrf_tokens.discard(token)  # single-use
-            return True
-    return False
 
 
 # ---------------------------------------------------------------------------#

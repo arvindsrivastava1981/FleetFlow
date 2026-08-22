@@ -30,16 +30,3 @@ def get_settled_trips(conn, role: str = "super_admin", user_id: int | None = Non
             base + " WHERE t.status = 'SETTLED' ORDER BY t.settled_at DESC"
         )
     return cur.fetchall()
-
-
-def get_trip_settlement_data(conn, trip_code: str) -> dict | None:
-    """Return full settlement data for a specific trip code."""
-    cur = conn.cursor()
-    cur.execute(
-        """SELECT t.*, u.full_name AS driver_name, u.phone AS driver_phone
-             FROM trips t
-             LEFT JOIN users u ON u.id = t.driver_user_id
-            WHERE t.trip_code = %s AND t.status = 'SETTLED'""",
-        (trip_code,),
-    )
-    return cur.fetchone()
