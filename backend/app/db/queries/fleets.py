@@ -30,15 +30,24 @@ def get_plan_by_id(conn, id: int) -> dict | None:
 
 # --- Fleets ---------------------------------------------------------------
 
-def get_all_fleets(conn, fleet_id: int | None = None) -> list[dict]:
+def get_all_fleets(
+    conn,
+    fleet_id: int | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[dict]:
     """Fleets newest-first, with plan name and vehicle count.
 
     Pass *fleet_id* to restrict the result to a single fleet (used for a
     trip_manager's "own fleet" view on the Fleets page).
+    Rows are bounded when *limit* is given (audit R-7 pagination).
     """
     cur = conn.cursor()
     where = "WHERE f.id = %s" if fleet_id is not None else ""
     params: list = [fleet_id] if fleet_id is not None else []
+    page_sql = " LIMIT %s OFFSET %s" if limit is not None else ""  # audit R-7
+    if limit is not None:
+        params += [limit, offset]
     cur.execute(
         f"""
         SELECT f.*, sp.name AS plan_name, sp.code AS plan_code,
@@ -48,6 +57,7 @@ def get_all_fleets(conn, fleet_id: int | None = None) -> list[dict]:
           LEFT JOIN subscription_plans sp ON sp.id = f.plan_id
          {where}
          ORDER BY f.id DESC
+        {page_sql}
         """,
         params,
     )

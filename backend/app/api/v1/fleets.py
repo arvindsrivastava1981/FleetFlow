@@ -5,7 +5,14 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
+from backend.app.api.v1.deps import (
+    _bad,
+    _created,
+    _identity,
+    _not_found,
+    _ok,
+    _page_params,
+)
 from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.fleets import (
@@ -32,12 +39,13 @@ def api_get_fleets(request: Request):
         return guard
     user = _identity(request)
     role = user.get("role", "super_admin")
+    limit, offset = _page_params(request)  # audit R-7
     with get_db() as conn:
         if role == "super_admin":
-            fleets = get_all_fleets(conn)
+            fleets = get_all_fleets(conn, limit=limit, offset=offset)
         else:
             fleet_id = get_user_fleet_id(conn, user.get("user_id"))
-            fleets = get_all_fleets(conn, fleet_id)
+            fleets = get_all_fleets(conn, fleet_id, limit=limit, offset=offset)
     return _ok(fleets)
 
 

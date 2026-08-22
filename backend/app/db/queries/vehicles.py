@@ -11,18 +11,27 @@ def _visible_clause(role: str, user_id: int | None) -> tuple[str, list]:
     return "created_by = %s", [user_id]
 
 
-def get_all_vehicles(conn, role: str = "super_admin", user_id: int | None = None) -> list[dict]:
-    """Return vehicles visible to the caller, newest first, with fleet owner name."""
+def get_all_vehicles(
+    conn,
+    role: str = "super_admin",
+    user_id: int | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[dict]:
+    """Return vehicles visible to the caller, newest first, with fleet owner name.
+    Rows are bounded when *limit* is given (audit R-7 pagination).
+    """
     clause, params = _visible_clause(role, user_id)
+    sql = f"""SELECT v.*, f.owner_name AS fleet_owner
+               FROM vehicles v
+               LEFT JOIN fleets f ON f.id = v.fleet_id
+              WHERE {clause}
+              ORDER BY v.id DESC"""
+    if limit is not None:
+        sql += " LIMIT %s OFFSET %s"
+        params += [limit, offset]
     cur = conn.cursor()
-    cur.execute(
-        f"""SELECT v.*, f.owner_name AS fleet_owner
-              FROM vehicles v
-              LEFT JOIN fleets f ON f.id = v.fleet_id
-             WHERE {clause}
-             ORDER BY v.id DESC""",
-        params,
-    )
+    cur.execute(sql, params)
     return cur.fetchall()
 
 

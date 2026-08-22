@@ -1,0 +1,6 @@
+
+> vahankhata-frontend@0.1.0 gen:api
+> openapi-typescript ../docs/openapi.json -o src/types/api.d.ts
+
+✨ openapi-typescript 7.13.0
+🚀 ../docs/openapi.json → src/types/api.d.ts [196.4ms]

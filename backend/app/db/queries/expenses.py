@@ -94,7 +94,7 @@ def open_settlement_request(conn, trip_code: str) -> dict | None:
     """
     cur = conn.cursor()
     cur.execute(
-        """SELECT id, amount, created_by, manager_status
+        """SELECT id, amount, manager_status
              FROM expenses
             WHERE trip_code = %s
               AND exp_type = 'SETTLEMENT_TRANSFER'

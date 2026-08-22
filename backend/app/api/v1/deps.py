@@ -34,6 +34,27 @@ def _created(payload: Any) -> dict:
     return {"data": _jsonable(payload)}
 
 
+def _page_params(
+    request: Request, default_limit: int = 100, max_limit: int = 500
+) -> tuple[int, int]:
+    """Parse ``?limit=&offset=`` with clamps (audit R-7).
+
+    Defaults keep responses byte-identical for existing clients; the cap
+    bounds worst-case payloads on grown tables. Callers pass these straight
+    into the list query fns' ``limit`` / ``offset`` parameters.
+    """
+    qp = request.query_params
+    try:
+        limit = int(qp.get("limit", default_limit))
+    except (TypeError, ValueError):
+        limit = default_limit
+    try:
+        offset = int(qp.get("offset", 0))
+    except (TypeError, ValueError):
+        offset = 0
+    return max(1, min(limit, max_limit)), max(0, offset)
+
+
 def _bad(msg: str, code: str = "BAD_REQUEST") -> None:
     """Raise a 400 API error; the global handler logs it + returns JSON.
 

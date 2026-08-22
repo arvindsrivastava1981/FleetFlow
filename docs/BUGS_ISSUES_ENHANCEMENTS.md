@@ -22,6 +22,8 @@
 | B-8 | ⚪ | Billing | ~~Webhook dedupe bypassed when `event_id` empty~~ **FIXED** | `api/webhook.py` | ✅ 2026-08: missing ids fall back to a `sha256:<body>` content hash so dedupe always applies; guard simplified. |
 | B-9 | ⚪ | Escalations | ~~Escalation callback URL built from request scheme/netloc~~ **FIXED** | `api/v1/expenses.py` (driver notification) | ✅ 2026-08: uses `settings.app_public_url` when set. Superseded in F-1: notification is now a direct service call (no HTTP hop at all). |
 | B-10 | ⚪ | Repo hygiene | ~~Stray `settlement_debug.log`~~ removed; sample PDF still git-tracked (README links it). | root listing; README:31 | ✅ Partial 2026-08: log deleted. To untrack the PDF yourself: `git rm --cached FleetFlow_Sample_Settlement_Sheet.pdf` (no code references it). |
+| B-11 | 🟠 | Settlements | ~~`open_settlement_request()` selected non-existent `expenses.created_by`~~ **FIXED** — every driver settlement initiation (and any expense posted while one was live) returned 500 `UndefinedColumn`. Found via production `error_logs` (id 285). | `db/queries/expenses.py::open_settlement_request` | ✅ 2026-08: dropped the phantom column from the SELECT (caller only checks existence); query live-verified against Neon. |
+| B-12 | 🟠 | Analytics | ~~F-4 driver-leakage query joined on non-existent `e.created_by`~~ **FIXED** — `/api/v1/analytics/overview` returned 500. Found via production `error_logs` (id 286). | `api/v1/analytics.py` driver_leakage | ✅ 2026-08: attribution rerouted through the trip (`JOIN trips → users ON u.id = t.driver_user_id`); live-verified against Neon. |
 
 ## 2. Security & Reliability Risks
 
@@ -33,7 +35,7 @@
 | R-4 | 🟡 | ~~Unpinned deps~~ **DONE** | All `>=` in requirements.txt — non-reproducible builds. | ✅ 2026-08: `requirements.lock` generated (93 pinned packages). Caveat: env-frozen snapshot incl. local dev tooling; adopt in CI deliberately or regenerate via `pip-compile`. `requirements.txt` stays the human-readable source. |
 | R-5 | 🟡 | ~~Hardcoded CORS~~ **DONE** | Origins list was hardcoded in `main.py` incl. localhost. | ✅ 2026-08: env `CORS_ORIGINS` CSV → `settings.cors_origins`; historical allowlist kept as fallback. |
 | R-6 | 🟡 | ~~PBKDF2 100k rounds~~ **DONE** | Was below OWASP's current ~600k guidance for PBKDF2-SHA256. | ✅ 2026-08: `_ITERATIONS = 600_000`; hash strings are self-describing (`pbkdf2_sha256$<iters>$…`) so existing credentials keep verifying unchanged. |
-| R-7 | ⚪ | No pagination | Every list endpoint returns full tables. | `?limit=&offset=` envelope + frontend load-more. |
+| R-7 | ⚪ | ~~No pagination~~ **DONE** | Every list endpoint returned full tables. | ✅ 2026-08: shared `deps._page_params()` — clamped `?limit=` (1–500) & `?offset=` (≥0), defaults 100/0 — wired through **trips, settlements, users, drivers, vehicles, fleets**. Responses stay byte-identical at current scale; SPA "load more" UI deferred until data volume demands it. |
 
 ## 3. Code-Quality & DX Enhancements
 
@@ -44,7 +46,7 @@
 | E-3 | ~~**Route-level code splitting**~~ **DONE** | All pages `React.lazy`-loaded behind a Suspense shell — entry bundle dropped ~295→176 kB (-40%), pages are per-route chunks (2026-08). |
 | E-4 | **Frontend test harness** | No Vitest/RTL configured. Start: `AuthContext`, `lib/api.js` 401 handling, one CRUD form-validation suite. |
 | E-5 | ~~**Structured request logging**~~ **DONE** | `main.py` request-id middleware (honors inbound `X-Request-Id`, mints otherwise) → echoed as response header + persisted to new `error_logs.request_id` column (+ DDL in both schema files) for support-ticket correlation (2026-08). |
-| E-9 | ~~**Shared API types**~~ **PARTIAL (by design)** | `scripts/export_openapi.py` exports the machine-readable contract to `docs/openapi.json` (48 paths). Full TS-codegen deferred until the JS codebase adopts TypeScript — generating `.d.ts` today would be dead weight. |
+| E-9 | ~~**Shared API types**~~ **DONE** | `scripts/export_openapi.py` → `docs/openapi.json` (48 paths) + `npm run gen:api` (openapi-typescript) → committed `src/types/api.d.ts`. Regenerate both after any route/schema change; consumers adopt typed imports as the codebase moves toward TS. |
 | E-6 | ~~**Dead config remnant**~~ **DONE** | `USER_PASSWORD` read removed from `config.py` (2026-08). |
 | E-7 | ~~**Mobile sidebar UX**~~ **DONE** | ☰ hamburger drawer (aria-expanded toggle) replaces the always-stacked mobile nav card (2026-08). |
 | E-8 | ~~**Accessibility pass**~~ **DONE (core)** | Global `:focus-visible` outline ring in `index.css`; icon-only controls carry `aria-label`s (bell, hamburger); nav uses real text labels. Deeper screen-reader passes remain ongoing hygiene. |

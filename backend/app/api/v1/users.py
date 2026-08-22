@@ -5,7 +5,14 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 
-from backend.app.api.v1.deps import _bad, _created, _identity, _not_found, _ok
+from backend.app.api.v1.deps import (
+    _bad,
+    _created,
+    _identity,
+    _not_found,
+    _ok,
+    _page_params,
+)
 from backend.app.core.config import settings
 from backend.app.core.password import hash_password
 from backend.app.core.security import require_json_role, revoke_user_sessions
@@ -100,8 +107,9 @@ def api_users(request: Request):
     guard = require_json_role(request, "super_admin")
     if guard is not None:
         return guard
+    limit, offset = _page_params(request)  # audit R-7
     with get_db() as conn:
-        users = get_all_users(conn)
+        users = get_all_users(conn, limit=limit, offset=offset)
     for u in users:
         u.pop("password_hash", None)
     return _ok(users)
@@ -232,11 +240,16 @@ def api_drivers(request: Request):
     if guard is not None:
         return guard
     user = _identity(request)
+    limit, offset = _page_params(request)  # audit R-7
     with get_db() as conn:
         # Ownership scoping: a trip_manager lists only drivers they created;
         # super_admin sees all. Never expose one manager's drivers to another.
         drivers = get_drivers_for_user(
-            conn, role=user.get("role", "super_admin"), user_id=user.get("user_id")
+            conn,
+            role=user.get("role", "super_admin"),
+            user_id=user.get("user_id"),
+            limit=limit,
+            offset=offset,
         )
     for d in drivers:
         d.pop("password_hash", None)

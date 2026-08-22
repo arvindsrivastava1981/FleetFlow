@@ -83,7 +83,8 @@ def test_driver_list_scoped_to_manager(client, resolve_db):
     scoped = [c for c in cur.execute.call_args_list if "FROM users" in str(c.args[0])]
     assert len(scoped) == 1
     assert "created_by = %s" in scoped[0].args[0]
-    assert scoped[0].args[1] == (7,), scoped[0].args
+    # R-7 pagination defaults ride along as LIMIT/OFFSET params.
+    assert scoped[0].args[1] == [7, 100, 0], scoped[0].args
 
 
 def test_driver_list_unscoped_for_super_admin(client, resolve_db):

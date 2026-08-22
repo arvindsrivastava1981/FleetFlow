@@ -58,31 +58,54 @@ def get_user_by_id(conn, user_id: int) -> dict | None:
     return cur.fetchone()
 
 
-def get_all_users(conn, role_filter: str | None = None) -> list[dict]:
+def get_all_users(
+    conn,
+    role_filter: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[dict]:
+    """All users, bounded when *limit* is given (audit R-7 pagination)."""
     cur = conn.cursor()
+    page_sql = " LIMIT %s OFFSET %s" if limit is not None else ""
     if role_filter:
-        cur.execute("SELECT * FROM users WHERE role = %s ORDER BY id", (role_filter,))
+        cur.execute(
+            "SELECT * FROM users WHERE role = %s ORDER BY id" + page_sql,
+            [role_filter, *([limit, offset] if limit is not None else [])],
+        )
     else:
-        cur.execute("SELECT * FROM users ORDER BY id")
+        cur.execute(
+            "SELECT * FROM users ORDER BY id" + page_sql,
+            [limit, offset] if limit is not None else [],
+        )
     return cur.fetchall()
 
 
 def get_drivers_for_user(
-    conn, role: str = "super_admin", user_id: int | None = None
+    conn,
+    role: str = "super_admin",
+    user_id: int | None = None,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[dict]:
     """Return drivers visible to the caller, newest first.
 
     super_admin sees every driver; a trip_manager sees ONLY the drivers they
     created (users.created_by) — mirroring the vehicles ownership clause — so
     one manager's drivers are never listed to another manager.
+    Rows are bounded when *limit* is given (audit R-7 pagination).
     """
     cur = conn.cursor()
+    page_sql = " LIMIT %s OFFSET %s" if limit is not None else ""
     if role == "super_admin":
-        cur.execute("SELECT * FROM users WHERE role = 'driver' ORDER BY id")
+        cur.execute(
+            "SELECT * FROM users WHERE role = 'driver' ORDER BY id" + page_sql,
+            [limit, offset] if limit is not None else [],
+        )
     else:
         cur.execute(
-            "SELECT * FROM users WHERE role = 'driver' AND created_by = %s ORDER BY id",
-            (user_id,),
+            "SELECT * FROM users WHERE role = 'driver' AND created_by = %s "
+            "ORDER BY id" + page_sql,
+            [user_id, *([limit, offset] if limit is not None else [])],
         )
     return cur.fetchall()
 
