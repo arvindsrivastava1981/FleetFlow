@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
 import { useToast } from "../../context/ToastContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import Loader from "../../components/Loader.jsx";
 
 const RULE_BADGES = {
@@ -37,6 +38,10 @@ function priceChange(b) {
 
 export default function BenchmarksPage() {
   const toast = useToast();
+  // Live-rate sync is server-guarded to super_admin/trip_manager; hide the
+  // control for other roles so nobody triggers a guaranteed 403.
+  const { user } = useAuth();
+  const canSync = user?.role === "super_admin" || user?.role === "trip_manager";
   const [benchmarks, setBenchmarks] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -148,10 +153,16 @@ export default function BenchmarksPage() {
           <h3 className="text-sm font-extrabold text-slate-800">
             Live State Rates
           </h3>
-          <p className="text-[11px] text-slate-500 mt-1">
-            Pull today's state-level diesel prices into the benchmarks. Falls
-            back to a maintained snapshot if the live source is unavailable.
-          </p>
+          {canSync ? (
+            <p className="text-[11px] text-slate-500 mt-1">
+              Pull today's state-level diesel prices into the benchmarks. Falls
+              back to a maintained snapshot if the live source is unavailable.
+            </p>
+          ) : (
+            <p className="text-[11px] text-slate-500 mt-1">
+              Live rate syncing is restricted to manager and admin accounts.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-xs font-semibold text-slate-600">
@@ -170,14 +181,16 @@ export default function BenchmarksPage() {
               ))}
             </select>
           </label>
-          <button
-            type="button"
-            onClick={syncLive}
-            disabled={syncing}
-            className="btn-primary py-2 px-4 rounded-xl transition shadow disabled:opacity-50"
-          >
-            {syncing ? "Fetching…" : "Fetch Live Rates"}
-          </button>
+          {canSync && (
+            <button
+              type="button"
+              onClick={syncLive}
+              disabled={syncing}
+              className="btn-primary py-2 px-4 rounded-xl transition shadow disabled:opacity-50"
+            >
+              {syncing ? "Fetching…" : "Fetch Live Rates"}
+            </button>
+          )}
         </div>
       </div>
 

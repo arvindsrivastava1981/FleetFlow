@@ -375,7 +375,7 @@ def approved_cash_net(conn, trip_code: str) -> float:
     cur.execute(
         """SELECT CASE WHEN EXISTS (
                    SELECT 1 FROM expenses x
-                    WHERE x.trip_code = expenses.trip_code
+                    WHERE x.trip_code = %s
                       AND x.exp_type = 'SETTLEMENT_TRANSFER'
                       AND x.manager_status = 'APPROVED'
                ) THEN 0 ELSE COALESCE(SUM(
@@ -388,7 +388,7 @@ def approved_cash_net(conn, trip_code: str) -> float:
                         ELSE -COALESCE(approved_amount, amount) END
                ), 0) END AS net FROM expenses
             WHERE trip_code = %s AND manager_status = 'APPROVED'""",
-        (trip_code,),
+        (trip_code, trip_code),
     )
     return cur.fetchone()["net"]
 

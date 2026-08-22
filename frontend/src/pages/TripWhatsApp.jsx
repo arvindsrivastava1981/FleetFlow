@@ -50,6 +50,12 @@ export default function TripWhatsAppPage() {
   });
   const [states, setStates] = useState([]);
   const isFuelOrDef = form.exp_type === "FUEL" || form.exp_type === "DEF";
+  // Favorites starred on the Rules & Rates page pin to the top of the picker.
+  const sortedStates = [...states].sort(
+    (a, b) =>
+      Number(b.is_favorite === true) - Number(a.is_favorite === true) ||
+      String(a.name).localeCompare(String(b.name)),
+  );
   const threadRef = useRef(null);
 
   useEffect(() => { api.get("/api/v1/states").then(setStates).catch(() => {}); }, []);
@@ -342,7 +348,7 @@ export default function TripWhatsAppPage() {
                     <label className="text-[10px] font-bold text-slate-500 block mb-1">Fueling State</label>
                     <select value={form.state_code} onChange={(e) => onField("state_code", e.target.value)} className="w-full text-xs input outline-none">
                       <option value="">Select state</option>
-                      {states.map((s) => (<option key={s.code} value={s.code}>{s.code} · {s.name}</option>))}
+                      {sortedStates.map((s) => (<option key={s.code} value={s.code}>{s.is_favorite ? "★ " : ""}{s.code} · {s.name}</option>))}
                     </select>
                   </div>
                 </>)}

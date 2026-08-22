@@ -109,11 +109,12 @@ async def api_set_home_state(request: Request):
 async def api_sync_benchmarks(request: Request):
     """Fetch live state-level diesel prices and upsert them into fuel_benchmarks.
 
-    Super Admin only. Best-effort: tries the goodreturns live page first and
-    falls back to a maintained static snapshot when the page is unreachable or
-    unparsable. Returns how many rows were updated plus the fetched source.
+    Super Admin / Trip Manager only. Best-effort: tries the goodreturns live
+    page first and falls back to a maintained static snapshot when the page is
+    unreachable or unparsable. Returns how many rows were updated plus the
+    fetched source.
     """
-    guard = require_json_role(request, "super_admin")
+    guard = require_json_role(request, "super_admin", "trip_manager")
     if guard is not None:
         return guard
     rows = get_live_prices()

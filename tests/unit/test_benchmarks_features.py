@@ -39,20 +39,23 @@ def client():
 
 @pytest.fixture
 def resolve_db(monkeypatch):
-    """Patch get_db + get_current_user inside the benchmarks router module."""
+    """Patch get_db + get_current_user inside the benchmarks/states routers."""
     def _patch(db_obj):
-        monkeypatch.setattr(
-            "backend.app.api.v1.benchmarks.get_db", lambda: db_obj
-        )
+        for _module in (
+            "backend.app.api.v1.benchmarks",
+            "backend.app.api.v1.states",
+        ):
+            monkeypatch.setattr(f"{_module}.get_db", lambda: db_obj)
 
     def _as_user(user):
-        monkeypatch.setattr(
-            "backend.app.api.v1.benchmarks.get_current_user",
-            lambda request: user,
-        )
-        monkeypatch.setattr(
-            "backend.app.core.security.get_current_user", lambda request: user
-        )
+        for _module in (
+            "backend.app.api.v1.benchmarks",
+            "backend.app.api.v1.states",
+            "backend.app.core.security",
+        ):
+            monkeypatch.setattr(
+                f"{_module}.get_current_user", lambda request: user
+            )
 
     return _patch, _as_user
 
@@ -201,3 +204,99 @@ def test_upsert_preserves_previous_price_on_price_change():
     stmt = str(cur.execute.call_args_list[0].args[0])
     assert "previous_price = CASE" in stmt
     assert "IS DISTINCT FROM" in stmt
+
+
+# ---- GET /states carries the caller's favorites --------------------------------
+
+
+def test_list_states_flags_caller_favorites(client, resolve_db):
+    """`GET /states` tags each state with the caller's favorite flag so driver
+    dropdowns can pin starred states to the top."""
+    patch_db, as_user = resolve_db
+    cur = mock.MagicMock()
+    cur.fetchall.return_value = [{"state_code": "UP"}]
+    patch_db(_make_db(cur))
+    as_user(MOCK_MANAGER)
+
+    resp = client.get("/api/v1/states")
+
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    up = next(s for s in data if s["code"] == "UP")
+    other = next(s for s in data if s["code"] != "UP")
+    assert up["is_favorite"] is True
+    assert other["is_favorite"] is False
+
+
+# ---- Regression: driver dashboard GroupingError masked as "no active trip" -----
+
+
+def test_approved_cash_net_binds_trip_code_without_outer_column():
+    """`approved_cash_net` must reference the trip via a bound parameter.
+
+    The old SQL correlated the EXISTS subquery with the ungrouped outer
+    ``expenses.trip_code`` -> psycopg2 GroupingError -> dashboard/overview 500
+    for every driver WITH an active trip, which the WhatsApp view then reported
+    as "You have no active trip right now."
+    """
+    from backend.app.db.queries.dashboards import approved_cash_net
+
+    cur = mock.MagicMock()
+    cur.fetchone.return_value = {"net": -120.5}
+    conn = mock.MagicMock()
+    conn.cursor.return_value = cur
+
+    result = approved_cash_net(conn, "4191-2")
+
+    assert result == -120.5
+    stmt = str(cur.execute.call_args_list[0].args[0])
+    assert "x.trip_code = expenses.trip_code" not in stmt
+    assert cur.execute.call_args_list[0].args[1] == ("4191-2", "4191-2")
+
+
+# ---- Live-rate sync is open to trip_manager + super_admin ----------------------
+
+
+def test_sync_live_allows_trip_manager(client, resolve_db, monkeypatch):
+    """`POST /benchmarks/sync-live` accepts trip_manager (not just super_admin)."""
+    import backend.app.api.v1.benchmarks as benchmarks_mod
+
+    monkeypatch.setattr(
+        benchmarks_mod,
+        "get_live_prices",
+        lambda: [
+            {
+                "state_code": "UP",
+                "state_name": "Uttar Pradesh",
+                "benchmark_price_per_liter": 91.5,
+            }
+        ],
+    )
+    patch_db, as_user = resolve_db
+    cur = mock.MagicMock()
+    cur.rowcount = 1
+    patch_db(_make_db(cur))
+    as_user(MOCK_MANAGER)
+
+    resp = client.post("/api/v1/benchmarks/sync-live", json={})
+
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["updated"] == 1
+    assert "UP" in data["states"]
+
+
+def test_sync_live_forbidden_for_driver(client, resolve_db):
+    """Drivers still get 403 — the guard allows only manager/admin roles."""
+    patch_db, as_user = resolve_db
+    cur = mock.MagicMock()
+    patch_db(_make_db(cur))
+    as_user({"user_id": 9, "username": "drv", "role": "driver"})
+
+    resp = client.post("/api/v1/benchmarks/sync-live", json={})
+
+    assert resp.status_code == 403
+    assert not any(
+        "INSERT INTO fuel_benchmarks" in str(c.args[0])
+        for c in cur.execute.call_args_list
+    )

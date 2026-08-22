@@ -56,6 +56,20 @@ def get_home_state(conn, user_id: int) -> str | None:
     return row["home_state_code"] if row else None
 
 
+def get_favorite_state_codes(conn, user_id: int) -> list[str]:
+    """Return the caller's favorite state codes (their ★ rows on Rules & Rates).
+
+    Powers the `is_favorite` flag on `GET /states` so client dropdowns (e.g. the
+    driver's fueling-state picker) can pin starred states to the top.
+    """
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT state_code FROM benchmark_favorites WHERE user_id = %s",
+        (user_id,),
+    )
+    return [row["state_code"] for row in cur.fetchall()]
+
+
 def set_home_state(conn, user_id: int, state_code: str | None) -> bool:
     """Store (or clear, passing None) the caller's usual operating state."""
     cur = conn.cursor()

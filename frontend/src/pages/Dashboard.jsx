@@ -174,7 +174,7 @@ export default function DashboardPage() {
             <section className="card p-5">
               <h3 className="text-base font-bold text-ink-900">Quick actions</h3>
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Link to="/whatsapp-driver" className="btn-primary">💬 Send receipt via WhatsApp</Link>
+                <Link to="/whatsapp" className="btn-primary">💬 Send receipt via WhatsApp</Link>
                 <Link to={`/trips/${data.trip.trip_code}`} className="btn-secondary">View trip details</Link>
               </div>
             </section>
