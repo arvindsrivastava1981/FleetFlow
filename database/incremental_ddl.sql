@@ -24,6 +24,22 @@ ALTER TABLE expenses
                             'GOODS_BUY', 'GOODS_SALE', 'CASH_ADVANCE',
                             'DRIVER_SALARY', 'SETTLEMENT_TRANSFER'));
 
+-- ----------------------------------------------------------------------------
+-- RULES & RATES page (2026-08): per-user favorites, manager usual-state, and
+-- previous-price capture driving the ▲/▼ Change column.
+-- ----------------------------------------------------------------------------
+ALTER TABLE fuel_benchmarks ADD COLUMN IF NOT EXISTS previous_price NUMERIC(6, 2);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS home_state_code VARCHAR(10);
+
+CREATE TABLE IF NOT EXISTS benchmark_favorites (
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    state_code VARCHAR(10) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, state_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_benchmark_favorites_user ON benchmark_favorites(user_id);
+
 
 
 

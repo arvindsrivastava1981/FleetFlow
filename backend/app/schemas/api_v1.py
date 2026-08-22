@@ -171,6 +171,19 @@ class BenchmarkRow(BaseModel):
     model_config = ConfigDict(extra="allow")
 
 
+class BenchmarkFavoriteAck(BaseModel):
+    """`POST/DELETE /benchmarks/{state_code}/favorite` acknowledgement."""
+
+    state_code: str
+    is_favorite: bool
+
+
+class HomeStateResult(BaseModel):
+    """`PUT /benchmarks/home-state` — the caller's usual operating state."""
+
+    home_state_code: Optional[str] = None
+
+
 class ResourceAck(BaseModel):
     """Generic `{ "id": N }` acknowledgement for created/updated rows."""
 

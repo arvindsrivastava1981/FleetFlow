@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_active BOOLEAN DEFAULT TRUE,
     batta_type VARCHAR(20) DEFAULT NULL,
     default_batta_rate NUMERIC(10, 2) DEFAULT NULL,
+    home_state_code VARCHAR(10) DEFAULT NULL, -- manager's usual operating state (highlighted on Rules & Rates)
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -191,10 +192,24 @@ CREATE TABLE IF NOT EXISTS fuel_benchmarks (
     state_code VARCHAR(10) NOT NULL UNIQUE,
     state_name VARCHAR(50) NOT NULL,
     benchmark_price_per_liter NUMERIC(6, 2) NOT NULL,
+    previous_price NUMERIC(6, 2) DEFAULT NULL, -- price before the last change; drives the ▲/▼ Change column
     tolerance_pct NUMERIC(5, 2) DEFAULT 8.00, -- percentage points (e.g. 8.00%)
     effective_date DATE NOT NULL DEFAULT CURRENT_DATE,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ----------------------------------------------------------------------------
+-- 7b. BENCHMARK FAVORITES — per-user starred states on the Rules & Rates page.
+--      Pure UI preference (pins rows to the top); no effect on rules evaluation.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS benchmark_favorites (
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    state_code VARCHAR(10) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, state_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_benchmark_favorites_user ON benchmark_favorites(user_id);
 
 -- ----------------------------------------------------------------------------
 -- 8. WEBHOOK LOGS — Razorpay webhook deduplication ledger.
