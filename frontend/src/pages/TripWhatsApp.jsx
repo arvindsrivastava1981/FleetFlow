@@ -60,6 +60,16 @@ export default function TripWhatsAppPage() {
 
   useEffect(() => { api.get("/api/v1/states").then(setStates).catch(() => {}); }, []);
 
+  // Fueling-state preselection: keep any already-chosen/trip state, else the
+  // driver's top ★ favorite from Rules & Rates, else UP as the default.
+  useEffect(() => {
+    setForm((f) => {
+      if (f.state_code) return f;
+      const fav = states.find((s) => s.is_favorite === true);
+      return { ...f, state_code: fav?.code || "UP" };
+    });
+  }, [states]);
+
   useEffect(() => {
     if (isManager) {
       api.get("/api/v1/trips")
@@ -84,7 +94,7 @@ export default function TripWhatsAppPage() {
       const tripData = det?.trip || det;
       setTrip(tripData);
       setExpenses(det?.expenses || []);
-      setForm((f) => ({ ...f, trip_code: tripCode, state_code: tripData?.state_code || "" }));
+      setForm((f) => ({ ...f, trip_code: tripCode, state_code: tripData?.state_code || f.state_code || "" }));
     }).catch((e) => { setError(e.message); toast.error(e.message); }).finally(() => setLoading(false));
   }, [tripCode, hasTripCode, isDriver]);
   useEffect(() => {

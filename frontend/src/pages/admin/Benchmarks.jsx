@@ -50,6 +50,7 @@ export default function BenchmarksPage() {
   const [states, setStates] = useState([]);
   const [homeState, setHomeState] = useState("");
   const [busyCode, setBusyCode] = useState("");
+  const [tab, setTab] = useState("all");
 
   function load() {
     api
@@ -129,12 +130,14 @@ export default function BenchmarksPage() {
     }
   }
 
-  // Favorites pin to the top; alphabetical within each group.
-  const sortedRows = [...benchmarks].sort(
-    (a, b) =>
-      Number(b.is_favorite === true) - Number(a.is_favorite === true) ||
-      String(a.state_name).localeCompare(String(b.state_name)),
-  );
+  // Two views: ★ Favorites (only starred states) and All States (alphabetical).
+  const byName = (a, b) =>
+    String(a.state_name).localeCompare(String(b.state_name));
+  const favoriteRows = benchmarks
+    .filter((b) => b.is_favorite === true)
+    .sort(byName);
+  const visibleRows =
+    tab === "favorites" ? favoriteRows : [...benchmarks].sort(byName);
 
   return (
     <div className="space-y-4">
@@ -205,6 +208,31 @@ export default function BenchmarksPage() {
         </p>
       </div>
 
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setTab("all")}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+            tab === "all"
+              ? "bg-slate-800 text-white shadow"
+              : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          All States ({benchmarks.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("favorites")}
+          className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+            tab === "favorites"
+              ? "bg-amber-500 text-white shadow"
+              : "bg-white border border-slate-200 text-slate-600 hover:border-slate-300"
+          }`}
+        >
+          ★ Favorites ({favoriteRows.length})
+        </button>
+      </div>
+
       {loading ? (
         <Loader label="Loading benchmarks…" />
       ) : (
@@ -236,7 +264,7 @@ export default function BenchmarksPage() {
             </tr>
           </thead>
           <tbody>
-            {sortedRows.map((b) => {
+            {visibleRows.map((b) => {
               const change = priceChange(b);
               const isUsual = Boolean(homeState) && b.state_code === homeState;
               return (
@@ -301,9 +329,13 @@ export default function BenchmarksPage() {
                 </tr>
               );
             })}
-            {!sortedRows.length && (
+            {!visibleRows.length && (
               <tr>
-                <td colSpan="8" className="p-6 text-center text-xs text-slate-400">No benchmarks yet.</td>
+                <td colSpan="8" className="p-6 text-center text-xs text-slate-400">
+                  {tab === "favorites"
+                    ? "No favorites yet — tap ☆ next to a state to pin it here."
+                    : "No benchmarks yet."}
+                </td>
               </tr>
             )}
           </tbody>
