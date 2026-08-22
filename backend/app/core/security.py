@@ -86,12 +86,14 @@ def _now() -> float:
 def create_session(user_id: int, username: str, role: str) -> str:
     """Issue a fresh session token with TTL, binding user identity and role."""
     token = secrets.token_urlsafe(32)
+    expires = _now() + settings.session_ttl_hours * 3600
     with _session_lock:
         _auth_sessions[token] = {
             "user_id": user_id,
             "username": username,
             "role": role,
             "issued_at": _now(),
+            "expires_at": expires,
         }
     # Durable mirror (audit R-1): the session survives restarts and is visible
     # to other instances via cold-token rehydration in `_get_session_data`.
@@ -147,6 +149,35 @@ def revoke_user_sessions(user_id: int) -> int:
     return len(victims)
 
 
+def refresh_session(token: str | None) -> int | None:
+    """Sliding renewal (audit E-10): extend a live session's TTL.
+
+    Returns the new epoch expiry, or ``None`` when the token is not currently
+    valid. Extends both the memory entry and the durable mirror so other
+    instances observe the same new expiry.
+    """
+    if not token:
+        return None
+    data = _get_session_data(token)
+    if not data:
+        return None
+    new_expiry = _now() + settings.session_ttl_hours * 3600
+    with _session_lock:
+        entry = _auth_sessions.get(token)
+        if entry is not None:
+            entry["expires_at"] = new_expiry
+    _db(
+        auth_store.insert_auth_session,
+        _token_hash(token),
+        data["user_id"],
+        data["username"],
+        data["role"],
+        datetime.now(timezone.utc),
+        datetime.fromtimestamp(new_expiry, tz=timezone.utc),
+    )
+    return int(new_expiry)
+
+
 def _get_session_data(token: str | None) -> dict | None:
     """Return the session dict for *token* if valid, else None."""
     if not token:
@@ -155,7 +186,12 @@ def _get_session_data(token: str | None) -> dict | None:
     with _session_lock:
         data = _auth_sessions.get(token)
     if data is not None:
-        return data
+        # Honor the per-session hard expiry even on the memory hot path.
+        if data.get("expires_at", float("inf")) > _now():
+            return data
+        with _session_lock:
+            _auth_sessions.pop(token, None)
+        return None
     # Cold token — this process restarted or the request landed on another
     # instance: rehydrate the session from the durable Postgres mirror (R-1).
     row = _db(auth_store.fetch_auth_session, _token_hash(token))
@@ -166,6 +202,9 @@ def _get_session_data(token: str | None) -> dict | None:
         "username": row["username"],
         "role": row["role"],
         "issued_at": row["issued_at"].timestamp() if row["issued_at"] else _now(),
+        "expires_at": (
+            row["expires_at"].timestamp() if row["expires_at"] else _now()
+        ),
     }
     with _session_lock:
         _auth_sessions[token] = data

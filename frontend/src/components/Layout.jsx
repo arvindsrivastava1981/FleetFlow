@@ -2,6 +2,8 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import NotificationBell from "./NotificationBell.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
+import SessionWarningBanner from "./SessionWarningBanner.jsx";
 
 const SECTIONS = [
   {
@@ -179,18 +181,41 @@ function navClass({ isActive }) {
 export default function Layout({ children }) {
   const { user } = useAuth();
   const role = user?.role || "super_admin";
+  const [mobileNavOpen, setMobileNavOpen] = useState(false); // audit E-7
 
   return (
     <div className="min-h-screen bg-ink-50 font-sans">
       <header className="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <Brand />
+          <div className="flex items-center gap-2">
+            {/* Hamburger (audit E-7): mobile drawer toggle, hidden on lg+. */}
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((o) => !o)}
+              aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileNavOpen}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200 bg-white text-base shadow-sm transition hover:bg-ink-50 lg:hidden"
+            >
+              {mobileNavOpen ? "✕" : "☰"}
+            </button>
+            <Brand />
+          </div>
           <div className="flex items-center gap-3">
             <NotificationBell />
             <UserChip user={user} role={role} />
           </div>
         </div>
       </header>
+
+      {/* Audit E-10: warn before the hard logout; offer one-click renewal. */}
+      <SessionWarningBanner />
+
+      {/* Mobile nav drawer (audit E-7): replaces the old always-stacked card. */}
+      {mobileNavOpen && (
+        <div className="border-b border-ink-200 bg-white px-4 py-3 shadow-sm lg:hidden">
+          <Sidebar role={role} />
+        </div>
+      )}
 
       <div className="mx-auto flex max-w-screen-2xl items-start gap-6 px-4 py-6 md:px-6">
         <aside className="sticky top-[73px] hidden w-60 flex-shrink-0 self-start lg:block">
@@ -199,13 +224,9 @@ export default function Layout({ children }) {
           </div>
         </aside>
 
-        <div className="mb-2 w-full lg:hidden">
-          <div className="card p-3">
-            <Sidebar role={role} />
-          </div>
-        </div>
-
-        <main className="min-w-0 flex-1 pb-10">{children}</main>
+        <main className="min-w-0 flex-1 pb-10">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
       </div>
     </div>
   );

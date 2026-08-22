@@ -42,7 +42,7 @@ def fetch_auth_session(conn, token_hash: str) -> dict[str, Any] | None:
     """Return an unexpired session row for *token_hash*, else None."""
     cur = conn.cursor()
     cur.execute(
-        """SELECT user_id, username, role, issued_at
+        """SELECT user_id, username, role, issued_at, expires_at
              FROM auth_sessions
             WHERE token_hash = %s AND expires_at > NOW()""",
         (token_hash,),

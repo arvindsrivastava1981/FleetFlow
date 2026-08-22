@@ -53,7 +53,9 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
-
+      - name: Tests (vitest)
+        run: npm test
+        working-directory: frontend
       - name: Build (vite)
         working-directory: frontend
         run: npm run build

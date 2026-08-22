@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -46,6 +48,20 @@ async def _no_cache_everything(request: Request, call_next):
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
+    return response
+
+
+# ---- Request-ID tracing (audit E-5) ------------------------------------------
+@app.middleware("http")
+async def _request_id_middleware(request: Request, call_next):
+    """Attach a correlation id to every request: honors an inbound
+    ``X-Request-Id``, else mints one; echoes it back on the response so support
+    tickets can be traced end-to-end (also stored on ``error_logs.request_id``).
+    """
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    request.state.request_id = request_id
+    response = await call_next(request)
+    response.headers["X-Request-Id"] = request_id
     return response
 
 

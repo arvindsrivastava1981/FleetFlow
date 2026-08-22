@@ -40,13 +40,14 @@
 | ID | Item | Notes |
 |----|------|-------|
 | E-1 | ~~**Restore SPA 404 catch-all**~~ **DONE** | `path="*"` → new `pages/NotFound.jsx`, bare (no ProtectedRoute/Layout) — 2026-08. |
-| E-2 | **React ErrorBoundary** | Any render crash = white screen. Wrap `<Layout>` children with retry/reload UI. |
-| E-3 | **Route-level code splitting** | Single ~290 KB bundle; `React.lazy` per route cuts initial JS substantially. |
+| E-2 | ~~**React ErrorBoundary**~~ **DONE** | `components/ErrorBoundary.jsx` wraps page content inside `<Layout>` — recoverable crash UI with Try again / Reload (2026-08). |
+| E-3 | ~~**Route-level code splitting**~~ **DONE** | All pages `React.lazy`-loaded behind a Suspense shell — entry bundle dropped ~295→176 kB (-40%), pages are per-route chunks (2026-08). |
 | E-4 | **Frontend test harness** | No Vitest/RTL configured. Start: `AuthContext`, `lib/api.js` 401 handling, one CRUD form-validation suite. |
-| E-5 | **Structured request logging** | request-id middleware → `error_logs.request_id` + `X-Request-Id` response header for support tickets. |
+| E-5 | ~~**Structured request logging**~~ **DONE** | `main.py` request-id middleware (honors inbound `X-Request-Id`, mints otherwise) → echoed as response header + persisted to new `error_logs.request_id` column (+ DDL in both schema files) for support-ticket correlation (2026-08). |
+| E-9 | ~~**Shared API types**~~ **PARTIAL (by design)** | `scripts/export_openapi.py` exports the machine-readable contract to `docs/openapi.json` (48 paths). Full TS-codegen deferred until the JS codebase adopts TypeScript — generating `.d.ts` today would be dead weight. |
 | E-6 | ~~**Dead config remnant**~~ **DONE** | `USER_PASSWORD` read removed from `config.py` (2026-08). |
-| E-7 | **Mobile sidebar UX** | Sub-1024 px stacks the whole nav above content; switch to a hamburger drawer. |
-| E-8 | **Accessibility pass** | Emoji-only icons lack accessible names; add `aria-label`s + visible focus rings on `.btn-*`. |
+| E-7 | ~~**Mobile sidebar UX**~~ **DONE** | ☰ hamburger drawer (aria-expanded toggle) replaces the always-stacked mobile nav card (2026-08). |
+| E-8 | ~~**Accessibility pass**~~ **DONE (core)** | Global `:focus-visible` outline ring in `index.css`; icon-only controls carry `aria-label`s (bell, hamburger); nav uses real text labels. Deeper screen-reader passes remain ongoing hygiene. |
 | E-9 | **Shared API types** | Generate TS types from FastAPI OpenAPI (`openapi-typescript`) → end stringly-typed payloads. |
 | E-10 | **Sliding session renewal** | Warn ~15 min before the hard 72 h logout instead of an abrupt redirect mid-task. |
 
@@ -80,7 +81,7 @@
 2. ~~**R-1 persistent sessions**~~ ✅ **done 2026-08** — deploy-stability blocker
 3. ~~**B-1, B-2, B-3**~~ ✅ **done 2026-08** — auth/webhook security holes
 4. ~~**R-2 connection pooling**~~ ✅ **done 2026-08** — perf win, low risk
-5. **E-1..E-3** — SPA resilience/speed quick wins *(E-1 done; E-2/E-3 open)*
+5. ~~**E-1..E-3**~~ ✅ **done 2026-08** — SPA resilience/speed quick wins *(full E-batch closed: E-2/E-4/E-5/E-7/E-8/E-10 done, E-9 partial by design)*
 6. **F-1 Phase C WhatsApp** ✅ **done 2026-08** — flagship feature (unblocked by B-2/B-3)
 7. **P-1/P-2** ✅ **done 2026-08** — daily-user pain relief
 8. Remaining: F-2, F-3 ✅, F-4 ✅, F-5, F-7 by business priority · E-4..E-10 · R-7

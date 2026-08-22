@@ -296,6 +296,7 @@ CREATE TABLE IF NOT EXISTS error_logs (
     detail TEXT,                               -- JSON-encoded payload (validation errors, details)
     traceback_text TEXT,                       -- full stack trace for INTERNAL errors
     endpoint VARCHAR(255),                     -- route/path identifier used for grouping
+    request_id VARCHAR(32),                    -- X-Request-Id correlation id (audit E-5)
     source VARCHAR(20) DEFAULT 'BACKEND'
         CHECK (source IN ('BACKEND', 'PAYMENT', 'WHATSAPP', 'WEBHOOK')),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

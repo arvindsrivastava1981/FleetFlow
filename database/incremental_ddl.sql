@@ -69,6 +69,9 @@ ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS puc_expiry DATE;
 ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS fitness_expiry DATE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS licence_expiry DATE;
 
+-- Audit E-5: request correlation ids on persisted error rows.
+ALTER TABLE error_logs ADD COLUMN IF NOT EXISTS request_id VARCHAR(32);
+
 -- Feature F-6: reusable trip templates (one-tap dispatch for regular routes).
 CREATE TABLE IF NOT EXISTS trip_templates (
     id BIGSERIAL PRIMARY KEY,

@@ -1,0 +1,2399 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VahanKhata",
+    "description": "Real-Time Fleet Expense Verification & Settlement Engine",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/dashboard/overview": {
+      "get": {
+        "summary": "Api Dashboard Overview",
+        "operationId": "api_dashboard_overview_api_v1_dashboard_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_DashboardOverview_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/trends": {
+      "get": {
+        "summary": "Api Dashboard Trends",
+        "description": "30-day spend-by-type + leakage trend for the Super Admin (audit P-3).",
+        "operationId": "api_dashboard_trends_api_v1_dashboard_trends_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_dict_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "Api Auth Login",
+        "description": "Authenticate and return a Bearer token + user as JSON.",
+        "operationId": "api_auth_login_api_v1_auth_login_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "summary": "Api Auth Me",
+        "description": "Return the current session user + expiry (audit E-10), or 401.",
+        "operationId": "api_auth_me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthMe"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "summary": "Api Auth Refresh",
+        "description": "Sliding renewal (audit E-10): extend the caller's session TTL.\n\nCalled by the SPA when the session enters its warning window. Rotates the\nauth cookie too when cookie issuance is enabled.",
+        "operationId": "api_auth_refresh_api_v1_auth_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_SessionRefreshResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "summary": "Api Auth Logout",
+        "operationId": "api_auth_logout_api_v1_auth_logout_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_LogoutResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/change-password": {
+      "post": {
+        "summary": "Api Change Password",
+        "description": "Verify the current password and set a new one for the logged-in user.",
+        "operationId": "api_change_password_api_v1_auth_change_password_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ChangePasswordResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips": {
+      "get": {
+        "summary": "Api Trips",
+        "operationId": "api_trips_api_v1_trips_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_TripListItem__"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Api Create Trip",
+        "operationId": "api_create_trip_api_v1_trips_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_CreateTripResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{trip_code}": {
+      "get": {
+        "summary": "Api Trip Detail",
+        "operationId": "api_trip_detail_api_v1_trips__trip_code__get",
+        "parameters": [
+          {
+            "name": "trip_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trip Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_TripDetailData_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trips/{trip_code}/settle": {
+      "post": {
+        "summary": "Api Settle Trip",
+        "operationId": "api_settle_trip_api_v1_trips__trip_code__settle_post",
+        "parameters": [
+          {
+            "name": "trip_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trip Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_SettleTripResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settlements": {
+      "get": {
+        "summary": "Api Settled Trips",
+        "operationId": "api_settled_trips_api_v1_settlements_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settlements/{trip_code}/pdf": {
+      "get": {
+        "summary": "Api Settlement Pdf",
+        "description": "Stream the settlement PDF (application/pdf) for a settled/completed trip.",
+        "operationId": "api_settlement_pdf_api_v1_settlements__trip_code__pdf_get",
+        "parameters": [
+          {
+            "name": "trip_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trip Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/driver/salary": {
+      "get": {
+        "summary": "Api Driver Salary",
+        "description": "Read-only salary/batta summary for the logged-in driver.",
+        "operationId": "api_driver_salary_api_v1_driver_salary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_DriverSalary_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/escalations": {
+      "get": {
+        "summary": "Api Whatsapp Escalations",
+        "description": "Flagged / pending expenses as a chat-thread feed for manager quick-reply.",
+        "operationId": "api_whatsapp_escalations_api_v1_whatsapp_escalations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_EscalationRow__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/expenses": {
+      "post": {
+        "summary": "Api Create Expense",
+        "operationId": "api_create_expense_api_v1_expenses_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ExpenseAccepted_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/expenses/{expense_id}/action": {
+      "post": {
+        "summary": "Api Action Expense",
+        "operationId": "api_action_expense_api_v1_expenses__expense_id__action_post",
+        "parameters": [
+          {
+            "name": "expense_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Expense Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ExpenseActionResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles": {
+      "get": {
+        "summary": "Api Vehicles",
+        "operationId": "api_vehicles_api_v1_vehicles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Api Create Vehicle",
+        "operationId": "api_create_vehicle_api_v1_vehicles_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{vid}": {
+      "put": {
+        "summary": "Api Update Vehicle",
+        "operationId": "api_update_vehicle_api_v1_vehicles__vid__put",
+        "parameters": [
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vehicles/{vid}/toggle": {
+      "post": {
+        "summary": "Api Toggle Vehicle",
+        "operationId": "api_toggle_vehicle_api_v1_vehicles__vid__toggle_post",
+        "parameters": [
+          {
+            "name": "vid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Vid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ToggleAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleets": {
+      "get": {
+        "summary": "Api Get Fleets",
+        "operationId": "api_get_fleets_api_v1_fleets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Api Create Fleet",
+        "operationId": "api_create_fleet_api_v1_fleets_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleets/plans": {
+      "get": {
+        "summary": "Api Get Plans",
+        "operationId": "api_get_plans_api_v1_fleets_plans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleets/{fid}": {
+      "put": {
+        "summary": "Api Update Fleet",
+        "operationId": "api_update_fleet_api_v1_fleets__fid__put",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleets/{fid}/toggle": {
+      "post": {
+        "summary": "Api Toggle Fleet",
+        "operationId": "api_toggle_fleet_api_v1_fleets__fid__toggle_post",
+        "parameters": [
+          {
+            "name": "fid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Fid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ToggleAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "summary": "Api Users",
+        "operationId": "api_users_api_v1_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Api Create User",
+        "operationId": "api_create_user_api_v1_users_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{uid}": {
+      "put": {
+        "summary": "Api Update User",
+        "operationId": "api_update_user_api_v1_users__uid__put",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{uid}/toggle": {
+      "post": {
+        "summary": "Api Toggle User",
+        "operationId": "api_toggle_user_api_v1_users__uid__toggle_post",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ToggleAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/drivers": {
+      "get": {
+        "summary": "Api Drivers",
+        "operationId": "api_drivers_api_v1_drivers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Api Create Driver",
+        "description": "Create a driver user (Trip Manager / Super Admin), with batta profile.",
+        "operationId": "api_create_driver_api_v1_drivers_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/drivers/{uid}": {
+      "put": {
+        "summary": "Api Update Driver",
+        "description": "Update a driver's profile / batta (Trip Manager / Super Admin).",
+        "operationId": "api_update_driver_api_v1_drivers__uid__put",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/drivers/{uid}/toggle": {
+      "post": {
+        "summary": "Api Toggle Driver",
+        "description": "Activate / deactivate a driver (Trip Manager / Super Admin).",
+        "operationId": "api_toggle_driver_api_v1_drivers__uid__toggle_post",
+        "parameters": [
+          {
+            "name": "uid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Uid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ToggleAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/benchmarks": {
+      "get": {
+        "summary": "Api Get Benchmarks",
+        "description": "Rules & Rates payload: every state benchmark tagged with the caller's\n`is_favorite` flag, plus their usual operating state (`home_state_code`).",
+        "operationId": "api_get_benchmarks_api_v1_benchmarks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/benchmarks/{state_code}/favorite": {
+      "post": {
+        "summary": "Api Add Benchmark Favorite",
+        "description": "Add a state to the caller's favorites (any authenticated role).",
+        "operationId": "api_add_benchmark_favorite_api_v1_benchmarks__state_code__favorite_post",
+        "parameters": [
+          {
+            "name": "state_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "State Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_BenchmarkFavoriteAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Api Remove Benchmark Favorite",
+        "description": "Remove a state from the caller's favorites.",
+        "operationId": "api_remove_benchmark_favorite_api_v1_benchmarks__state_code__favorite_delete",
+        "parameters": [
+          {
+            "name": "state_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "State Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_BenchmarkFavoriteAck_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/benchmarks/home-state": {
+      "put": {
+        "summary": "Api Set Home State",
+        "description": "Store/clear the caller's usual operating state (`users.home_state_code`).\n\nBody ``{\"state_code\": \"UP\"}``; an empty/missing value clears it. The code is\nvalidated against the canonical INDIAN_STATES list server-side.",
+        "operationId": "api_set_home_state_api_v1_benchmarks_home_state_put",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_HomeStateResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/benchmarks/sync-live": {
+      "post": {
+        "summary": "Api Sync Benchmarks",
+        "description": "Fetch live state-level diesel prices and upsert them into fuel_benchmarks.\n\nSuper Admin / Trip Manager only. Best-effort: tries the goodreturns live\npage first and falls back to a maintained static snapshot when the page is\nunreachable or unparsable. Returns how many rows were updated plus the\nfetched source.",
+        "operationId": "api_sync_benchmarks_api_v1_benchmarks_sync_live_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/overview": {
+      "get": {
+        "summary": "Api Billing Overview",
+        "operationId": "api_billing_overview_api_v1_billing_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_BillingOverview_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/subscribe": {
+      "post": {
+        "summary": "Api Billing Subscribe",
+        "description": "Subscribe to a plan; returns a JSON `redirect_url` to Razorpay.",
+        "operationId": "api_billing_subscribe_api_v1_billing_subscribe_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_BillingSubscribeResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/vehicle-slot": {
+      "post": {
+        "summary": "Api Billing Vehicle Slot",
+        "description": "Purchase an extra vehicle slot; returns JSON `redirect_url`.",
+        "operationId": "api_billing_vehicle_slot_api_v1_billing_vehicle_slot_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_BillingVehicleSlotResult_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/billing/renew/{plan_code}": {
+      "post": {
+        "summary": "Api Billing Renew",
+        "description": "Renew an existing subscription (creates Razorpay payment link).",
+        "operationId": "api_billing_renew_api_v1_billing_renew__plan_code__post",
+        "parameters": [
+          {
+            "name": "plan_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Plan Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_BillingSubscribeResult_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleets/subscriptions": {
+      "get": {
+        "summary": "Api Fleets Subscriptions",
+        "description": "Super Admin consolidated view: all fleets with plan & subscription info.",
+        "operationId": "api_fleets_subscriptions_api_v1_fleets_subscriptions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/fleets/onboard": {
+      "post": {
+        "summary": "Api Onboard Fleet",
+        "description": "Create a transport firm + owner manager + trial in one transaction.",
+        "operationId": "api_onboard_fleet_api_v1_fleets_onboard_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trip-templates": {
+      "get": {
+        "summary": "Api List Trip Templates",
+        "description": "Fleet-scoped reusable routes (feature F-6).",
+        "operationId": "api_list_trip_templates_api_v1_trip_templates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict__"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Api Create Trip Template",
+        "operationId": "api_create_trip_template_api_v1_trip_templates_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_ResourceAck_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/trip-templates/{tid}": {
+      "delete": {
+        "summary": "Api Delete Trip Template",
+        "operationId": "api_delete_trip_template_api_v1_trip_templates__tid__delete",
+        "parameters": [
+          {
+            "name": "tid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/notifications": {
+      "get": {
+        "summary": "Api Notifications",
+        "description": "Computed alert feed for the signed-in user (audit F-3).\n\nSuper admins see the fleet-wide picture; trip managers only their own\nslice. Nothing is persisted \u2014 items are derived from the ledger on read.",
+        "operationId": "api_notifications_api_v1_notifications_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/overview": {
+      "get": {
+        "summary": "Api Analytics Overview",
+        "description": "Cost-per-vehicle, driver-wise leakage, 6-month spend (audit F-4).",
+        "operationId": "api_analytics_overview_api_v1_analytics_overview_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/webhook": {
+      "get": {
+        "summary": "Whatsapp Webhook Verify",
+        "description": "Meta platform setup: reply with ``hub.challenge`` when the token matches.",
+        "operationId": "whatsapp_webhook_verify_api_v1_whatsapp_webhook_get",
+        "parameters": [
+          {
+            "name": "hub_mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hub Mode"
+            }
+          },
+          {
+            "name": "hub_challenge",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hub Challenge"
+            }
+          },
+          {
+            "name": "hub_verify_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hub Verify Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Whatsapp Webhook",
+        "description": "Single inbound entrypoint for ALL bot messages (driver + manager).\n\nResolves the sender's number to a user (by normalized ``+91`` phone), maps\ntheir role to a routing dialect, and either fires the driver/manager flow or\nacknowledges-and-drops unknown/unsupported senders. Always returns a quick 200\nso Meta does not retry undeliverable events.",
+        "operationId": "whatsapp_webhook_api_v1_whatsapp_webhook_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whatsapp/send": {
+      "post": {
+        "summary": "Whatsapp Send",
+        "description": "Send an outbound template message (idempotent, best-effort).\n\nAuth-gated (audit B-3): only an authenticated trip_manager/super_admin may\ntrigger outbound sends, so Phase-C credentials can never be used as an\nopen relay. Without a configured ``WHATSAPP_ACCESS_TOKEN`` this remains a\ndocumented no-op so callers can fire-and-forget.",
+        "operationId": "whatsapp_send_api_v1_whatsapp_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "type": "object"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/states": {
+      "get": {
+        "summary": "Api List States",
+        "description": "Return the canonical state list as [{code, name, is_favorite}].\n\n`is_favorite` mirrors the caller's Rules & Rates favorites so client\ndropdowns (driver fueling-state picker etc.) can pin starred states to the\ntop without a second round-trip.",
+        "operationId": "api_list_states_api_v1_states_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Data_list_dict_str__Any___"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing/webhook": {
+      "post": {
+        "summary": "Billing Webhook",
+        "description": "Razorpay server-to-server webhook \u2014 signature verified, no auth.",
+        "operationId": "billing_webhook_billing_webhook_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "summary": "Healthz",
+        "description": "Liveness + DB reachability probe for Render/Docker health checks.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Healthz Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuthMe": {
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "title": "AuthMe",
+        "description": "`GET /auth/me` \u2014 no `data` wrapper (client reads `user` directly)."
+      },
+      "AuthUser": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "username",
+          "role"
+        ],
+        "title": "AuthUser"
+      },
+      "BenchmarkFavoriteAck": {
+        "properties": {
+          "state_code": {
+            "type": "string",
+            "title": "State Code"
+          },
+          "is_favorite": {
+            "type": "boolean",
+            "title": "Is Favorite"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state_code",
+          "is_favorite"
+        ],
+        "title": "BenchmarkFavoriteAck",
+        "description": "`POST/DELETE /benchmarks/{state_code}/favorite` acknowledgement."
+      },
+      "BillingOverview": {
+        "properties": {
+          "fleet": {
+            "$ref": "#/components/schemas/FleetBilling"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/Plan"
+            },
+            "type": "array",
+            "title": "Plans"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fleet",
+          "plans"
+        ],
+        "title": "BillingOverview"
+      },
+      "BillingSubscribeResult": {
+        "properties": {
+          "redirect_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Url"
+          },
+          "activated": {
+            "type": "boolean",
+            "title": "Activated",
+            "default": true
+          },
+          "trial": {
+            "type": "boolean",
+            "title": "Trial",
+            "default": false
+          },
+          "payment_link": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Link"
+          }
+        },
+        "type": "object",
+        "title": "BillingSubscribeResult"
+      },
+      "BillingVehicleSlotResult": {
+        "properties": {
+          "redirect_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Redirect Url"
+          },
+          "payment_link": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payment Link"
+          }
+        },
+        "type": "object",
+        "title": "BillingVehicleSlotResult"
+      },
+      "ChangePasswordResult": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "password_changed": {
+            "type": "boolean",
+            "title": "Password Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "password_changed"
+        ],
+        "title": "ChangePasswordResult"
+      },
+      "CreateTripResult": {
+        "properties": {
+          "trip_code": {
+            "type": "string",
+            "title": "Trip Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip_code",
+          "status"
+        ],
+        "title": "CreateTripResult"
+      },
+      "DashboardOverview": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "DashboardOverview",
+        "description": "Role-aware overview payload (extra keys vary by role)."
+      },
+      "Data_BenchmarkFavoriteAck_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BenchmarkFavoriteAck"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[BenchmarkFavoriteAck]"
+      },
+      "Data_BillingOverview_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BillingOverview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[BillingOverview]"
+      },
+      "Data_BillingSubscribeResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BillingSubscribeResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[BillingSubscribeResult]"
+      },
+      "Data_BillingVehicleSlotResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BillingVehicleSlotResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[BillingVehicleSlotResult]"
+      },
+      "Data_ChangePasswordResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChangePasswordResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[ChangePasswordResult]"
+      },
+      "Data_CreateTripResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/CreateTripResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[CreateTripResult]"
+      },
+      "Data_DashboardOverview_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DashboardOverview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[DashboardOverview]"
+      },
+      "Data_DriverSalary_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DriverSalary"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[DriverSalary]"
+      },
+      "Data_ExpenseAccepted_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExpenseAccepted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[ExpenseAccepted]"
+      },
+      "Data_ExpenseActionResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExpenseActionResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[ExpenseActionResult]"
+      },
+      "Data_HomeStateResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HomeStateResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[HomeStateResult]"
+      },
+      "Data_LogoutResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/LogoutResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[LogoutResult]"
+      },
+      "Data_ResourceAck_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResourceAck"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[ResourceAck]"
+      },
+      "Data_SessionRefreshResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SessionRefreshResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[SessionRefreshResult]"
+      },
+      "Data_SettleTripResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/SettleTripResult"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[SettleTripResult]"
+      },
+      "Data_ToggleAck_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ToggleAck"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[ToggleAck]"
+      },
+      "Data_TripDetailData_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TripDetailData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[TripDetailData]"
+      },
+      "Data_dict_": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[dict]"
+      },
+      "Data_dict_str__Any__": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[dict[str, Any]]"
+      },
+      "Data_list_EscalationRow__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/EscalationRow"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[list[EscalationRow]]"
+      },
+      "Data_list_TripListItem__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TripListItem"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[list[TripListItem]]"
+      },
+      "Data_list_dict__": {
+        "properties": {
+          "data": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[list[dict]]"
+      },
+      "Data_list_dict_str__Any___": {
+        "properties": {
+          "data": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Data[list[dict[str, Any]]]"
+      },
+      "DriverSalary": {
+        "properties": {
+          "profile": {
+            "type": "object",
+            "title": "Profile"
+          },
+          "trips": {
+            "items": {
+              "$ref": "#/components/schemas/DriverSalarySummary"
+            },
+            "type": "array",
+            "title": "Trips"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/DriverSalaryTotals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "totals"
+        ],
+        "title": "DriverSalary"
+      },
+      "DriverSalarySummary": {
+        "properties": {
+          "trip_code": {
+            "type": "string",
+            "title": "Trip Code"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trip_code"
+        ],
+        "title": "DriverSalarySummary",
+        "description": "Per-trip batta/settlement line on the driver salary view."
+      },
+      "DriverSalaryTotals": {
+        "properties": {
+          "total_batta": {
+            "type": "number",
+            "title": "Total Batta"
+          },
+          "total_payable": {
+            "type": "number",
+            "title": "Total Payable"
+          },
+          "total_refund": {
+            "type": "number",
+            "title": "Total Refund"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_batta",
+          "total_payable",
+          "total_refund"
+        ],
+        "title": "DriverSalaryTotals"
+      },
+      "EscalationRow": {
+        "properties": {
+          "is_flagged": {
+            "type": "boolean",
+            "title": "Is Flagged",
+            "default": false
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "EscalationRow",
+        "description": "A flagged/pending expense row in the WhatsApp escalation feed."
+      },
+      "ExpenseAccepted": {
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted"
+          },
+          "trip_code": {
+            "type": "string",
+            "title": "Trip Code"
+          },
+          "exp_type": {
+            "type": "string",
+            "title": "Exp Type"
+          },
+          "manager_status": {
+            "type": "string",
+            "title": "Manager Status"
+          },
+          "is_flagged": {
+            "type": "boolean",
+            "title": "Is Flagged"
+          },
+          "flag_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag Reason"
+          },
+          "settlement_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settlement Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted",
+          "trip_code",
+          "exp_type",
+          "manager_status",
+          "is_flagged"
+        ],
+        "title": "ExpenseAccepted"
+      },
+      "ExpenseActionResult": {
+        "properties": {
+          "expense_id": {
+            "type": "integer",
+            "title": "Expense Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "trip_code": {
+            "type": "string",
+            "title": "Trip Code"
+          },
+          "label_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label En"
+          },
+          "label_hi": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Hi"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expense_id",
+          "status",
+          "trip_code"
+        ],
+        "title": "ExpenseActionResult"
+      },
+      "FleetBilling": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": "Your Fleet"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "FleetBilling",
+        "description": "Billing-overview fleet block (extra keys allowed)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HomeStateResult": {
+        "properties": {
+          "home_state_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home State Code"
+          }
+        },
+        "type": "object",
+        "title": "HomeStateResult",
+        "description": "`PUT /benchmarks/home-state` \u2014 the caller's usual operating state."
+      },
+      "LoginResult": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "user": {
+            "$ref": "#/components/schemas/AuthUser"
+          },
+          "landing": {
+            "type": "string",
+            "title": "Landing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "user",
+          "landing"
+        ],
+        "title": "LoginResult",
+        "description": "`POST /auth/login` \u2014 no `data` wrapper (client reads token/user)."
+      },
+      "LogoutResult": {
+        "properties": {
+          "logged_out": {
+            "type": "boolean",
+            "title": "Logged Out"
+          }
+        },
+        "type": "object",
+        "required": [
+          "logged_out"
+        ],
+        "title": "LogoutResult"
+      },
+      "Plan": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price"
+          },
+          "period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Period"
+          },
+          "vehicle_limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vehicle Limit"
+          },
+          "trial_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trial Days"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "Plan"
+      },
+      "ResourceAck": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ResourceAck",
+        "description": "Generic `{ \"id\": N }` acknowledgement for created/updated rows."
+      },
+      "SessionRefreshResult": {
+        "properties": {
+          "expires_at": {
+            "type": "integer",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expires_at"
+        ],
+        "title": "SessionRefreshResult",
+        "description": "`POST /auth/refresh` \u2014 new sliding expiry (audit E-10)."
+      },
+      "SettleTripResult": {
+        "properties": {
+          "trip_code": {
+            "type": "string",
+            "title": "Trip Code"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip_code",
+          "status"
+        ],
+        "title": "SettleTripResult"
+      },
+      "ToggleAck": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "is_active"
+        ],
+        "title": "ToggleAck"
+      },
+      "TripDetailData": {
+        "properties": {
+          "trip": {
+            "type": "object",
+            "title": "Trip"
+          },
+          "expenses": {
+            "items": {},
+            "type": "array",
+            "title": "Expenses"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "trip"
+        ],
+        "title": "TripDetailData",
+        "description": "`GET /trips/{code}` payload: trip, its expenses, and the settlement."
+      },
+      "TripListItem": {
+        "properties": {
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TripStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "TripListItem",
+        "description": "Trip listing item: a trip row plus its stats."
+      },
+      "TripStats": {
+        "properties": {},
+        "additionalProperties": true,
+        "type": "object",
+        "title": "TripStats",
+        "description": "Aggregated stats for a trip (attached as `stats` on list rows)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
