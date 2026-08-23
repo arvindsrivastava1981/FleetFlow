@@ -65,11 +65,11 @@ class Settings:
         self.math_tolerance: float = 10.0
         self.fuel_band_tolerance_pct: float = 0.08
 
-        # ---- System Invariants (from APP_MINDMAP) --------------------------
+        # ---- System invariants -------------------------------------------------
+        # Vehicle plate shape (validated on vehicles/trips/onboarding) and the
+        # phone country code are fixed fleet-domain invariants.
         self.plate_regex: str = r"^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$"
         self.country_code: str = "+91"
-        self.qr_code_length: int = 6
-        self.anti_spam_scans_per_hour: int = 3
 
         # ---- Email (Resend) ---------------------------------------------------
         self.resend_api_key: str | None = os.getenv("RESEND_API_KEY")

@@ -6,7 +6,7 @@ const PILLARS = [
   ["🔐", "Role-based access", "Super-admin, trip-manager and driver roles each see only what they should. Fleet and asset data is scoped per firm."],
   ["⏱️", "Time-limited sessions", "Sessions are time-limited, and expired or invalid tokens are rejected, so abandoned logins don't linger."],
   ["📜", "Immutable audit trail", "Every entitlement change, settlement and sensitive action is written to an audit ledger, so nothing quietly disappears."],
-  ["🛡️", "Safe emergency routing", "QR tags and emergency alerts are normalized with anti-spam, so real incidents reach the right person without noise."],
+  ["🧾", "Tamper-evident settlements", "Every settled trip carries a verification hash, so a settlement record can't be quietly altered after the fact."],
 ];
 
 export default function Security() {
@@ -14,7 +14,7 @@ export default function Security() {
     <>
       <Seo
         title="Security"
-        description="How VahanKhata protects fleet data: role-based access, time-limited sessions, audit logging and safe emergency routing."
+        description="How VahanKhata protects fleet data: role-based access, time-limited sessions, audit logging and tamper-evident settlements."
         path="/security"
       />
       <PageHero
@@ -24,7 +24,7 @@ export default function Security() {
       />
       <HiNote>
         आपका फ्लीट डेटा रोल के हिसाब से गेट है — सुपर-एडमिन, ट्रिप-मैनेजर और ड्राइवर सिर्फ अपना हिस्सा देखते हैं। सेशन
-        समय-सीमित हैं, हर बदलाव का ऑडिट लेजर है, और इमरजेंसी अलर्ट anti-spam के साथ आते हैं। कोई सुरक्षा समस्या हो तो:
+        समय-सीमित हैं, हर बदलाव का ऑडिट लेजर है, और हर सेटल्ड ट्रिप पर वेरिफिकेशन हैश होता है। कोई सुरक्षा समस्या हो तो:
         security@vahankhata.in
       </HiNote>
       <section className="market-section market-wrap">
@@ -54,7 +54,7 @@ export default function Security() {
         <ul>
           <li>Dedicated audit ledgers for billing/entitlement changes.</li>
           <li>Settlement records carry verification hashes for tamper-evidence.</li>
-          <li>Normalized emergency alerts with anti-spam protection.</li>
+          <li>Login lockout after repeated failed sign-in attempts.</li>
         </ul>
         <p>
           No platform can guarantee absolute security. We continuously review our controls and follow responsible

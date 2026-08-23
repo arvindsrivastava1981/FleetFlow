@@ -219,7 +219,6 @@ Left-nav **Operations → Account** only. Billing and Rule Engine are **not** sh
 ## System Invariants
 - Vehicle Plate Regex: `^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$`
 - Country Code: `+91`
-- QR Code Length: 6 characters
 - JWT Session: 72 hours
 - Rules engine constants: `BENCHMARK_PRICE=90.50`, `TANK_CAPACITY=350.0L`, `EXPECTED_KML=4.0`, `DEF_RATE_MAX=75.0`, `DEF_MIN_RATIO_PCT=3.0`, `DEF_MAX_RATIO_PCT=6.0`. The global `DEFAULT_BAND` (90.50 ± 8%) remains the **fallback**; the expense route resolves a per-**state** fuel band from `fuel_benchmarks` using the driver-submitted **fueling state** (`expenses.state_code` → `trips.state_code` → `DEFAULT_BAND`), and passes `band` + `band_state_code` into `evaluate_expense` so the FUEL band flag reason names the fueling state (`UP / Uttar Pradesh`). Live rates are refreshed via `POST /api/v1/benchmarks/sync-live`. `BENCHMARK_PRICE`/`FUEL_BAND_TOLERANCE_PCT` still feed `DEFAULT_BAND` in `services/rules/bands.py`. The canonical state list + name→code aliases live in `services/states.py`.
 

@@ -37,7 +37,7 @@ export default function Privacy() {
         </ul>
         <h2>3. Driver consent</h2>
         <p>
-          Where employers submit driver data or employees interact with the Service (e.g. via WhatsApp or a QR tag),
+          Where employers submit driver data or employees interact with the Service (e.g. via WhatsApp),
           we rely on the submitting organisation to ensure it has appropriate consent. Where applicable, drivers are
           given the ability to consent to trips in-app.
         </p>

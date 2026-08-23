@@ -23,12 +23,7 @@
 - **Navigation:** Standard `<a href>` and `window.location.href` only (no `next/link` or `useRouter`).
 - **Endpoints:** Use relative paths (`/api/v1/...`).
 - **Database:** PostgreSQL (Neon DB). No Alembic migrations — schema changes must update `backend/database/schema.sql`, `seed.sql`, and `incremental/`.
-- **Invariants:**
-  - License Plate Regex: `^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$`
-  - Country Code: `+91`
-  - QR ID: 6 characters
-  - Issue Type: `"Emergency"`
-  - Rate Limit: 3 requests/hr per tag
+-
 
 # Failure & Loop Prevention Protocol
 - **Stop Condition:** Stop immediately if the same error repeats post-fix, existing tests regress, or edits loop > 2 times on the same file without success.
@@ -38,7 +33,6 @@
 Run targeted checks before declaring completion:
 - Unified Suite: `python run_tests.py`
 - Backend Unit: `pytest -q --tb=line backend/tests/test_<module>.py`
-- Sticker Check: `pytest -q --tb=line backend/tests/test_qr_print.py -k "local_sample_sticker_png or local_sample_sticker_pdf"`
 - Frontend Unit: `npx jest --bail --silent frontend/src/__tests__/<test_file>.test.tsx`
 - E2E Tests: `npx playwright test frontend/e2e/<spec_path>.spec.ts --config=frontend/e2e/playwright.config.ts --reporter=line`
 - Update `APP_MINDMAP.md` whenever models, routes, or schemas change.

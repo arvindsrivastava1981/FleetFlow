@@ -23,8 +23,6 @@ MAJOR_REPAIR_THRESHOLD: float = 3000.0
 # ---- System Invariants ------------------------------------------------------
 PLATE_REGEX: str = settings.plate_regex
 COUNTRY_CODE: str = settings.country_code
-QR_CODE_LENGTH: int = settings.qr_code_length
-ANTI_SPAM_SCANS_PER_HOUR: int = settings.anti_spam_scans_per_hour
 
 # ---- Expense domains --------------------------------------------------------
 # Must stay in sync with the `expenses.exp_type` CHECK constraint in schema.sql.

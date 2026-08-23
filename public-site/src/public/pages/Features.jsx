@@ -34,12 +34,12 @@ const GROUPS = [
     ],
   },
   {
-    title: "Safety & alerts · सुरक्षा",
+    title: "Fraud checks · गड़बड़ी की जाँच",
     icon: "🛡️",
     items: [
-      "QR टैग से सुरक्षित इमरजेंसी अलर्ट",
-      "फालतू स्कैन से बचाव (anti-spam)",
-      "ऑडिट के लिए ड्राइवर सहमति रिकॉर्ड",
+      "टैंक क्षमता से ज़्यादा ईंधन अपने आप ब्लॉक",
+      "ओडोमीटर से माइलेज गिरावट की पकड़",
+      "FASTag कॉरिडोर पर नक़द टोल अपने आप फ्लैग",
     ],
   },
   {
@@ -67,7 +67,7 @@ export default function Features() {
     <>
       <Seo
         title="Features — Fleet & Trip Management Platform"
-        description="Explore VahanKhata's features: WhatsApp expense intake, per-state fuel benchmarking, driver salary settlement, trip management, emergency alerts, and Razorpay billing."
+        description="Explore VahanKhata's features: WhatsApp expense intake, per-state fuel benchmarking, driver salary settlement, trip management, automatic fraud checks, and Razorpay billing."
         path="/features"
       />
       <PageHero
