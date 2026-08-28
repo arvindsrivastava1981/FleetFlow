@@ -221,7 +221,7 @@ async def api_self_onboard_fleet(request: Request):
             (fleet_id, actor["user_id"]),
         )
         log_fleet_billing_event(
-            conn, fleet_id, "trial_started", "TRIAL", {"self_onboarded": True},
+            conn, fleet_id, "TRIAL_START", "TRIAL", {"self_onboarded": True},
             created_by=actor["user_id"],
         )
         fleet = get_fleet_by_id(conn, fleet_id)
