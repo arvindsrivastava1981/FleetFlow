@@ -223,6 +223,72 @@ def dispatch_sync(
         return result
 
 
+def send_verification_email_sync(
+    to_email: str,
+    full_name: str,
+    verify_url: str,
+) -> dict:
+    """Fire-and-forget email verification link for self-serve sign-ups.
+
+    Builds a simple branded email with a single "Verify Email" button and
+    dispatches it via Resend in a background thread. Never raises.
+    """
+    if not to_email:
+        return {"status": "skipped", "error": "no_recipient_email", "queued": False}
+    if not verify_url:
+        return {"status": "skipped", "error": "no_verify_url", "queued": False}
+
+    plain = (
+        f"Welcome to VahanKhata, {full_name}!\n\n"
+        f"Click the link below to verify your email and activate your account:\n"
+        f"{verify_url}\n\n"
+        f"This link expires in 24 hours. If you did not create this account, "
+        f"you can safely ignore this email.\n\n"
+        f"- The VahanKhata Team"
+    )
+    html = (
+        '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+        "<title>Verify your email - VahanKhata</title></head>"
+        '<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif">'
+        '<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px">'
+        '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;'
+        'border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">'
+        '<tr><td style="background:#3730a3;padding:24px 28px">'
+        '<table cellpadding="0" cellspacing="0"><tr>'
+        '<td style="width:40px;height:40px;background:rgba(255,255,255,.15);border-radius:10px;'
+        'text-align:center;font-size:16px;font-weight:900;color:#fff">VK</td>'
+        '<td style="padding-left:12px;color:#fff;font-size:16px;font-weight:800">VahanKhata</td>'
+        '</tr></table></td></tr>'
+        '<tr><td style="padding:28px">'
+        f'<p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#0f172a">'
+        f'Welcome, {full_name}!</p>'
+        '<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#475569">'
+        'Thanks for signing up. Click the button below to verify your email and activate your account.'
+        '</p>'
+        '<table cellpadding="0" cellspacing="0" style="margin:0 auto"><tr>'
+        f'<td style="background:#4f46e5;border-radius:10px"><a href="{verify_url}" '
+        'style="display:inline-block;padding:12px 32px;color:#fff;text-decoration:none;'
+        'font-weight:600;font-size:15px">Verify Email</a></td>'
+        '</tr></table>'
+        '<p style="margin:20px 0 0;font-size:12px;color:#94a3b8">'
+        'This link expires in 24 hours. If you did not create this account, you can ignore this email.'
+        '</p></td></tr>'
+        '<tr><td style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;'
+        'text-align:center;font-size:12px;color:#94a3b8">'
+        '&copy; 2026 VahanKhata. All rights reserved.</td></tr>'
+        '</table></td></tr></table></body></html>'
+    )
+
+    return dispatch_sync(
+        send_email,
+        to_email=to_email,
+        subject="Verify your email - VahanKhata",
+        body=plain,
+        html_body=html,
+    )
+
+
 def send_manager_onboarding_email_sync(
     to_email: str,
     manager_name: str,

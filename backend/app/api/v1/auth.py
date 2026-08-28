@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib, secrets, time
 from fastapi import APIRouter, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from backend.app.api.v1.deps import _bad, _not_found, _ok
 from backend.app.core.config import settings
@@ -299,25 +299,22 @@ async def api_register(request: Request):
         return _bad("body must be a JSON object")
 
     email = str(body.get("email", "")).strip().lower()
-    username = str(body.get("username", "")).strip()
-    full_name = str(body.get("full_name", "")).strip()
-    phone = str(body.get("phone", "")).strip() or None
     password = str(body.get("password", ""))
     confirm_password = str(body.get("confirm_password", ""))
 
     if not email or "@" not in email:
         return _bad("valid email is required", "INVALID_EMAIL")
-    if not username:
-        return _bad("username is required", "MISSING_USERNAME")
-    if not full_name:
-        return _bad("full name is required", "MISSING_FULL_NAME")
     if not password or len(password) < 8:
         return _bad("password must be at least 8 characters", "WEAK_PASSWORD")
     if password != confirm_password:
         return _bad("passwords do not match", "PASSWORD_MISMATCH")
 
+    # Auto-derive username and display name from the email local-part.
+    local = email.split("@", 1)[0].lower().replace(".", "_")[:30] or "user"
+    username = local
+    full_name = local.replace("_", " ").title() or email
+    suffix = 0
     password_hash = hash_password(password)
-
     raw_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
     expires_at = time.time() + (24 * 3600)
@@ -329,12 +326,21 @@ async def api_register(request: Request):
             ).fetchone()
             if dup:
                 return _bad("email already registered", "EMAIL_TAKEN")
+            # Resolve username collision with a numeric suffix.
+            while True:
+                clash = conn.cursor().execute(
+                    "SELECT id FROM users WHERE username = %s", (username,)
+                ).fetchone()
+                if not clash:
+                    break
+                suffix += 1
+                username = f"{local[:24]}_{suffix}"
             register_user(
                 conn,
                 username=username,
                 password_hash=password_hash,
                 full_name=full_name,
-                phone=phone,
+                phone=None,
                 email=email,
                 email_verify_token=token_hash,
                 email_verify_expires_at=expires_at,
@@ -342,37 +348,35 @@ async def api_register(request: Request):
     except Exception as e:
         return _bad(f"cannot register: {e}", "DUPLICATE_FIELD")
 
-    from backend.app.services.email.client import send_manager_onboarding_email_sync
+    from backend.app.services.email.client import send_verification_email_sync
     verify_url = f"{settings.app_public_url or 'http://localhost:5173'}/verify-email?token={raw_token}"
-    send_manager_onboarding_email_sync(
+    send_verification_email_sync(
         to_email=email,
-        manager_name=full_name,
-        username=username,
-        temporary_password="",
-        login_url=verify_url,
-        fleet_name="",
-        subscription_plan="TRIAL",
-        subscription_expiry="",
-        vehicle_limit=1,
-        driver_limit=5,
-        default_batta_rate=2500.00,
+        full_name=full_name,
+        verify_url=verify_url,
     )
 
     return _ok({"message": "registration successful - check your email to verify"})
 
 
-@router.get("/auth/verify-email", response_model=Data[VerifyResponse])
+@router.get("/auth/verify-email")
 async def api_verify_email(token: str):
-    """Confirm an email verification token."""
+    """Confirm an email verification token, then redirect to the login page.
+
+    GET /api/v1/auth/verify-email?token=...
+    Redirects to the SPA root with a query flag so the login page can show a
+    success or error message inline.
+    """
+    base = (settings.app_public_url or "").rstrip("/") or "/"
     if not token:
-        return _bad("missing verification token", "MISSING_TOKEN")
+        return RedirectResponse(f"{base}/?verified=missing")
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     with get_db() as conn:
         user = get_user_by_verify_token(conn, token_hash)
         if not user:
-            return _bad("invalid or expired verification token", "INVALID_TOKEN")
+            return RedirectResponse(f"{base}/?verified=invalid")
         verify_email(conn, user["id"])
-    return _ok({"message": "email verified - you can now log in"})
+    return RedirectResponse(f"{base}/?verified=1")
 
 
 @router.post(

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import SocialLogin from "../components/SocialLogin.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
@@ -77,27 +77,6 @@ function SignUpForm({ busy, onSubmit, signup, setSignup }) {
           disabled={busy} className="input" />
       </div>
       <div>
-        <label className="label" htmlFor="su_username">Username</label>
-        <input id="su_username" type="text" value={signup.username}
-          onChange={(e) => s("username", e.target.value)} required
-          placeholder="arvind_sharma" autoComplete="username"
-          disabled={busy} className="input" />
-      </div>
-      <div>
-        <label className="label" htmlFor="su_name">Full name</label>
-        <input id="su_name" type="text" value={signup.fullName}
-          onChange={(e) => s("fullName", e.target.value)} required
-          placeholder="Arvind Sharma" autoComplete="name"
-          disabled={busy} className="input" />
-      </div>
-      <div>
-        <label className="label" htmlFor="su_phone">Phone (optional)</label>
-        <input id="su_phone" type="tel" value={signup.phone}
-          onChange={(e) => s("phone", e.target.value)}
-          placeholder="+91 98765 43210" autoComplete="tel"
-          disabled={busy} className="input" />
-      </div>
-      <div>
         <label className="label" htmlFor="su_password">Password (min 8 characters)</label>
         <input id="su_password" type="password" value={signup.password}
           onChange={(e) => s("password", e.target.value)} required
@@ -111,6 +90,9 @@ function SignUpForm({ busy, onSubmit, signup, setSignup }) {
           placeholder="........" autoComplete="new-password"
           disabled={busy} className="input" />
       </div>
+      <p className="text-xs text-ink-400">
+        Your username and display name will be set from your email address. You can change them later in Settings.
+      </p>
       <button type="submit" disabled={busy} className="btn-primary w-full">
         {busy ? "Creating your account..." : "Create account"}
       </button>
@@ -128,9 +110,26 @@ export default function LoginPage() {
   const [elapsed, setElapsed] = useState(0);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const emptySignup = { email: "", username: "", fullName: "", phone: "", password: "", confirmPassword: "" };
+  const emptySignup = { email: "", password: "", confirmPassword: "" };
   const [signup, setSignup] = useState(emptySignup);
   const [signupDone, setSignupDone] = useState("");
+
+  // Handle ?verified= query param from email verification redirect.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const verifiedFlag = searchParams.get("verified");
+  useEffect(() => {
+    if (!verifiedFlag) return;
+    if (verifiedFlag === "1") {
+      setTab("signin");
+      toast.success("Email verified - you can now sign in.");
+    } else if (verifiedFlag === "invalid") {
+      setTab("signin");
+      setError("Verification link expired or invalid. Please sign up again.");
+    }
+    // Remove the flag from the URL so the message doesn't reappear on refresh.
+    searchParams.delete("verified");
+    setSearchParams(searchParams, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!busy) return undefined;
@@ -167,8 +166,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const msg = await register(
-        signup.email, signup.username, signup.fullName,
-        signup.phone, signup.password, signup.confirmPassword,
+        signup.email, signup.password, signup.confirmPassword,
       );
       setSignupDone(msg);
       setSignup(emptySignup);
