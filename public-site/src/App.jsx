@@ -14,16 +14,19 @@ import CookiesPage from "./public/pages/Cookies.jsx";
 
 function NotFound() {
   return (
-    <div className="market-section market-wrap text-center">
-      <p className="text-6xl font-black text-brand-600">404</p>
-      <h1 className="mt-4 text-2xl font-bold text-ink-900">Page not found</h1>
-      <p className="mt-2 text-sm text-ink-500">
-        The page you're looking for doesn't exist or has moved.
-      </p>
-      <a href="/" className="mt-8 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">
-        Back to home
-      </a>
-    </div>
+          <div className="mx-auto max-w-3xl px-4 py-20 text-center">
+        <p className="text-6xl font-black text-primary">404</p>
+        <h1 className="mt-4 text-2xl font-bold text-foreground">Page not found</h1>
+        <p className="mt-2 text-muted-foreground">
+          The page you're looking for doesn't exist or has moved.
+        </p>
+        <a
+          href="/"
+          className="mt-8 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+        >
+          Back to home
+        </a>
+      </div>
   );
 }
 

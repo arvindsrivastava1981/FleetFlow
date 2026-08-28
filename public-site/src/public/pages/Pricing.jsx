@@ -1,16 +1,7 @@
 import React from "react";
 import Seo from "../Seo";
-import { PageHero, CTABand } from "../UI";
 import { Button } from "../../components/ui/button.jsx";
 import { Badge } from "../../components/ui/badge.jsx";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "../../components/ui/card.jsx";
 import {
   Accordion,
   AccordionContent,
@@ -42,7 +33,7 @@ const PLANS = [
   },
 ];
 
-const FAQ = [
+const FAQS = [
   ["Do drivers need to install anything?", "No — they send receipts on WhatsApp and VahanKhata reads them."],
   ["Can I add extra vehicles?", "Yes — buy extra vehicle slots any time from billing."],
   ["Will it catch overpriced fuel?", "Yes — every purchase is compared to state rates and flagged automatically."],
@@ -57,76 +48,95 @@ export default function Pricing() {
         description="VahanKhata's simple pricing: a free 15-day trial, ₹799/month, or ₹7,191/year (25% off). No contracts, Razorpay built in."
         path="/pricing"
       />
-      <PageHero
-        eyebrow="Pricing"
-        title="One plan, one price."
-        lead="No hidden fees. Free trial, then a single vehicle slot — add more when you need them."
-      />
 
-      <section className="market-section market-wrap">
-        <div className="grid gap-5 lg:grid-cols-3">
-          {PLANS.map((p) => (
-            <Card
-              key={p.name}
-              className={`flex flex-col ${p.highlight ? "border-primary ring-1 ring-primary" : ""}`}
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>{p.name}</CardTitle>
-                  {p.highlight && <Badge>Most popular</Badge>}
-                </div>
-                <CardDescription>{p.period}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1">
-                <p className="text-4xl font-extrabold tracking-tight text-foreground">
-                  {p.price}
-                </p>
-                <ul className="mt-5 space-y-2">
-                  {p.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-center gap-2 text-sm text-muted-foreground"
-                    >
-                      <span className="text-primary">✓</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  asChild
-                  className="w-full"
-                  variant={p.highlight ? "default" : "outline"}
-                >
-                  <a href="/request-demo">Start with {p.name}</a>
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
-
-        <div className="mx-auto mt-16 max-w-2xl">
-          <h3 className="text-center text-xl font-bold text-foreground">
-            Frequently asked
-          </h3>
-          <Accordion type="single" collapsible className="mt-6">
-            {FAQ.map(([q, a]) => (
-              <AccordionItem key={q} value={q}>
-                <AccordionTrigger>{q}</AccordionTrigger>
-                <AccordionContent className="text-muted-foreground">
-                  {a}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+      {/* HERO */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-3xl px-4 py-20 text-center sm:py-24 sm:px-6">
+          <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+            Pricing
+          </span>
+          <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
+            One plan, one price.
+          </h1>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            एक साफ़ मूल्य, कोई छिपी शुल्लक नहीं।
+          </p>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+            No hidden fees. Free trial, then a single vehicle slot — add more when you need them.
+          </p>
         </div>
       </section>
 
-      <CTABand
-        title="Not sure which plan fits?"
-        lead="Book a free demo and we'll map the right plan to your fleet size."
-      />
+      {/* PLANS */}
+      <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
+        <div className="grid gap-5 lg:grid-cols-3">
+          {PLANS.map((p) => (
+            <div
+              key={p.name}
+              className={`flex flex-col rounded-xl border bg-card p-6 ${
+                p.highlight ? "border-primary ring-1 ring-primary" : "border-border"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-foreground">{p.name}</h3>
+                {p.highlight && <Badge>Most popular</Badge>}
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{p.period}</p>
+              <p className="mt-4 text-4xl font-extrabold tracking-tight text-foreground">
+                {p.price}
+              </p>
+              <ul className="mt-5 space-y-2">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="text-primary">✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button
+                asChild
+                className="mt-auto"
+                variant={p.highlight ? "default" : "outline"}
+              >
+                <a href="/request-demo">Start with {p.name}</a>
+              </Button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
+        <h3 className="text-center text-xl font-bold text-foreground">Frequently asked</h3>
+        <Accordion type="single" collapsible className="mt-6">
+          {FAQS.map(([q, a]) => (
+            <AccordionItem key={q} value={q}>
+              <AccordionTrigger>{q}</AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                {a}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </section>
+
+      {/* CLOSING CTA */}
+      <section className="mx-auto mb-24 max-w-3xl px-4 py-16 text-center sm:px-6">
+        <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+          Not sure which plan fits?
+        </h2>
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Book a free demo and we'll map the right plan to your fleet size.
+        </p>
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <Button asChild size="lg">
+            <a href="/request-demo">Book a demo</a>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <a href="/">Log in</a>
+          </Button>
+        </div>
+      </section>
     </>
   );
 }
