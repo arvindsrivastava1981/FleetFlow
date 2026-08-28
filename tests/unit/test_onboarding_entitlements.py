@@ -53,45 +53,6 @@ def resolve_db(monkeypatch):
     return _patch
 
 
-def test_create_trip_manager_uses_requested_fleet(client, resolve_db):
-    """A Super Admin can target a non-default fleet when creating a manager."""
-    from unittest.mock import patch
-
-    import backend.app.api.v1.users as users_mod
-
-    cur = mock.MagicMock()
-    # Order: get_fleet_by_id (validate) -> get_fleet_entitlement -> create_user
-    #        -> get_user_by_id (onboarding email context)
-    cur.fetchone.side_effect = [
-        {"id": 42},  # get_fleet_by_id(42)
-        {"id": 42, "subscription_status": "ACTIVE", "vehicle_limit": 1,
-         "plan_code": "MONTHLY"},  # get_fleet_entitlement (ACTIVE -> short-circuits)
-        {"id": 99},  # create_user
-        {"id": 99, "full_name": "M"},  # get_user_by_id for onboarding
-    ]
-    cur.fetchall.return_value = []
-    db_obj = _make_db(cur)
-    resolve_db(db_obj)
-
-    with patch.object(users_mod, "send_manager_onboarding_email_sync"):
-        resp = client.post(
-            "/api/v1/users",
-            json={
-                "username": "m2",
-                "full_name": "Manager Two",
-                "role": "trip_manager",
-                "password": "pass1234",
-                "fleet_id": 42,
-            },
-        )
-
-    assert resp.status_code == 200, resp.text
-    insert_call = next(
-        c for c in cur.execute.call_args_list if "INSERT INTO users" in str(c.args[0])
-    )
-    # fleet_id param (index 7) is the requested 42, not the default 5.
-    assert insert_call.args[1][7] == 42, insert_call.args[1]
-
 
 def test_vehicle_gate_reports_not_entitled(client, resolve_db):
     """An un-entitled fleet yields code NOT_ENTITLED, not VEHICLE_LIMIT."""

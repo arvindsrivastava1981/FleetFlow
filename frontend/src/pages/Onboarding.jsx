@@ -33,7 +33,7 @@ export default function OnboardingPage() {
   const [vehicleNumber, setVehicleNumber] = useState("");
   const [makeModel, setMakeModel] = useState("");
   // Step 3 - driver (optional)
-  const [driverUsername, setDriverUsername] = useState("");
+  const [driverEmail, setDriverEmail] = useState("");
   const [driverName, setDriverName] = useState("");
   const [driverPassword, setDriverPassword] = useState("");
   const [driverPhone, setDriverPhone] = useState("");
@@ -100,15 +100,15 @@ export default function OnboardingPage() {
 
   async function submitDriver(e) {
     e.preventDefault();
-    const allEmpty = !driverUsername.trim() && !driverName.trim() && !driverPassword.trim();
+    const allEmpty = !driverEmail.trim() && !driverName.trim() && !driverPassword.trim();
     if (allEmpty) return finish();
-    if (!driverUsername.trim() || !driverName.trim() || !driverPassword.trim()) {
-      setError("Fill all driver fields (username, name and password), or clear them to skip.");
+    if (!driverEmail.trim() || !driverName.trim() || !driverPassword.trim()) {
+      setError("Fill all driver fields (email, name and password), or clear them to skip.");
       return;
     }
     const ok = await run(async () => {
       await api.post("/api/v1/drivers", {
-        username: driverUsername.trim(),
+        email: driverEmail.trim(),
         full_name: driverName.trim(),
         password: driverPassword,
         phone: driverPhone || null,
@@ -259,10 +259,10 @@ export default function OnboardingPage() {
             <form onSubmit={submitDriver} className="mt-6 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label" htmlFor="driver_username">Username</label>
-                  <input id="driver_username" type="text" value={driverUsername}
-                    onChange={(e) => setDriverUsername(e.target.value)}
-                    placeholder="ramesh_d" disabled={busy} className="input" autoFocus />
+                  <label className="label" htmlFor="driver_email">Email</label>
+                  <input id="driver_email" type="email" value={driverEmail}
+                    onChange={(e) => setDriverEmail(e.target.value)}
+                    placeholder="driver@example.com" disabled={busy} className="input" autoFocus />
                 </div>
                 <div>
                   <label className="label" htmlFor="driver_name">Full name</label>

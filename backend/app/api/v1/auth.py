@@ -24,8 +24,8 @@ from backend.app.core.security import (
 from backend.app.db.connection import get_db
 from backend.app.db.queries.users import (
     create_or_link_social_user,
+    get_user_by_email,
     get_user_by_id,
-    get_user_by_username,
     get_user_by_verify_token,
     register_user,
     update_user,
@@ -59,10 +59,12 @@ def _user_public(user: dict) -> dict:
     """The user payload shared by login / social login / me."""
     return {
         "id": user["id"],
-        "username": user["username"],
+        "email": user["email"],
         "role": user["role"],
         "fleet_id": user.get("fleet_id"),
         "auth_provider": user.get("auth_provider") or "local",
+        "email_verified": user.get("email_verified", True),
+        "full_name": user.get("full_name", ""),
     }
 
 
@@ -82,31 +84,17 @@ async def api_auth_login(request: Request, response: Response):
             body = {k: v for k, v in form.items()}
         except Exception:  # noqa: BLE001
             body = {}
-    username = str(body.get("username", "")).strip()
+    email = str(body.get("email", body.get("username", ""))).strip()  # back-compat: accept "username" key from old clients
     password = str(body.get("password", ""))
 
     allowed, lock_remaining = login_allowed(ip)
     if not allowed:
-        return JSONResponse(
-            status_code=423,
-            content={
-                "error": "locked",
-                "code": "LOCKED",
-                "retry_after_seconds": lock_remaining,
-            },
-        )
+        return JSONResponse(status_code=423, content={"error": "locked", "code": "LOCKED", "retry_after_seconds": lock_remaining})
     with get_db() as conn:
-        user = get_user_by_username(conn, username)
+        user = get_user_by_email(conn, email)
     if user is None or not verify_password(password, user["password_hash"]):
         remaining = register_login_failure(ip)
-        return JSONResponse(
-            status_code=401,
-            content={
-                "error": "invalid_credentials",
-                "code": "INVALID_CREDENTIALS",
-                "attempts_remaining": remaining,
-            },
-        )
+        return JSONResponse(status_code=401, content={"error": "invalid_credentials", "code": "INVALID_CREDENTIALS", "attempts_remaining": remaining})
     if not user["is_active"]:
         return JSONResponse(
             status_code=403,
@@ -123,7 +111,7 @@ async def api_auth_login(request: Request, response: Response):
             },
         )
     clear_login_failures(ip)
-    token = create_session(user["id"], user["username"], user["role"])
+    token = create_session(user["id"], user["email"], user["role"])
     landing = {
         "super_admin": "/dashboard",
         "trip_manager": "/dashboard",
@@ -152,13 +140,11 @@ def api_auth_me(request: Request):
     if guard is not None:
         return guard
     session = get_current_user(request)
-    # fleet_id / auth_provider live on the users row, not the session — fetch
-    # them so the SPA can gate fleet-less social signups into onboarding.
+    # Fetch the full user row for email, fleet_id, etc.
     with get_db() as conn:
         db_user = get_user_by_id(conn, session["user_id"])
     user = _user_public(db_user) if db_user else {
         "id": session["user_id"],
-        "username": session["username"],
         "role": session["role"],
     }
     return {
@@ -198,7 +184,7 @@ def api_auth_refresh(request: Request, response: Response):
 
 def _social_login_response(response: Response, user: dict) -> JSONResponse:
     """Issue a standard VahanKhata session for a verified social user."""
-    token = create_session(user["id"], user["username"], user["role"])
+    token = create_session(user["id"], user["email"], user["role"])
     if settings.auth_cookie_enabled:
         response.set_cookie(
             key=AUTH_COOKIE,
@@ -309,11 +295,8 @@ async def api_register(request: Request):
     if password != confirm_password:
         return _bad("passwords do not match", "PASSWORD_MISMATCH")
 
-    # Auto-derive username and display name from the email local-part.
-    local = email.split("@", 1)[0].lower().replace(".", "_")[:30] or "user"
-    username = local
-    full_name = local.replace("_", " ").title() or email
-    suffix = 0
+    # Auto-derive display name from the email local-part.
+    full_name = email.split("@", 1)[0].replace(".", " ").replace("_", " ").title() or email
     password_hash = hash_password(password)
     raw_token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
@@ -326,22 +309,12 @@ async def api_register(request: Request):
             ).fetchone()
             if dup:
                 return _bad("email already registered", "EMAIL_TAKEN")
-            # Resolve username collision with a numeric suffix.
-            while True:
-                clash = conn.cursor().execute(
-                    "SELECT id FROM users WHERE username = %s", (username,)
-                ).fetchone()
-                if not clash:
-                    break
-                suffix += 1
-                username = f"{local[:24]}_{suffix}"
             register_user(
                 conn,
-                username=username,
+                email=email,
                 password_hash=password_hash,
                 full_name=full_name,
                 phone=None,
-                email=email,
                 email_verify_token=token_hash,
                 email_verify_expires_at=expires_at,
             )

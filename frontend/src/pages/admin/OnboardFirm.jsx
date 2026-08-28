@@ -14,11 +14,11 @@ const PLATE_RE = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
 export default function OnboardFirmPage() {
   const toast = useToast();
   const [form, setForm] = useState({
-    owner_name: "", phone: "", email: "",
-    username: "", full_name: "", password: "",
+    owner_name: "", phone: "", owner_email: "",
+    email: "", full_name: "", password: "",
     plan_code: "TRIAL",
     vehicle_number: "", make_model: "", tank_capacity_liters: "", expected_km_per_liter: "",
-    driver_username: "", driver_full_name: "", driver_password: "", driver_phone: "",
+    driver_email: "", driver_full_name: "", driver_password: "", driver_phone: "",
     batta_type: "FIXED_TRIP", batta_rate: "",
   });
   const [errors, setErrors] = useState({});
@@ -36,7 +36,7 @@ export default function OnboardFirmPage() {
     const e = {};
     if (!form.owner_name.trim()) e.owner_name = "Firm / owner name is required.";
     if (!form.phone.trim()) e.phone = "Phone is required.";
-    if (!form.username.trim()) e.username = "Manager username is required.";
+    if (!form.email.trim()) e.email = "Manager email is required.";
     if (!form.full_name.trim()) e.full_name = "Manager full name is required.";
     if (!form.password.trim()) e.password = "Manager password is required.";
     else if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
@@ -56,12 +56,12 @@ export default function OnboardFirmPage() {
       }
     }
 
-    if (form.driver_username && form.driver_full_name && form.driver_password) {
-      if (!form.driver_username.trim()) e.driver_username = "Driver username is required.";
+    if (form.driver_email && form.driver_full_name && form.driver_password) {
+      if (!form.driver_email.trim()) e.driver_email = "Driver email is required.";
       if (!form.driver_full_name.trim()) e.driver_full_name = "Driver full name is required.";
       if (form.driver_password.length < 8) e.driver_password = "Driver password must be at least 8 characters.";
-    } else if (form.driver_username || form.driver_full_name || form.driver_password || form.driver_phone) {
-      e.driver_group = "Fill all driver fields (username, name and password) to add the driver.";
+    } else if (form.driver_email || form.driver_full_name || form.driver_password || form.driver_phone) {
+      e.driver_group = "Fill all driver fields (email, name and password) to add the driver.";
     }
 
     setErrors(e);
@@ -75,7 +75,7 @@ export default function OnboardFirmPage() {
     setSubmitting(true);
     const payload = {
       fleet: { owner_name: form.owner_name, phone: form.phone, email: form.email || null },
-      owner: { username: form.username, full_name: form.full_name, password: form.password, email: form.email || null },
+      owner: { email: form.owner_email || form.email, full_name: form.full_name, password: form.password, is_trip_manager: true },
       plan_code: form.plan_code,
     };
     if (form.vehicle_number) {
@@ -86,9 +86,9 @@ export default function OnboardFirmPage() {
         expected_km_per_liter: form.expected_km_per_liter ? Number(form.expected_km_per_liter) : 4.0,
       };
     }
-    if (form.driver_username && form.driver_full_name && form.driver_password) {
+    if (form.driver_email && form.driver_full_name && form.driver_password) {
       payload.initial_driver = {
-        username: form.driver_username, full_name: form.driver_full_name,
+        email: form.driver_email, full_name: form.driver_full_name,
         password: form.driver_password, phone: form.driver_phone || null,
         batta_type: form.batta_type,
         default_batta_rate: form.batta_rate ? Number(form.batta_rate) : null,
@@ -124,7 +124,7 @@ export default function OnboardFirmPage() {
           )}
           <button
             type="button"
-            onClick={() => { setResult(null); setError(""); setErrors({}); setForm({ owner_name: "", phone: "", email: "", username: "", full_name: "", password: "", plan_code: "TRIAL", vehicle_number: "", make_model: "", tank_capacity_liters: "", expected_km_per_liter: "", driver_username: "", driver_full_name: "", driver_password: "", driver_phone: "", batta_type: "FIXED_TRIP", batta_rate: "" }); }}
+            onClick={() => { setResult(null); setError(""); setErrors({}); setForm({ owner_name: "", phone: "", owner_email: "", email: "", full_name: "", password: "", plan_code: "TRIAL", vehicle_number: "", make_model: "", tank_capacity_liters: "", expected_km_per_liter: "", driver_email: "", driver_full_name: "", driver_password: "", driver_phone: "", batta_type: "FIXED_TRIP", batta_rate: "" }); }}
             className="btn-secondary mt-2"
           >
             Onboard another firm
@@ -158,9 +158,9 @@ export default function OnboardFirmPage() {
           <h3 className="mb-3 text-sm font-extrabold text-slate-800">2. Owner / Trip Manager account</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <label className="block text-xs font-semibold text-slate-600">
-              Manager Username <span className="text-rose-500">*</span>
-              <input value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="e.g. arvind" className={input} />
-              {errors.username && <span className="mt-1 block text-[11px] text-rose-600">{errors.username}</span>}
+              Manager Email <span className="text-rose-500">*</span>
+              <input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="e.g. arvind@firm.com" className={input} />
+              {errors.email && <span className="mt-1 block text-[11px] text-rose-600">{errors.email}</span>}
             </label>
             <label className="block text-xs font-semibold text-slate-600">
               Full Name <span className="text-rose-500">*</span>
@@ -217,8 +217,8 @@ export default function OnboardFirmPage() {
           <h3 className="mb-3 text-sm font-extrabold text-slate-800">5. Optional first driver</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <label className="block text-xs font-semibold text-slate-600">
-              Driver Username
-              <input value={form.driver_username} onChange={(e) => set("driver_username", e.target.value)} placeholder="e.g. raju" className={input} />
+              Driver Email
+              <input value={form.driver_email} onChange={(e) => set("driver_email", e.target.value)} placeholder="e.g. raju@firm.com" className={input} />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
               Driver Full Name
@@ -248,7 +248,7 @@ export default function OnboardFirmPage() {
             </label>
           </div>
           {errors.driver_group && <p className="mt-2 text-[11px] text-rose-600">{errors.driver_group}</p>}
-          {errors.driver_username && <p className="mt-1 text-[11px] text-rose-600">{errors.driver_username}</p>}
+          {errors.driver_email && <p className="mt-1 text-[11px] text-rose-600">{errors.driver_email}</p>}
           {errors.driver_full_name && <p className="mt-1 text-[11px] text-rose-600">{errors.driver_full_name}</p>}
           {errors.driver_password && <p className="mt-1 text-[11px] text-rose-600">{errors.driver_password}</p>}
         </div>

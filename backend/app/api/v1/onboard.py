@@ -69,17 +69,17 @@ async def api_onboard_fleet(request: Request):
 
     owner_name = str(fleet_c.get("owner_name", "")).strip()
     phone = str(fleet_c.get("phone", "")).strip()
-    email = ((fleet_c.get("email") or "")).strip() or None
+    email = ((fleet_c.get("email") or owner_c.get("email") or "")).strip() or None
 
-    username = str(owner_c.get("username", "")).strip()
+    username = (email or "").lower()  # kept for compatibility in the context, not DB
     full_name = str(owner_c.get("full_name", "")).strip()
     password = str(owner_c.get("password", "")).strip()
     owner_email = ((owner_c.get("email") or "")).strip() or email
 
     if not owner_name or not phone:
         _bad("fleet.owner_name and fleet.phone are required", "MISSING_FIELDS")
-    if not username or not full_name or not password:
-        _bad("owner.username, full_name and password are required", "MISSING_FIELDS")
+    if not email or not full_name or not password:
+        _bad("owner email, full_name and password are required", "MISSING_FIELDS")
     if plan_code not in _VALID_PLANS:
         _bad("unknown plan_code", "INVALID_PLAN")
 
@@ -107,8 +107,8 @@ async def api_onboard_fleet(request: Request):
         )
         actor_id = actor.get("user_id")
         owner_user_id = create_user(
-            conn, username, hash_password(password), full_name, "trip_manager",
-            phone, owner_email, created_by=actor_id, fleet_id=fleet_id,
+            conn, email, hash_password(password), full_name, "trip_manager",
+            phone, created_by=actor_id, fleet_id=fleet_id,
         )
         vehicle_id = None
         vehicle_no = str(vehicle.get("vehicle_number", "")).strip().upper()
@@ -127,14 +127,13 @@ async def api_onboard_fleet(request: Request):
                 )
 
         driver_user_id = None
-        d_username = str(driver.get("username", "")).strip()
+        d_email = str(driver.get("email", "")).strip()
         d_full = str(driver.get("full_name", "")).strip()
         d_pass = str(driver.get("password", "")).strip()
-        if d_username and d_full and d_pass:
+        if d_email and d_full and d_pass:
             driver_user_id = create_user(
-                conn, d_username, hash_password(d_pass), d_full, "driver",
+                conn, d_email, hash_password(d_pass), d_full, "driver",
                 ((driver.get("phone") or "")).strip() or None,
-                ((driver.get("email") or "")).strip() or None,
                 created_by=owner_user_id, fleet_id=fleet_id,
                 batta_type=driver.get("batta_type"),
                 default_batta_rate=driver.get("default_batta_rate"),
@@ -149,7 +148,7 @@ async def api_onboard_fleet(request: Request):
             if fleet_row is not None:
                 ctx = manager_onboarding_email_context(
                     manager_full_name=full_name,
-                    manager_username=username,
+                    manager_username=email,
                     temporary_password=password,
                     fleet=fleet_row,
                     login_url=_login_url(request),

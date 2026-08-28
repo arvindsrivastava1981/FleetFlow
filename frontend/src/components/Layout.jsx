@@ -260,7 +260,7 @@ function Brand() {
 }
 
 function UserChip({ user, role }) {
-  const initials = (user?.username || "U").slice(0, 2).toUpperCase();
+  const initials = ((user?.full_name || user?.email || "U").slice(0, 2)).toUpperCase();
   return (
     <div className="flex items-center gap-3">
       <span className="badge badge-brand hidden sm:inline-flex">
@@ -271,7 +271,7 @@ function UserChip({ user, role }) {
           {initials}
         </span>
         <span className="text-sm font-semibold text-ink-700">
-          {user?.username}
+          {user?.full_name || user?.email}
         </span>
       </div>
     </div>

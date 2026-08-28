@@ -11,7 +11,7 @@ const BATTA_UNIT = {
   DAILY: "₹/day",
   NONE: "No batta",
 };
-const emptyForm = { username: "", full_name: "", role: "trip_manager", phone: "", email: "", password: "", fleet_id: "", batta_type: "FIXED_TRIP", default_batta_rate: "2500.00" };
+const emptyForm = { email: "", full_name: "", role: "trip_manager", phone: "", password: "", fleet_id: "", batta_type: "FIXED_TRIP", default_batta_rate: "2500.00" };
 
 export default function UsersPage() {
   const toast = useToast();
@@ -68,11 +68,10 @@ export default function UsersPage() {
   function startEdit(u) {
     setEditingId(u.id);
     setForm({
-      username: u.username,
+      email: u.email,
       full_name: u.full_name,
       role: u.role,
       phone: u.phone || "",
-      email: u.email || "",
       password: "",
       fleet_id: u.fleet_id ? String(u.fleet_id) : "",
       batta_type: u.batta_type || "FIXED_TRIP",
@@ -105,7 +104,7 @@ export default function UsersPage() {
           {editingId ? "Edit User" : "Create New User"}
         </h3>
         <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-          <input value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="Username" required disabled={!!editingId} className="input disabled:opacity-50" />
+          <input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" required disabled={!!editingId} className="input disabled:opacity-50" />
           <input value={form.full_name} onChange={(e) => set("full_name", e.target.value)} placeholder="Full Name" required className="input" />
           <select value={form.role} onChange={(e) => set("role", e.target.value)} className="input">
             {ROLES.map((r) => (
@@ -156,7 +155,7 @@ export default function UsersPage() {
         <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Username</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Email</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Name</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Role</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Phone</th>
@@ -167,7 +166,7 @@ export default function UsersPage() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-3 text-xs font-bold text-slate-800">{u.username}</td>
+                <td className="p-3 text-xs font-bold text-slate-800">{u.email}</td>
                 <td className="p-3 text-xs text-slate-600">{u.full_name}</td>
                 <td className="p-3 text-xs">
                   <span className="badge badge-info">

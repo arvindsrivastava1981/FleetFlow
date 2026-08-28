@@ -28,18 +28,11 @@ export function AuthProvider({ children }) {
     })();
   }, []);
 
-  const login = useCallback(async (username, password) => {
-    const data = await api.postForm("/api/v1/auth/login", { username, password });
-    // postForm resolves to null on empty bodies; guard so a missing response
-    // fails loudly with a readable message instead of a JSON parse error.
+  const login = useCallback(async (email, password) => {
+    const data = await api.postForm("/api/v1/auth/login", { email, password });
     if (!data || !data.token) throw new Error("Login failed");
     setToken(data.token);
     setUser(data.user);
-    // Normalize the server-provided landing to a React SPA route. The backend
-    // returns the legacy HTML paths (/admin, /manager, /driver) which are NOT part
-    // of the React app and would either hit a dead SPA route or a full page-load to
-    // the server-rendered pages (and previously hard-redirected away). Every role
-    // lands on the SPA dashboard instead.
     return "/dashboard";
   }, []);
 

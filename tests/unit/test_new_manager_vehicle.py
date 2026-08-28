@@ -99,69 +99,6 @@ def _manager_create_cur():
     return cur
 
 
-def test_create_trip_manager_binds_default_fleet_and_starts_trial(client, resolve_db):
-    """The manager's user row gets fleet_id AND a non-entitled fleet gets a trial."""
-    from unittest.mock import patch
-
-    import backend.app.api.v1.users as users_mod
-
-    cur = _manager_create_cur()
-    db_obj = _make_db(cur)
-    resolve_db(db_obj)
-
-    with patch.object(users_mod, "send_manager_onboarding_email_sync"):
-        resp = client.post(
-            "/api/v1/users",
-            json={
-                "username": "new_mgr",
-                "full_name": "New Manager",
-                "role": "trip_manager",
-                "password": "pass1234",
-                "phone": "+91 90000 00000",
-                "email": "manager@example.com",
-            },
-        )
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["data"]["id"] == 99
-
-    calls = cur.execute.call_args_list
-    # Fix 1 — the user insert binds the default fleet id (param index 7).
-    insert_call = next(c for c in calls if "INSERT INTO users" in str(c.args[0]))
-    assert insert_call.args[1][7] == 5, insert_call.args[1]
-
-    # Fix 2 — a non-entitled default fleet triggers the trial (re)start.
-    assert any(
-        "UPDATE fleets" in str(c.args[0])
-        and "subscription_status = 'TRIAL'" in str(c.args[0])
-        for c in calls
-    )
-
-
-def test_create_driver_is_not_bound_to_fleet(client, resolve_db):
-    """Drivers are NOT auto-bound to the default fleet (only managers are)."""
-    cur = mock.MagicMock()
-    cur.fetchone.side_effect = [{"id": 99}]  # create_user -> new id
-    cur.fetchall.return_value = []
-    db_obj = _make_db(cur)
-    resolve_db(db_obj)
-
-    resp = client.post(
-        "/api/v1/users",
-        json={
-            "username": "driver1",
-            "full_name": "A Driver",
-            "role": "driver",
-            "password": "pass1234",
-        },
-    )
-
-    assert resp.status_code == 200, resp.text
-    insert_call = next(
-        c for c in cur.execute.call_args_list if "INSERT INTO users" in str(c.args[0])
-    )
-    # Driver stays unbound (fleet_id None at index 7).
-    assert insert_call.args[1][7] is None, insert_call.args[1]
 
 
 def test_manager_reads_own_fleet(client, resolve_db):

@@ -12,10 +12,9 @@ const BATTA_UNIT = {
   NONE: "No batta",
 };
 const emptyForm = {
-  username: "",
+  email: "",
   full_name: "",
   phone: "",
-  email: "",
   password: "",
   batta_type: "FIXED_TRIP",
   default_batta_rate: "2500.00",
@@ -48,7 +47,7 @@ export default function DriversPage() {
     setError("");
     try {
       if (editingId) {
-        const { username, ...payload } = form; // username is immutable on edit
+        const { email, ...payload } = form;
         await api.put(`/api/v1/drivers/${editingId}`, payload);
         toast.success("Driver updated successfully.");
       } else {
@@ -67,10 +66,9 @@ export default function DriversPage() {
   function startEdit(d) {
     setEditingId(d.id);
     setForm({
-      username: d.username,
+      email: d.email,
       full_name: d.full_name,
       phone: d.phone || "",
-      email: d.email || "",
       password: "",
       batta_type: d.batta_type || "FIXED_TRIP",
       default_batta_rate: d.default_batta_rate != null ? String(d.default_batta_rate) : "2500.00",
@@ -107,14 +105,6 @@ export default function DriversPage() {
           {editingId ? "Edit Driver" : "Add New Driver"}
         </h3>
         <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-          <input
-            value={form.username}
-            onChange={(e) => set("username", e.target.value)}
-            placeholder="Username"
-            required
-            disabled={!!editingId}
-            className="input disabled:opacity-50"
-          />
           <input
             value={form.full_name}
             onChange={(e) => set("full_name", e.target.value)}
@@ -195,7 +185,7 @@ export default function DriversPage() {
         <table className="table">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Username</th>
+              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Email</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Name</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Salary Type</th>
               <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Salary Rate</th>
@@ -207,7 +197,7 @@ export default function DriversPage() {
           <tbody>
             {drivers.map((d) => (
               <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-3 text-xs font-bold text-slate-800">{d.username}</td>
+                <td className="p-3 text-xs font-bold text-slate-800">{d.email}</td>
                 <td className="p-3 text-xs text-slate-600">
                   {d.full_name}
                   {d.licence_expiry && new Date(d.licence_expiry) <= new Date(Date.now() + 14 * 864e5) && (

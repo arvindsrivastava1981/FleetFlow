@@ -77,7 +77,7 @@ def _login_url(request: Request) -> str:
 
 
 def _manager_onboarding_payload(
-    conn, new_id: int, username: str, temporary_password: str,
+    conn, new_id: int, full_name: str, temporary_password: str,
     manager_email: str | None, request: Request,
 ) -> dict | None:
     """Build the manager onboarding email kwargs, or None if it can't be sent."""
@@ -90,10 +90,10 @@ def _manager_onboarding_payload(
     if fleet is None:
         return None
     user = get_user_by_id(conn, new_id)
-    full_name = (user or {}).get("full_name") or username
+    display_name = (user or {}).get("full_name") or full_name
     ctx = manager_onboarding_email_context(
-        manager_full_name=full_name,
-        manager_username=username,
+        manager_full_name=display_name,
+        manager_username=manager_email,
         temporary_password=temporary_password,
         fleet=fleet,
         login_url=_login_url(request),
@@ -127,14 +127,13 @@ async def api_create_user(request: Request):
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
         return _bad("body must be a JSON object")
-    username = str(body.get("username", "")).strip()
+    email = str(body.get("email", body.get("username", ""))).strip()
     full_name = str(body.get("full_name", "")).strip()
     role = str(body.get("role", ""))
     password = str(body.get("password", ""))
-    if role not in VALID_ROLES or not password:
-        return _bad("invalid role or missing password", "VALIDATION")
+    if role not in VALID_ROLES or not password or not email:
+        return _bad("invalid role, missing password or email", "VALIDATION")
     phone = (body.get("phone") or "").strip() or None
-    email = (body.get("email") or "").strip() or None
     batta_type = (body.get("batta_type") or "").strip() or None
     default_batta_rate = body.get("default_batta_rate")
     if role != "driver":
@@ -160,15 +159,15 @@ async def api_create_user(request: Request):
         else:
             manager_fleet_id = None
         new_id = create_user(
-            conn, username, hash_password(password), full_name, role,
-            phone, email, created_by=user.get("user_id"),
+            conn, email, hash_password(password), full_name, role,
+            phone, created_by=user.get("user_id"),
             fleet_id=manager_fleet_id,
             batta_type=batta_type,
             default_batta_rate=default_batta_rate,
         )
         if role == "trip_manager":
             ctx = _manager_onboarding_payload(
-                conn, new_id, username, password, email, request
+                conn, new_id, full_name, password, email, request
             )
             if ctx is not None:
                 send_manager_onboarding_email_sync(**ctx)
@@ -269,19 +268,18 @@ async def api_create_driver(request: Request):
         return _bad("invalid JSON body")
     if not isinstance(body, dict):
         return _bad("body must be a JSON object")
-    username = str(body.get("username", "")).strip()
+    email = str(body.get("email", body.get("username", ""))).strip()
     full_name = str(body.get("full_name", "")).strip()
     password = str(body.get("password", ""))
-    if not username or not full_name or not password:
-        return _bad("username, full_name and password are required", "MISSING_FIELDS")
+    if not email or not full_name or not password:
+        return _bad("email, full_name and password are required", "MISSING_FIELDS")
     phone = (body.get("phone") or "").strip() or None
-    email = (body.get("email") or "").strip() or None
     batta_type = (body.get("batta_type") or "").strip() or None
     default_batta_rate = body.get("default_batta_rate")
     with get_db() as conn:
         new_id = create_user(
-            conn, username, hash_password(password), full_name, "driver",
-            phone, email, created_by=user.get("user_id"),
+            conn, email, hash_password(password), full_name, "driver",
+            phone, created_by=user.get("user_id"),
             batta_type=batta_type,
             default_batta_rate=default_batta_rate,
         )

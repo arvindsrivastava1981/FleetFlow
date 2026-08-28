@@ -103,7 +103,7 @@ def _full_payload() -> dict:
             "expected_km_per_liter": 4.0,
         },
         "initial_driver": {
-            "username": "raju",
+            "email": "raju@example.com",
             "full_name": "Raju Driver",
             "password": "Driver#123",
             "phone": "+91 88888 77777",
@@ -133,7 +133,7 @@ def test_onboard_full_with_email(client, admin_session, onboard_db):
     # Welcome email carried the owner's email + temporary password.
     assert email_calls["to_email"] == "arvind@example.com"
     assert email_calls["temporary_password"] == "Temp#12345"
-    assert email_calls["username"] == "arvind"
+    assert email_calls["username"] == "billing@arvind.example"
 
 
 def test_onboard_manager_only_without_vehicle_or_driver(client, admin_session, onboard_db):

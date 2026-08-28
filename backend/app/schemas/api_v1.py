@@ -18,8 +18,9 @@ class Data(BaseModel, Generic[T]):
 # ---------------------------------------------------------------------------#
 class AuthUser(BaseModel):
     id: int
-    username: str
+    email: str
     role: str
+    full_name: Optional[str] = None
     fleet_id: Optional[int] = None
     auth_provider: Optional[str] = None
     email_verified: Optional[bool] = None

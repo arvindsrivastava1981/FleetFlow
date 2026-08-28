@@ -36,14 +36,14 @@ function TabBar({ tab, setTab }) {
     </div>
   );
 }
-function SignInForm({ busy, elapsed, onSubmit, username, setUsername, password, setPassword }) {
+function SignInForm({ busy, elapsed, onSubmit, email, setEmail, password, setPassword }) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label className="label" htmlFor="username">Username</label>
-        <input id="username" type="text" value={username}
-          onChange={(e) => setUsername(e.target.value)} required
-          placeholder="you@fleet" autoComplete="username"
+        <label className="label" htmlFor="username">Email</label>
+        <input id="username" type="email" value={email}
+          onChange={(e) => setEmail(e.target.value)} required
+          placeholder="you@example.com" autoComplete="email"
           disabled={busy} className="input" />
       </div>
       <div>
@@ -91,7 +91,7 @@ function SignUpForm({ busy, onSubmit, signup, setSignup }) {
           disabled={busy} className="input" />
       </div>
       <p className="text-xs text-ink-400">
-        Your username and display name will be set from your email address. You can change them later in Settings.
+        We will set your display name from your email address. You can update it later in Settings.
       </p>
       <button type="submit" disabled={busy} className="btn-primary w-full">
         {busy ? "Creating your account..." : "Create account"}
@@ -108,7 +108,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const emptySignup = { email: "", password: "", confirmPassword: "" };
   const [signup, setSignup] = useState(emptySignup);
@@ -144,7 +144,7 @@ export default function LoginPage() {
     setError("");
     setBusy(true);
     try {
-      const landing = await login(username, password);
+      const landing = await login(email, password);
       navigate(landing, { replace: true });
     } catch (err) {
       let msg = err.message || "Login failed";
@@ -223,7 +223,7 @@ return (
                 <p className="mt-1 text-sm text-ink-500">Enter your credentials to access your workspace.</p>
                 <div className="mt-5">
                   <SignInForm busy={busy} elapsed={elapsed} onSubmit={doSignin}
-                    username={username} setUsername={setUsername}
+                    email={email} setEmail={setEmail}
                     password={password} setPassword={setPassword} />
                 </div>
               </>

@@ -61,21 +61,23 @@ CREATE TABLE IF NOT EXISTS fleets (
 CREATE INDEX IF NOT EXISTS idx_fleets_phone ON fleets(phone);
 -- ----------------------------------------------------------------------------
 -- 3. USERS — role-based access (Super Admin / Trip Manager / Driver).
---    Created before vehicles & trips because they reference users(id).
+--    Email is the unique login identifier for all roles.
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
     id BIGSERIAL PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    password_hash VARCHAR(255),
     full_name VARCHAR(100) NOT NULL,
     role VARCHAR(20) NOT NULL
         CHECK (role IN ('super_admin', 'trip_manager', 'driver')),
     phone VARCHAR(20),
-    email VARCHAR(150),
     fleet_id BIGINT REFERENCES fleets(id) ON DELETE CASCADE,
     fleet_role VARCHAR(20) DEFAULT NULL       -- firm position: owner / manager / branch_head / driver
         CHECK (fleet_role IN ('owner', 'manager', 'branch_head', 'driver')),
     is_active BOOLEAN DEFAULT TRUE,
+    email_verified BOOLEAN NOT NULL DEFAULT TRUE,
+    email_verify_token VARCHAR(255) DEFAULT NULL,
+    email_verify_expires_at TIMESTAMPTZ DEFAULT NULL,
     batta_type VARCHAR(20) DEFAULT NULL,
     default_batta_rate NUMERIC(10, 2) DEFAULT NULL,
     home_state_code VARCHAR(10) DEFAULT NULL, -- manager's usual operating state (highlighted on Rules & Rates)
@@ -88,7 +90,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(lower(email));
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_fleet_id ON users(fleet_id);
 
@@ -358,7 +360,6 @@ CREATE TRIGGER trg_fuel_benchmarks_updated_at
 CREATE TABLE auth_sessions (
     token_hash VARCHAR(64) PRIMARY KEY,
     user_id BIGINT NOT NULL,
-    username VARCHAR(100) NOT NULL,
     role VARCHAR(20) NOT NULL,
     issued_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ NOT NULL

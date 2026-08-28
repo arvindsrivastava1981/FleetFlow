@@ -49,7 +49,7 @@ export default function DashboardPage() {
     api.get("/api/v1/dashboard/trends").then(setTrends).catch(() => {});
     return undefined;
   }, [role]);
-  const firstName = user?.full_name ? user.full_name.split(" ")[0] : user?.username || "there";
+  const firstName = user?.full_name ? user.full_name.split(" ")[0] : "there";
 
   const greeting = (() => {
     const h = new Date().getHours();
