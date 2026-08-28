@@ -32,6 +32,14 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+-- Seed the billable plan catalogue (kept in sync with incremental_dml.sql so a
+-- fresh schema.sql install and a migrated DB converge on identical data).
+INSERT INTO subscription_plans (code, name, billing_cycle, trial_days, price, vehicle_limit, features)
+VALUES
+    ('TRIAL',   '15-Day Free Trial',   'TRIAL',   15, 0.00,  1, '{"vehicle_limit":1,"driver_limit":5,"whatsapp":true,"reports":true}'),
+    ('MONTHLY', 'Monthly ₹799 Plan',   'MONTHLY',  0, 799.00, 1, '{"vehicle_limit":1,"driver_limit":10,"whatsapp":true,"reports":true,"batta_profiles":true}'),
+    ('YEARLY',  'Yearly ₹7,191 Plan (25% off)', 'YEARLY', 0, 7191.00, 1, '{"vehicle_limit":1,"driver_limit":10,"whatsapp":true,"reports":true,"batta_profiles":true}')
+ON CONFLICT (code) DO NOTHING;
 
 -- ----------------------------------------------------------------------------
 -- 2. FLEETS / OWNERS — owns the subscription entitlement (state, plan, trial

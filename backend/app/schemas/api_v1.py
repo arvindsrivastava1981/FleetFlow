@@ -55,9 +55,14 @@ class LogoutResult(BaseModel):
 # Auth: registration & verification
 # ---------------------------------------------------------------------------#
 class RegisterRequest(BaseModel):
+    """`POST /auth/register` payload.
+
+    `username` was removed (email is the unique login key); display `full_name`
+    is now auto-derived from the email local-part by the endpoint.
+    """
+
     email: str
-    username: str
-    full_name: str
+    full_name: Optional[str] = None
     phone: Optional[str] = None
     password: str
     confirm_password: str

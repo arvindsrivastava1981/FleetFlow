@@ -9,6 +9,11 @@ import { useToast } from "../context/ToastContext.jsx";
 // Step 2: first vehicle (optional) -> POST /api/v1/vehicles
 // Step 3: first driver (optional)  -> POST /api/v1/drivers
 const STEPS = ["Firm", "Vehicle", "Driver"];
+const SUBTITLES = [
+  "Set up your transport firm and start your free trial.",
+  "Register the first vehicle in your fleet - you can skip for now.",
+  "Invite your first driver - you can add more later.",
+];
 const PLATE_RE = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
 const BATTA_TYPES = [
   { value: "FIXED_TRIP", label: "Fixed per trip" },
@@ -195,7 +200,7 @@ export default function OnboardingPage() {
             {step === 1 && "Add your first vehicle"}
             {step === 2 && "Add your first driver"}
           </h1>
-          <p className="mt-1 text-sm text-ink-500">{subtitles[step]}</p>
+          <p className="mt-1 text-sm text-ink-500">{SUBTITLES[step]}</p>
 
           {error && <div className="alert alert-error mt-5">{error}</div>}
 
