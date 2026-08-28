@@ -92,6 +92,10 @@ CREATE TABLE IF NOT EXISTS users (
     licence_expiry DATE DEFAULT NULL,         -- driver licence expiry (audit P-5)
     auth_provider VARCHAR(20) NOT NULL DEFAULT 'local'  -- 'local' | 'google' | 'facebook'
         CHECK (auth_provider IN ('local', 'google', 'facebook')),
+    -- Social accounts are untrusted self-signup: super_admin only ever comes
+    -- from the manual seed script (database/super_admin.sql), so a non-local
+    -- provider can never hold the super_admin role.
+    CONSTRAINT users_should_trip_manger CHECK (auth_provider = 'local' OR role <> 'super_admin'),
     provider_sub VARCHAR(255) DEFAULT NULL,   -- provider-unique subject id (google sub / facebook id)
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,

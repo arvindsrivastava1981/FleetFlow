@@ -102,7 +102,12 @@ def create_user(conn, email, password_hash, full_name, role, phone=None,
     return cur.fetchone()["id"]
 
 
-def create_or_link_social_user(conn, provider, provider_sub, email, full_name, default_role):
+def create_or_link_social_user(conn, provider, provider_sub, email, full_name, default_role="trip_manager"):
+    # Defense-in-depth: social sign-up is untrusted self-signup — it is ALWAYS a
+    # trip_manager. super_admin comes only from the manual seed script and
+    # drivers are only created by a trip_manager, so any passed default_role
+    # (even a misconfigured env override) is overridden here.
+    _safe_role = "trip_manager"
     existing = get_user_by_provider(conn, provider, provider_sub)
     if existing is not None:
         return existing, False
@@ -119,7 +124,7 @@ def create_or_link_social_user(conn, provider, provider_sub, email, full_name, d
         """INSERT INTO users (email, password_hash, full_name, role, is_active, auth_provider, provider_sub)
             VALUES (%s, %s, %s, %s, TRUE, %s, %s)
             RETURNING id""",
-        (email, f"!social:{provider}:{provider_sub}", full_name, default_role, provider, provider_sub),
+        (email, f"!social:{provider}:{provider_sub}", full_name, _safe_role, provider, provider_sub),
     )
     return get_user_by_id(conn, cur.fetchone()["id"]), True
 

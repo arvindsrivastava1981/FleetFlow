@@ -17,6 +17,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) NOT NULL DE
 ALTER TABLE users ADD COLUMN IF NOT EXISTS provider_sub VARCHAR(255) DEFAULT NULL;
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_auth_provider_check;
 ALTER TABLE users ADD CONSTRAINT users_auth_provider_check CHECK (auth_provider IN ('local', 'google', 'facebook'));
+-- Social accounts (google/facebook) are untrusted self-signup: super_admin only
+-- ever comes from the manual seed script (database/super_admin.sql), so a
+-- non-local provider can never hold the super_admin role.
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_should_trip_manger;
+ALTER TABLE users ADD CONSTRAINT users_should_trip_manger CHECK (auth_provider = 'local' OR role <> 'super_admin');
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_provider_sub ON users(provider_sub) WHERE provider_sub IS NOT NULL;
 -- Email index
 DROP INDEX IF EXISTS idx_users_username;

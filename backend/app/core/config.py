@@ -102,7 +102,11 @@ class Settings:
         self.facebook_app_secret: str | None = os.getenv("FACEBOOK_APP_SECRET")
         # Role assigned to users created via social sign-up (no fleet binding —
         # a Super Admin can attach them to a fleet later from /users).
-        self.social_default_role: str = os.getenv("SOCIAL_DEFAULT_ROLE", "trip_manager")
+        # Social sign-up is UNTRUSTED self-signup, so a new social user is
+        # ALWAYS a trip_manager regardless of any SOCIAL_DEFAULT_ROLE override.
+        # super_admin only comes from the manual seed script; drivers are only
+        # created by a trip_manager.
+        self.social_default_role: str = "trip_manager"
 
 
 def _require(name: str) -> str:
