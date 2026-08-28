@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext.jsx";
 
 // Audit E-3: route-level code splitting — every page is its own chunk, so the
@@ -14,6 +14,7 @@ const UsersPage = lazy(() => import("./pages/admin/Users.jsx"));
 const VehiclesPage = lazy(() => import("./pages/admin/Vehicles.jsx"));
 const BenchmarksPage = lazy(() => import("./pages/admin/Benchmarks.jsx"));
 const OnboardFirmPage = lazy(() => import("./pages/admin/OnboardFirm.jsx"));
+const OnboardingPage = lazy(() => import("./pages/Onboarding.jsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/Analytics.jsx"));
 const SubscriptionPage = lazy(() => import("./pages/Billing.jsx"));
 const SettledTripsPage = lazy(() => import("./pages/SettledTrips.jsx"));
@@ -43,6 +44,7 @@ function SuspenseShell({ children }) {
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading)
     return (
       <div className="flex min-h-screen items-center justify-center bg-ink-50">
@@ -54,6 +56,16 @@ function ProtectedRoute({ children, roles }) {
     );
   if (!user) return <Navigate to="/" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  // Self-serve onboarding gate: a trip_manager with no fleet (e.g. fresh
+  // social sign-up) must create their firm before using the app. super_admin
+  // is fleetless by design and drivers are always bound by their manager.
+  if (
+    user.role === "trip_manager" &&
+    !user.fleet_id &&
+    location.pathname !== "/onboarding"
+  ) {
+    return <Navigate to="/onboarding" replace />;
+  }
   return children;
 }
 
@@ -205,6 +217,16 @@ export default function App() {
             <Layout>
               <OnboardFirmPage />
             </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Self-serve firm setup for fleet-less users (social sign-ups). No
+          Layout — it's a standalone modal-style page like the login screen. */}
+      <Route
+        path="/onboarding"
+        element={
+          <ProtectedRoute roles={["trip_manager"]}>
+            <OnboardingPage />
           </ProtectedRoute>
         }
       />

@@ -48,6 +48,17 @@ def _client_ip(request: Request) -> str:
     return "unknown"
 
 
+def _user_public(user: dict) -> dict:
+    """The user payload shared by login / social login / me."""
+    return {
+        "id": user["id"],
+        "username": user["username"],
+        "role": user["role"],
+        "fleet_id": user.get("fleet_id"),
+        "auth_provider": user.get("auth_provider") or "local",
+    }
+
+
 @router.post("/auth/login", response_model=LoginResult)
 async def api_auth_login(request: Request, response: Response):
     """Authenticate and return a Bearer token + user as JSON."""
@@ -112,7 +123,7 @@ async def api_auth_login(request: Request, response: Response):
         )
     return {
         "token": token,
-        "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
+        "user": _user_public(user),
         "landing": landing,
     }
 
@@ -124,12 +135,17 @@ def api_auth_me(request: Request):
     if guard is not None:
         return guard
     session = get_current_user(request)
+    # fleet_id / auth_provider live on the users row, not the session — fetch
+    # them so the SPA can gate fleet-less social signups into onboarding.
+    with get_db() as conn:
+        db_user = get_user_by_id(conn, session["user_id"])
+    user = _user_public(db_user) if db_user else {
+        "id": session["user_id"],
+        "username": session["username"],
+        "role": session["role"],
+    }
     return {
-        "user": {
-            "id": session["user_id"],
-            "username": session["username"],
-            "role": session["role"],
-        },
+        "user": user,
         "expires_at": int(session.get("expires_at") or 0) or None,
     }
 
@@ -178,7 +194,7 @@ def _social_login_response(response: Response, user: dict) -> JSONResponse:
     return JSONResponse(
         content={
             "token": token,
-            "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
+            "user": _user_public(user),
             "landing": "/dashboard",
         }
     )

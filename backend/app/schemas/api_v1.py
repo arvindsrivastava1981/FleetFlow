@@ -20,6 +20,8 @@ class AuthUser(BaseModel):
     id: int
     username: str
     role: str
+    fleet_id: Optional[int] = None
+    auth_provider: Optional[str] = None
 
 
 class AuthMe(BaseModel):
