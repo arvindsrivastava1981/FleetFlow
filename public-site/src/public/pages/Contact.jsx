@@ -2,26 +2,66 @@ import React, { useState } from "react";
 import Seo from "../Seo";
 import { Button } from "../../components/ui/button.jsx";
 import { Card } from "../../components/ui/card.jsx";
-import { Mail, MessageCircle, UserRound } from "lucide-react";
-import { app } from "../../config.js";
+import { Mail, MessageCircle, UserRound, AlertCircle } from "lucide-react";
+import { app, api } from "../../config.js";
 
 const CONTACT_EMAIL = "support@vahankhata.in";
+const API_PATH = "/api/v1/contact";
+
+const initialForm = { name: "", firm: "", email: "", phone: "", message: "", website: "" };
 
 export default function Contact() {
-  const [form, setForm] = useState({ name: "", firm: "", email: "", phone: "", message: "" });
-  const [sent, setSent] = useState(false);
+  const [form, setForm] = useState(initialForm);
+  const [state, setState] = useState("idle"); // "idle" | "submitting" | "sent" | "error"
+  const [errorMsg, setErrorMsg] = useState("");
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const buildMailto = () => {
-    const subject = encodeURIComponent(`Contact via site — ${form.firm || form.name || "Inquiry"}`);
-    const body = encodeURIComponent(
-      `Name: ${form.name}\nFirm: ${form.firm}\nEmail: ${form.email}\nPhone: ${form.phone}\n\n${form.message}`
-    );
-    return `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-  };
   const whatsappLink = `https://wa.me/918860666659?text=${encodeURIComponent(
     `Hi VahanKhata, I'd like a demo. (${form.name || "Inquiry"})`
   )}`;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // Honeypot — bots fill every field, humans don't see it.
+    if (form.website) return;
+    setErrorMsg("");
+    setState("submitting");
+    try {
+      const res = await fetch(api(API_PATH), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim() || undefined,
+          firm: form.firm.trim() || undefined,
+          message: form.message.trim(),
+          website: form.website,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.data?.sent) {
+        setState("sent");
+      } else {
+        const detail =
+          data.error ||
+          data.detail ||
+          data.data?.message ||
+          "Something went wrong. Please try again.";
+        setErrorMsg(detail);
+        setState("error");
+      }
+    } catch {
+      setErrorMsg("Network error. Please check your connection and try again.");
+      setState("error");
+    }
+  };
+
+  const reset = () => {
+    setForm(initialForm);
+    setState("idle");
+    setErrorMsg("");
+  };
 
   const inputCls =
     "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1";
@@ -58,25 +98,30 @@ export default function Contact() {
         <div className="grid gap-8 lg:grid-cols-2">
           {/* Form */}
           <Card className="p-6">
-            {sent ? (
+            {state === "sent" ? (
               <div className="rounded-xl bg-emerald-50 p-6 text-center">
-                <p className="text-lg font-bold text-emerald-700">Almost there!</p>
+                <p className="text-lg font-bold text-emerald-700">Message sent!</p>
                 <p className="mt-2 text-sm text-emerald-800">
-                  Your email app should open with our message pre-filled. Hit send and we'll be in touch.
+                  Your message has been sent to {CONTACT_EMAIL}. We'll reply within one business day.
                 </p>
-                <Button variant="outline" className="mt-4" onClick={() => setSent(false)}>
-                  Write another
+                <Button variant="outline" className="mt-4" onClick={reset}>
+                  Send another
                 </Button>
               </div>
             ) : (
-              <form
-                className="space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  window.location.href = buildMailto();
-                  setSent(true);
-                }}
-              >
+              <form className="space-y-4" onSubmit={handleSubmit}>
+                {/* Honeypot — hidden from humans, filled by bots */}
+                <div className="hidden">
+                  <label className="sr-only">Leave this field empty</label>
+                  <input
+                    type="text"
+                    value={form.website}
+                    onChange={update("website")}
+                    autoComplete="off"
+                    tabIndex={-1}
+                    aria-hidden="true"
+                  />
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className={labelCls}>Name *</label>
@@ -130,8 +175,15 @@ export default function Contact() {
                     placeholder="How many vehicles and drivers do you run?"
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Send message
+                {state === "error" && (
+                  <div className="flex items-start gap-2 rounded-md bg-rose-50 p-3 text-sm text-rose-800">
+                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                <Button type="submit" className="w-full" disabled={state === "submitting"}>
+                  {state === "submitting" ? "Sending…" : "Send message"}
                 </Button>
               </form>
             )}

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import re as _re
 from typing import Any, Generic, Optional, TypeVar
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 T = TypeVar("T")
 
@@ -251,3 +252,47 @@ class RulesData(BaseModel):
     """`GET /rules` — { rule-group: [explanations...] }."""
 
     model_config = ConfigDict(extra="allow")
+
+
+# ---------------------------------------------------------------------------#
+# Contact
+# ---------------------------------------------------------------------------#
+class ContactRequest(BaseModel):
+    """`POST /contact` payload — public, unauthenticated contact form."""
+
+    name: str = Field(..., min_length=1, max_length=120)
+    email: str = Field(..., min_length=3, max_length=254)
+    phone: Optional[str] = Field(default=None, max_length=20)
+    firm: Optional[str] = Field(default=None, max_length=120)
+    message: str = Field(..., min_length=1, max_length=3000)
+    # Honeypot anti-bot field — must remain empty. If filled, the submission
+    # is from a bot and is silently accepted without sending email.
+    website: Optional[str] = Field(default=None)
+
+    @field_validator("name")
+    @classmethod
+    def _strip_name(cls, v: str) -> str:
+        return v.strip()
+
+    @field_validator("email")
+    @classmethod
+    def _normalise_email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("invalid email address")
+        return v
+
+    @field_validator("phone", "firm")
+    @classmethod
+    def _strip_optional(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            v = v.strip()
+            return v or None
+        return v
+
+
+class ContactResponse(BaseModel):
+    """`POST /contact` response."""
+
+    sent: bool = False
+    message: str = ""

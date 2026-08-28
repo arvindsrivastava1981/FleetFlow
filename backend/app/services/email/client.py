@@ -26,6 +26,7 @@ async def send_email(
     body: str,
     html_body: Optional[str] = None,
     from_email: Optional[str] = None,
+    reply_to: Optional[str] = None,
     attachments: Optional[list[dict[str, Any]]] = None,
 ) -> dict:
     """Send an email via the Resend HTTP API."""
@@ -47,6 +48,8 @@ async def send_email(
         }
         if html_body:
             payload["html"] = html_body
+        if reply_to:
+            payload["reply_to"] = reply_to
         if attachments:
             payload["attachments"] = attachments
 
@@ -311,7 +314,7 @@ def send_manager_onboarding_email_sync(
         return {"status": "skipped", "error": "no_temporary_password", "queued": False}
     if not to_email:
         return {"status": "skipped", "error": "no_recipient_email", "queued": False}
-    return dispatch_sync(
+        return dispatch_sync(
         send_manager_onboarding_email,
         to_email=to_email,
         manager_name=manager_name,
@@ -324,4 +327,95 @@ def send_manager_onboarding_email_sync(
         vehicle_limit=vehicle_limit,
         driver_limit=driver_limit,
         default_batta_rate=default_batta_rate,
+    )
+
+
+async def send_contact_notification(
+    name: str,
+    sender_email: str,
+    message: str,
+    firm: Optional[str] = None,
+    phone: Optional[str] = None,
+) -> dict:
+    """Render and dispatch a contact-form message to the support inbox.
+
+    Sends from the configured ``SENDER_EMAIL`` to ``SUPPORT_EMAIL`` (default
+    ``support@vahankhata.in``) with ``reply_to`` set to the visitor's email so
+    support can answer directly. Never raises — failures are returned as
+    ``status: "error"`` or ``status: "skipped"`` for the caller to map to HTTP.
+    """
+    from html import escape as _esc
+
+    support = settings.support_email or "support@vahankhata.in"
+    display_name = (name or "").strip() or "a visitor"
+    subject = f"Contact Form: {display_name}"
+
+    # ---- plain text ----------------------------------------------------------
+    plain_lines = [
+        "VahanKhata — New contact form submission",
+        "=" * 45,
+        "",
+        f"Name : {name}",
+        f"Email: {sender_email}",
+    ]
+    if firm:
+        plain_lines.append(f"Firm : {firm}")
+    if phone:
+        plain_lines.append(f"Phone: {phone}")
+    plain_lines.extend(["", "Message:", message, ""])
+    plain_text = "\n".join(plain_lines)
+
+    # ---- branded HTML (same visual language as the verification email) ------
+    def _row(label: str, value: str) -> str:
+        return (
+            f'<tr><td style="padding:4px 0 4px 0;font-size:13px;color:#475569;">'
+            f'<strong style="color:#0f172a">{_esc(label)}</strong></td>'
+            f'<td style="padding:4px 0 4px 12px;font-size:13px;color:#0f172a;">'
+            f'{_esc(str(value))}</td></tr>'
+        )
+
+    rows = _row("Name", name)
+    rows += _row("Email", sender_email)
+    if firm:
+        rows += _row("Firm", firm)
+    if phone:
+        rows += _row("Phone", phone)
+
+    html = (
+        '<!DOCTYPE html>'
+        '<html><head><meta charset="UTF-8">'
+        f'<title>Contact Form — VahanKhata</title></head>'
+        '<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,sans-serif">'
+        '<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px">'
+        '<table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;'
+        'border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">'
+        '<tr><td style="background:#3730a3;padding:24px 28px">'
+        '<table cellpadding="0" cellspacing="0"><tr>'
+        '<td style="width:40px;height:40px;background:rgba(255,255,255,.15);border-radius:10px;'
+        'text-align:center;font-size:16px;font-weight:900;color:#fff">VK</td>'
+        '<td style="padding-left:12px;color:#fff;font-size:16px;font-weight:800">VahanKhata</td>'
+        '</tr></table></td></tr>'
+        '<tr><td style="padding:28px">'
+        '<p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#0f172a">'
+        'New contact form submission</p>'
+        '<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#475569">'
+        'A visitor sent a message from the VahanKhata website.</p>'
+        '<table cellpadding="0" cellspacing="0" style="width:100%;border-top:1px solid #e2e8f0">'
+        f'{rows}'
+        '</table>'
+        '<p style="margin:20px 0 0;font-size:13px;line-height:1.6;color:#0f172a">'
+        f'{_esc(message).replace(chr(10), "<br>")}</p>'
+        '</td></tr>'
+        '<tr><td style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;'
+        'text-align:center;font-size:12px;color:#94a3b8">'
+        '&copy; 2026 VahanKhata. All rights reserved.</td></tr>'
+        '</table></td></tr></table></body></html>'
+    )
+
+    return await send_email(
+        to_email=support,
+        subject=subject,
+        body=plain_text,
+        html_body=html,
+        reply_to=sender_email,
     )

@@ -7,6 +7,7 @@ from backend.app.api.v1 import (
     auth,
     benchmarks,
     billing,
+    contact,
     dashboard,
     expenses,
     fleets,
@@ -25,6 +26,7 @@ router = APIRouter()
 _DOMAIN_ROUTERS = (
     dashboard.router,
     auth.router,
+    contact.router,
     trips.router,
     expenses.router,
     vehicles.router,

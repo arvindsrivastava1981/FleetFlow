@@ -46,6 +46,8 @@ class Settings:
         ] or [
             "https://app.vahankhata.in",
             "https://api.vahankhata.in",
+            "https://vahankhata.in",
+            "https://www.vahankhata.in",
             "http://localhost:5173",
             "http://127.0.0.1:5173",
         ]
