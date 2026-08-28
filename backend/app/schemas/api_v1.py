@@ -22,6 +22,7 @@ class AuthUser(BaseModel):
     role: str
     fleet_id: Optional[int] = None
     auth_provider: Optional[str] = None
+    email_verified: Optional[bool] = None
 
 
 class AuthMe(BaseModel):
@@ -47,6 +48,26 @@ class LoginResult(BaseModel):
 
 class LogoutResult(BaseModel):
     logged_out: bool
+
+
+# ---------------------------------------------------------------------------#
+# Auth: registration & verification
+# ---------------------------------------------------------------------------#
+class RegisterRequest(BaseModel):
+    email: str
+    username: str
+    full_name: str
+    phone: Optional[str] = None
+    password: str
+    confirm_password: str
+
+
+class RegisterResponse(BaseModel):
+    message: str
+
+
+class VerifyResponse(BaseModel):
+    message: str
 
 
 class ChangePasswordResult(BaseModel):

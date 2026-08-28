@@ -16,3 +16,11 @@ ALTER TABLE users
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_provider_sub
     ON users(provider_sub) WHERE provider_sub IS NOT NULL;
 
+-- Email verification for local accounts (signup).
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email_verify_token VARCHAR(255) DEFAULT NULL;
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS email_verify_expires_at TIMESTAMPTZ DEFAULT NULL;
+

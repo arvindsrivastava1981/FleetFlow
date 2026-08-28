@@ -330,3 +330,50 @@ def reactivate_user(conn, user_id: int) -> bool:
     cur = conn.cursor()
     cur.execute("UPDATE users SET is_active = TRUE WHERE id = %s", (user_id,))
     return cur.rowcount > 0
+
+def get_user_by_verify_token(conn, token):
+    cur = conn.cursor()
+    cur.execute(
+        '''SELECT * FROM users
+            WHERE email_verify_token = %s
+              AND email_verify_expires_at > NOW()''',
+        (token,),
+    )
+    return cur.fetchone()
+
+
+def register_user(
+    conn,
+    username,
+    password_hash,
+    full_name,
+    phone,
+    email,
+    email_verify_token,
+    email_verify_expires_at,
+):
+    cur = conn.cursor()
+    cur.execute(
+        '''INSERT INTO users
+            (username, password_hash, full_name, role, phone, email,
+             is_active, email_verified, email_verify_token,
+             email_verify_expires_at, auth_provider)
+         VALUES (%s, %s, %s, 'trip_manager', %s, %s, TRUE, FALSE, %s, %s, 'local')
+         RETURNING *''',
+        (username, password_hash, full_name, phone, email,
+         email_verify_token, email_verify_expires_at),
+    )
+    return cur.fetchone()
+
+
+def verify_email(conn, user_id):
+    cur = conn.cursor()
+    cur.execute(
+        '''UPDATE users
+              SET email_verified = TRUE,
+                  email_verify_token = NULL,
+                  email_verify_expires_at = NULL
+            WHERE id = %s''',
+        (user_id,),
+    )
+    return cur.rowcount > 0

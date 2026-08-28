@@ -71,7 +71,19 @@ export function AuthProvider({ children }) {
     return data?.expires_at ?? null;
   }, []);
 
-  const value = { user, setUser, loading, login, loginWithSocial, logout, expiresAt, refreshSession };
+  const register = useCallback(async (email, username, fullName, phone, password, confirmPassword) => {
+    const data = await api.post("/api/v1/auth/register", {
+      email,
+      username,
+      full_name: fullName,
+      phone: phone || null,
+      password,
+      confirm_password: confirmPassword,
+    });
+    return data?.message || "Check your email to verify your account.";
+  }, []);
+
+  const value = { user, setUser, loading, login, loginWithSocial, register, logout, expiresAt, refreshSession };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

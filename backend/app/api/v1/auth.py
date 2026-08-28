@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib, secrets, time
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
@@ -25,7 +26,10 @@ from backend.app.db.queries.users import (
     create_or_link_social_user,
     get_user_by_id,
     get_user_by_username,
+    get_user_by_verify_token,
+    register_user,
     update_user,
+    verify_email,
 )
 from backend.app.schemas.api_v1 import (
     AuthMe,
@@ -33,7 +37,10 @@ from backend.app.schemas.api_v1 import (
     Data,
     LoginResult,
     LogoutResult,
+    RegisterRequest,
+    RegisterResponse,
     SessionRefreshResult,
+    VerifyResponse,
 )
 
 router = APIRouter(prefix="/api/v1")
@@ -104,6 +111,16 @@ async def api_auth_login(request: Request, response: Response):
         return JSONResponse(
             status_code=403,
             content={"error": "inactive", "code": "INACTIVE_ACCOUNT"},
+        )
+    # Block login if local account hasn't verified email yet.
+    if (user.get("auth_provider") or "local") == "local" and not user.get("email_verified", True):
+        return JSONResponse(
+            status_code=403,
+            content={
+                "error": "email not verified",
+                "code": "EMAIL_UNVERIFIED",
+                "email": user.get("email"),
+            },
         )
     clear_login_failures(ip)
     token = create_session(user["id"], user["username"], user["role"])
@@ -268,6 +285,94 @@ async def api_auth_facebook(request: Request, response: Response):
 def api_auth_logout(request: Request):
     destroy_session(request)
     return _ok({"logged_out": True})
+
+
+
+@router.post("/auth/register", response_model=Data[RegisterResponse])
+async def api_register(request: Request):
+    """Create a new local user account with email verification."""
+    try:
+        body = await request.json()
+    except Exception:
+        return _bad("invalid JSON body")
+    if not isinstance(body, dict):
+        return _bad("body must be a JSON object")
+
+    email = str(body.get("email", "")).strip().lower()
+    username = str(body.get("username", "")).strip()
+    full_name = str(body.get("full_name", "")).strip()
+    phone = str(body.get("phone", "")).strip() or None
+    password = str(body.get("password", ""))
+    confirm_password = str(body.get("confirm_password", ""))
+
+    if not email or "@" not in email:
+        return _bad("valid email is required", "INVALID_EMAIL")
+    if not username:
+        return _bad("username is required", "MISSING_USERNAME")
+    if not full_name:
+        return _bad("full name is required", "MISSING_FULL_NAME")
+    if not password or len(password) < 8:
+        return _bad("password must be at least 8 characters", "WEAK_PASSWORD")
+    if password != confirm_password:
+        return _bad("passwords do not match", "PASSWORD_MISMATCH")
+
+    password_hash = hash_password(password)
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    expires_at = time.time() + (24 * 3600)
+
+    try:
+        with get_db() as conn:
+            dup = conn.cursor().execute(
+                "SELECT id FROM users WHERE lower(email) = %s", (email,)
+            ).fetchone()
+            if dup:
+                return _bad("email already registered", "EMAIL_TAKEN")
+            register_user(
+                conn,
+                username=username,
+                password_hash=password_hash,
+                full_name=full_name,
+                phone=phone,
+                email=email,
+                email_verify_token=token_hash,
+                email_verify_expires_at=expires_at,
+            )
+    except Exception as e:
+        return _bad(f"cannot register: {e}", "DUPLICATE_FIELD")
+
+    from backend.app.services.email.client import send_manager_onboarding_email_sync
+    verify_url = f"{settings.app_public_url or 'http://localhost:5173'}/verify-email?token={raw_token}"
+    send_manager_onboarding_email_sync(
+        to_email=email,
+        manager_name=full_name,
+        username=username,
+        temporary_password="",
+        login_url=verify_url,
+        fleet_name="",
+        subscription_plan="TRIAL",
+        subscription_expiry="",
+        vehicle_limit=1,
+        driver_limit=5,
+        default_batta_rate=2500.00,
+    )
+
+    return _ok({"message": "registration successful - check your email to verify"})
+
+
+@router.get("/auth/verify-email", response_model=Data[VerifyResponse])
+async def api_verify_email(token: str):
+    """Confirm an email verification token."""
+    if not token:
+        return _bad("missing verification token", "MISSING_TOKEN")
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    with get_db() as conn:
+        user = get_user_by_verify_token(conn, token_hash)
+        if not user:
+            return _bad("invalid or expired verification token", "INVALID_TOKEN")
+        verify_email(conn, user["id"])
+    return _ok({"message": "email verified - you can now log in"})
 
 
 @router.post(
