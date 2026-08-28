@@ -36,3 +36,14 @@ Run targeted checks before declaring completion:
 - Frontend Unit: `npx jest --bail --silent frontend/src/__tests__/<test_file>.test.tsx`
 - E2E Tests: `npx playwright test frontend/e2e/<spec_path>.spec.ts --config=frontend/e2e/playwright.config.ts --reporter=line`
 - Update `APP_MINDMAP.md` whenever models, routes, or schemas change.
+
+# Front-End & UI Design Rules
+- **Tech Stack:** Use React, Tailwind CSS, TypeScript, and Lucide React icons (`frontend` uses Vite + Tailwind 3.4; install `lucide-react` if not already present before importing).
+- **Component System:** Prioritize functional components with semantic HTML.
+- **Responsive Design:** Always build with a mobile-first approach using Tailwind's responsive prefixes (`sm:`, `md:`, `lg:`).
+- **Design System Consistency:**
+  - Colors: Use slate/zinc for neutral shades. Use a single primary accent color (e.g., indigo or violet).
+  - Spacing: Stick strictly to Tailwind's default spacing scale (e.g., `p-4`, `space-y-6`, `gap-4`).
+  - Typography: Use clean sans-serif layouts with proper hierarchy (`tracking-tight` for headings).
+- **Micro-interactions:** Include smooth transitions (`transition-all duration-200`) on interactive elements like buttons and cards.
+- **Accessibility:** Ensure proper contrast, use semantic tags (`nav`, `main`, `section`), and add `aria-label`s for icon-only buttons.

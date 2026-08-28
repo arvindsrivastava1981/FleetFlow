@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import Seo from "../Seo";
 import { PageHero } from "../UI";
+import { Button } from "../../components/ui/button.jsx";
+import { Mail, MessageCircle, UserRound } from "lucide-react";
 import { app } from "../../config.js";
 
 const CONTACT_EMAIL = "support@vahankhata.in";
@@ -8,118 +10,101 @@ const CONTACT_EMAIL = "support@vahankhata.in";
 export default function Contact() {
   const [form, setForm] = useState({ name: "", firm: "", email: "", phone: "", message: "" });
   const [sent, setSent] = useState(false);
-
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const buildMailto = () => {
     const subject = encodeURIComponent(`Contact via site — ${form.firm || form.name || "Inquiry"}`);
-    const body = encodeURIComponent(
-      `Name: ${form.name}\nFirm: ${form.firm}\nEmail: ${form.email}\nPhone: ${form.phone}\n\n${form.message}`
-    );
+    const body = encodeURIComponent(`Name: ${form.name}\nFirm: ${form.firm}\nEmail: ${form.email}\nPhone: ${form.phone}\n\n${form.message}`);
     return `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
   };
+  const whatsappLink = `https://wa.me/918860666659?text=${encodeURIComponent(`Hi VahanKhata, I'd like a demo. (${form.name || "Inquiry"})`)}`;
 
-  const whatsappLink = `https://wa.me/918860666659?text=${encodeURIComponent(
-    `Hi VahanKhata, I'd like a demo. (${form.name || "Inquiry"})`
-  )}`;
+  const inputCls = "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1";
+  const labelCls = "mb-1.5 block text-xs font-semibold text-foreground";
+
+  const cardCls = "rounded-xl border border-border bg-card p-6";
 
   return (
     <>
-      <Seo
-        title="Contact Us"
-        description="Talk to the VahanKhata team about a demo, pricing or onboarding. Reach us by email or WhatsApp."
-        path="/contact"
-      />
-      <PageHero
-        eyebrow="Contact · संपर्क"
-        title="Let's talk about your fleet."
-        lead="डेमो बुक करें, कीमत पूछें या सेटअप में मदद लें — एक कार्यदिवस में जवाब।"
-      />
+      <Seo title="Contact Us" description="Talk to the VahanKhata team about a demo, pricing or onboarding. Reach us by email or WhatsApp." path="/contact" />
+      <PageHero eyebrow="Contact" title="Let's talk about your fleet." lead="Book a demo, ask about pricing, or get help onboarding. We reply within one business day." />
 
       <section className="market-section market-wrap">
-        <div className="grid gap-10 lg:grid-cols-2">
+        <div className="grid gap-8 lg:grid-cols-2">
           {/* Form */}
-          <div className="market-card p-6 sm:p-8">
-            <h2 className="text-lg font-bold text-ink-900">Send us a message</h2>
+          <div className={cardCls}>
             {sent ? (
-              <div className="mt-6 rounded-xl bg-emerald-50 p-6 text-center">
-                <p className="text-lg font-bold text-emerald-700">✅ Almost there!</p>
+              <div className="rounded-xl bg-emerald-50 p-6 text-center">
+                <p className="text-lg font-bold text-emerald-700">Almost there!</p>
                 <p className="mt-2 text-sm text-emerald-800">
                   Your email app should open with our message pre-filled. Hit send and we'll be in touch.
                 </p>
-                <button className="mt-4 market-btn market-btn-ghost" onClick={() => setSent(false)}>
-                  Write another
-                </button>
+                <Button variant="outline" className="mt-4" onClick={() => setSent(false)}>Write another</Button>
               </div>
             ) : (
               <form
-                className="mt-6 space-y-4"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  window.location.href = buildMailto();
-                  setSent(true);
-                }}
+                className="space-y-4"
+                onSubmit={(e) => { e.preventDefault(); window.location.href = buildMailto(); setSent(true); }}
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="label">Your name * · आपका नाम *</label>
-                    <input className="input" required value={form.name} onChange={update("name")} placeholder="Rajesh Kumar" />
+                    <label className={labelCls}>Name *</label>
+                    <input className={inputCls} required value={form.name} onChange={update("name")} placeholder="Rajesh Kumar" />
                   </div>
                   <div>
-                    <label className="label">Company / fleet · फर्म</label>
-                    <input className="input" value={form.firm} onChange={update("firm")} placeholder="Your firm" />
+                    <label className={labelCls}>Company / fleet</label>
+                    <input className={inputCls} value={form.firm} onChange={update("firm")} placeholder="Your firm" />
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="label">Email *</label>
-                    <input className="input" required type="email" value={form.email} onChange={update("email")} placeholder="you@firm.com" />
+                    <label className={labelCls}>Email *</label>
+                    <input className={inputCls} required type="email" value={form.email} onChange={update("email")} placeholder="you@firm.com" />
                   </div>
                   <div>
-                    <label className="label">Phone · फ़ोन</label>
-                    <input className="input" value={form.phone} onChange={update("phone")} placeholder="+91 …" />
+                    <label className={labelCls}>Phone</label>
+                    <input className={inputCls} value={form.phone} onChange={update("phone")} placeholder="+91 …" />
                   </div>
                 </div>
                 <div>
-                  <label className="label">Message * · संदेश *</label>
-                  <textarea
-                    className="input min-h-28"
-                    required
-                    value={form.message}
-                    onChange={update("message")}
-                    placeholder="How many vehicles and drivers do you run?"
-                  />
+                  <label className={labelCls}>Message *</label>
+                  <textarea className={`${inputCls} min-h-28`} required value={form.message} onChange={update("message")} placeholder="How many vehicles and drivers do you run?" />
                 </div>
-                <button type="submit" className="market-btn market-btn-brand w-full">
-                  Send message
-                </button>
+                <Button type="submit" className="w-full">Send message</Button>
               </form>
             )}
           </div>
 
-          {/* Contact details */}
+          {/* Details */}
           <div className="space-y-4">
-            <div className="market-card-hover p-6">
-              <h3 className="flex items-center gap-2 text-lg font-bold text-ink-900">📧 Email · ईमेल</h3>
-              <a href={`mailto:${CONTACT_EMAIL}`} className="mt-1 inline-block text-brand-600">
-                {CONTACT_EMAIL}
-              </a>
-            </div>
-            <div className="market-card-hover p-6">
-              <h3 className="flex items-center gap-2 text-lg font-bold text-ink-900">💬 WhatsApp</h3>
-              <p className="mt-1 text-sm text-ink-600">कम शब्दों में कहें तो सबसे तेज़ रास्ता।</p>
-              <a href={whatsappLink} className="market-btn market-btn-brand mt-4">
-                Message on WhatsApp
-              </a>
-            </div>
-            <div className="market-card-hover p-6">
-              <h3 className="flex items-center gap-2 text-lg font-bold text-ink-900">💳 Billing & support</h3>
-              <p className="mt-1 text-sm leading-relaxed text-ink-600">
-                Already a customer? Sign in and use the in-app change-password or reach the operations team for billing.
+            <div className={cardCls}>
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">Email</h3>
+              </div>
+              <p className="mt-2">
+                <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-primary">{CONTACT_EMAIL}</a>
               </p>
-              <a href={app("/")} className="market-btn market-btn-ghost mt-4">
-                Log in
-              </a>
+            </div>
+            <div className={cardCls}>
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-5 w-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">WhatsApp</h3>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">The fastest way to reach us.</p>
+              <Button asChild className="mt-4">
+                <a href={whatsappLink}>Message on WhatsApp</a>
+              </Button>
+            </div>
+            <div className={cardCls}>
+              <div className="flex items-center gap-2">
+                <UserRound className="h-5 w-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">Already a customer?</h3>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">Sign in to manage billing and support in-app.</p>
+              <Button asChild variant="outline" className="mt-4">
+                <a href={app("/")}>Log in</a>
+              </Button>
             </div>
           </div>
         </div>

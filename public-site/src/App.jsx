@@ -20,7 +20,7 @@ function NotFound() {
       <p className="mt-2 text-sm text-ink-500">
         The page you're looking for doesn't exist or has moved.
       </p>
-      <a href="/" className="market-btn market-btn-brand mt-8">
+      <a href="/" className="mt-8 inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90">
         Back to home
       </a>
     </div>

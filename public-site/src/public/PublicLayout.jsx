@@ -23,7 +23,7 @@ export default function PublicLayout({ children }) {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-ink-50 text-ink-900">
+    <div className="min-h-screen bg-background text-foreground">
       <PublicNav />
       <main>{children}</main>
       <PublicFooter />

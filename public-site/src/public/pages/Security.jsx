@@ -30,7 +30,7 @@ export default function Security() {
       <section className="market-section market-wrap">
         <div className="grid gap-5 sm:grid-cols-2">
           {PILLARS.map(([icon, title, text]) => (
-            <div key={title} className="market-card-hover p-6">
+            <div key={title} className="rounded-xl border border-border bg-card p-6">
               <span className="text-2xl">{icon}</span>
               <h3 className="mt-3 text-lg font-bold text-ink-900">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-ink-600">{text}</p>

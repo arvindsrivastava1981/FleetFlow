@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "shadcn-builder": {
+      "command": "npx",
+      "args": ["-y", "@magnusrodseth/shadcn-mcp-server"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  }
+}

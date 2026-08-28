@@ -5,10 +5,10 @@ const FOOTER_COLUMNS = [
     title: "Product",
     links: [
       { label: "Features", to: "/features" },
-      { label: "Why VahanKhata", to: "/why-us" },
       { label: "Pricing", to: "/pricing" },
-      { label: "About", to: "/about" },
-      { label: "Book a demo", to: "/request-demo" },
+      { label: "Why VahanKhata", to: "/why-us" },
+      { label: "FAQ", to: "/faq" },
+      { label: "Start free trial", to: "/request-demo" },
     ],
   },
   {
@@ -22,9 +22,10 @@ const FOOTER_COLUMNS = [
   {
     title: "Legal",
     links: [
-      { label: "Privacy Policy", to: "/privacy" },
-      { label: "Terms of Service", to: "/terms" },
+      { label: "Privacy", to: "/privacy" },
+      { label: "Terms", to: "/terms" },
       { label: "Security", to: "/security" },
+      { label: "Cookies", to: "/cookies" },
     ],
   },
 ];
@@ -32,11 +33,14 @@ const FOOTER_COLUMNS = [
 function FooterCol({ title, links }) {
   return (
     <div>
-      <h4 className="text-sm font-bold text-white">{title}</h4>
+      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
       <ul className="mt-4 space-y-2.5">
         {links.map((l) => (
           <li key={l.label}>
-            <a href={l.to} className="text-sm text-brand-100/80 transition hover:text-white">
+            <a
+              href={l.to}
+              className="text-sm text-muted-foreground transition hover:text-foreground"
+            >
               {l.label}
             </a>
           </li>
@@ -48,20 +52,20 @@ function FooterCol({ title, links }) {
 
 export default function PublicFooter() {
   return (
-    <footer className="market-band">
-      <div className="market-wrap py-14">
+    <footer className="border-t border-border bg-muted/40">
+      <div className="market-wrap py-12">
         <div className="grid gap-10 md:grid-cols-4">
           <div>
             <a href="/" className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-base font-black text-white">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-base font-black text-primary-foreground">
                 V
               </span>
-              <span className="text-lg font-extrabold tracking-tight text-white">
-                Vahan<span className="text-brand-200">Khata.in</span>
+              <span className="text-lg font-extrabold tracking-tight text-foreground">
+                Vahan<span className="text-primary">Khata</span>
               </span>
             </a>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-brand-100/80">
-              भारतीय ट्रांसपोर्ट फर्मों के लिए बना all-in-one खर्च और ट्रिप प्लेटफ़ॉर्म — ट्रिप शुरू से सेटलमेंट तक।
+            <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Fleet expense verification, fuel checks and fair driver settlement — from trip start to sign-off.
             </p>
           </div>
 
@@ -70,8 +74,8 @@ export default function PublicFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-white/15 pt-6 text-xs text-brand-100/70 sm:flex-row sm:items-center">
-          <span>© {new Date().getFullYear()} VahanKhata.in. All rights reserved.</span>
+        <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row sm:items-center">
+          <span>© {new Date().getFullYear()} VahanKhata. All rights reserved.</span>
           <span>Made for Indian fleet &amp; transport operations.</span>
         </div>
       </div>

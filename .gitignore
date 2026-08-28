@@ -41,6 +41,11 @@ venv.bak/
 .env
 .env.*
 
+# Cline MCP server settings (may contain secrets; token referenced via ${GITHUB_TOKEN})
+# Commit the settings file so the team shares the config, but keep credentials in env.
+.cline/*
+!.cline/mcp_settings.json
+
 
 
 

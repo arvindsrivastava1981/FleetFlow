@@ -1,10 +1,18 @@
 import { useState } from "react";
+import { Menu } from "lucide-react";
 import { app } from "../config.js";
+import { Button } from "../components/ui/button.jsx";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "../components/ui/sheet.jsx";
 
 const LINKS = [
   { to: "/", label: "Home" },
   { to: "/features", label: "Features" },
-  { to: "/why-us", label: "Why Us" },
   { to: "/pricing", label: "Pricing" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
@@ -12,15 +20,16 @@ const LINKS = [
 
 export default function PublicNav() {
   const [open, setOpen] = useState(false);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-ink-200/70 bg-white/85 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur">
       <div className="market-wrap flex h-16 items-center justify-between gap-4">
         <a href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-base font-black text-white">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-base font-black text-primary-foreground">
             V
           </span>
-          <span className="text-lg font-extrabold tracking-tight text-ink-900">
-            Vahan<span className="text-brand-600">Khata.in</span>
+          <span className="text-lg font-extrabold tracking-tight text-foreground">
+            Vahan<span className="text-primary">Khata</span>
           </span>
         </a>
 
@@ -29,7 +38,7 @@ export default function PublicNav() {
             <a
               key={l.to}
               href={l.to}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-ink-600 transition hover:bg-ink-100 hover:text-ink-900"
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
             >
               {l.label}
             </a>
@@ -37,55 +46,56 @@ export default function PublicNav() {
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
-          <a href={app("/")} className="market-btn market-btn-ghost !px-4 !py-2">
-            Log in
-          </a>
-          <a href="/request-demo" className="market-btn market-btn-brand !px-4 !py-2">
-            Get a demo
-          </a>
+          <Button asChild variant="ghost">
+            <a href={app("/")}>Log in</a>
+          </Button>
+          <Button asChild>
+            <a href="/request-demo">Start free trial</a>
+          </Button>
         </div>
 
-        <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-ink-200 text-ink-700 lg:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {open ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          )}
-        </button>
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="lg:hidden"
+              aria-label="Toggle menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" className="w-72">
+            <SheetHeader className="mb-4">
+              <SheetTitle className="text-left">VahanKhata</SheetTitle>
+            </SheetHeader>
+            <nav className="flex flex-col gap-1">
+              {LINKS.map((l) => (
+                <a
+                  key={l.to}
+                  href={l.to}
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                >
+                  {l.label}
+                </a>
+              ))}
+              <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                <Button asChild variant="outline" className="w-full">
+                  <a href={app("/")} onClick={() => setOpen(false)}>
+                    Log in
+                  </a>
+                </Button>
+                <Button asChild className="w-full">
+                  <a href="/request-demo" onClick={() => setOpen(false)}>
+                    Start free trial
+                  </a>
+                </Button>
+              </div>
+            </nav>
+          </SheetContent>
+        </Sheet>
       </div>
-
-      {open && (
-        <div className="border-t border-ink-200 bg-white px-5 py-4 lg:hidden">
-          <nav className="flex flex-col gap-1">
-            {LINKS.map((l) => (
-              <a
-                key={l.to}
-                href={l.to}
-                onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-100"
-              >
-                {l.label}
-              </a>
-            ))}
-            <div className="mt-3 flex flex-col gap-2 border-t border-ink-100 pt-3">
-              <a href={app("/")} className="market-btn market-btn-ghost w-full">
-                Log in
-              </a>
-              <a href="/request-demo" className="market-btn market-btn-brand w-full">
-                Get a demo
-              </a>
-            </div>
-          </nav>
-        </div>
-      )}
     </header>
   );
 }
