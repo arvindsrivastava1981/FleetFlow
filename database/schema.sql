@@ -80,6 +80,9 @@ CREATE TABLE IF NOT EXISTS users (
     default_batta_rate NUMERIC(10, 2) DEFAULT NULL,
     home_state_code VARCHAR(10) DEFAULT NULL, -- manager's usual operating state (highlighted on Rules & Rates)
     licence_expiry DATE DEFAULT NULL,         -- driver licence expiry (audit P-5)
+    auth_provider VARCHAR(20) NOT NULL DEFAULT 'local'  -- 'local' | 'google' | 'facebook'
+        CHECK (auth_provider IN ('local', 'google', 'facebook')),
+    provider_sub VARCHAR(255) DEFAULT NULL,   -- provider-unique subject id (google sub / facebook id)
     created_by BIGINT REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

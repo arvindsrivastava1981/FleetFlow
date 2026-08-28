@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 
 from backend.app.api.v1.deps import _bad, _not_found, _ok
 from backend.app.core.config import settings
+from backend.app.core.oauth import SocialAuthError, verify_facebook_token, verify_google_id_token
 from backend.app.core.password import hash_password, verify_password
 from backend.app.core.security import (
     AUTH_COOKIE,
@@ -20,7 +21,12 @@ from backend.app.core.security import (
     revoke_user_sessions,
 )
 from backend.app.db.connection import get_db
-from backend.app.db.queries.users import get_user_by_id, get_user_by_username, update_user
+from backend.app.db.queries.users import (
+    create_or_link_social_user,
+    get_user_by_id,
+    get_user_by_username,
+    update_user,
+)
 from backend.app.schemas.api_v1 import (
     AuthMe,
     ChangePasswordResult,
@@ -155,6 +161,91 @@ def api_auth_refresh(request: Request, response: Response):
             max_age=settings.session_ttl_hours * 3600,
         )
     return _ok({"expires_at": expires_at})
+
+
+def _social_login_response(response: Response, user: dict) -> JSONResponse:
+    """Issue a standard VahanKhata session for a verified social user."""
+    token = create_session(user["id"], user["username"], user["role"])
+    if settings.auth_cookie_enabled:
+        response.set_cookie(
+            key=AUTH_COOKIE,
+            value=token,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="lax",
+            max_age=settings.session_ttl_hours * 3600,
+        )
+    return JSONResponse(
+        content={
+            "token": token,
+            "user": {"id": user["id"], "username": user["username"], "role": user["role"]},
+            "landing": "/dashboard",
+        }
+    )
+
+
+@router.post("/auth/google", response_model=LoginResult)
+async def api_auth_google(request: Request, response: Response):
+    """Sign in / sign up with a Google ID token (from Google Identity Services)."""
+    if not settings.google_client_id:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "google login disabled", "code": "PROVIDER_DISABLED"},
+        )
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _bad("invalid JSON body")
+    try:
+        identity = verify_google_id_token(str(body.get("credential", "")))
+    except SocialAuthError as exc:
+        return JSONResponse(
+            status_code=401,
+            content={"error": str(exc), "code": "SOCIAL_AUTH_FAILED"},
+        )
+    with get_db() as conn:
+        user, _created = create_or_link_social_user(
+            conn, "google", identity["sub"], identity["email"],
+            identity["name"], settings.social_default_role,
+        )
+    if not user or not user["is_active"]:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "inactive", "code": "INACTIVE_ACCOUNT"},
+        )
+    return _social_login_response(response, user)
+
+
+@router.post("/auth/facebook", response_model=LoginResult)
+async def api_auth_facebook(request: Request, response: Response):
+    """Sign in / sign up with a Facebook access token (from FB Login SDK)."""
+    if not settings.facebook_app_id or not settings.facebook_app_secret:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "facebook login disabled", "code": "PROVIDER_DISABLED"},
+        )
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _bad("invalid JSON body")
+    try:
+        identity = verify_facebook_token(str(body.get("access_token", "")))
+    except SocialAuthError as exc:
+        return JSONResponse(
+            status_code=401,
+            content={"error": str(exc), "code": "SOCIAL_AUTH_FAILED"},
+        )
+    with get_db() as conn:
+        user, _created = create_or_link_social_user(
+            conn, "facebook", identity["sub"], identity["email"],
+            identity["name"], settings.social_default_role,
+        )
+    if not user or not user["is_active"]:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "inactive", "code": "INACTIVE_ACCOUNT"},
+        )
+    return _social_login_response(response, user)
 
 
 @router.post("/auth/logout", response_model=Data[LogoutResult])

@@ -43,6 +43,16 @@ export function AuthProvider({ children }) {
     return "/dashboard";
   }, []);
 
+  // Social login: the credential has already been verified by the backend
+  // (POST /auth/google | /auth/facebook); this just adopts the session.
+  const loginWithSocial = useCallback(async (path, payload) => {
+    const data = await api.post(path, payload);
+    if (!data || !data.token) throw new Error("Social login failed");
+    setToken(data.token);
+    setUser(data.user);
+    return "/dashboard";
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.post("/api/v1/auth/logout");
@@ -61,7 +71,7 @@ export function AuthProvider({ children }) {
     return data?.expires_at ?? null;
   }, []);
 
-  const value = { user, setUser, loading, login, logout, expiresAt, refreshSession };
+  const value = { user, setUser, loading, login, loginWithSocial, logout, expiresAt, refreshSession };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

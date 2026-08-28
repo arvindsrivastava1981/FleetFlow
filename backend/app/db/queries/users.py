@@ -38,6 +38,83 @@ def get_user_by_username(conn, username: str) -> dict | None:
     return cur.fetchone()
 
 
+def get_user_by_provider(conn, provider: str, provider_sub: str) -> dict | None:
+    """Return the user bound to a social identity (google sub / facebook id)."""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM users WHERE auth_provider = %s AND provider_sub = %s",
+        (provider, provider_sub),
+    )
+    return cur.fetchone()
+
+
+def get_user_by_email(conn, email: str) -> dict | None:
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM users WHERE lower(email) = %s ORDER BY id LIMIT 1",
+        (email.strip().lower(),),
+    )
+    return cur.fetchone()
+
+
+def create_or_link_social_user(
+    conn,
+    provider: str,
+    provider_sub: str,
+    email: str,
+    full_name: str,
+    default_role: str,
+) -> tuple[dict, bool]:
+    """Find-or-create the user for a verified social identity.
+
+    Resolution order: (1) existing (provider, provider_sub) row — sign-in;
+    (2) a local user with the same email — the identity is LINKED to it, so
+    an existing manager can sign in with Google using their work email;
+    (3) a brand-new user (sign-up) with `social_default_role`, fleetless and
+    active, whose username is derived from the email local-part.
+    Returns (user_row, created).
+    """
+    existing = get_user_by_provider(conn, provider, provider_sub)
+    if existing is not None:
+        return existing, False
+    linked = get_user_by_email(conn, email)
+    if linked is not None:
+        cur = conn.cursor()
+        cur.execute(
+            """UPDATE users SET auth_provider = %s, provider_sub = %s,
+                    full_name = COALESCE(NULLIF(%s, ''), full_name)
+                 WHERE id = %s""",
+            (provider, provider_sub, full_name, linked["id"]),
+        )
+        return get_user_by_id(conn, linked["id"]), False
+    base = email.split("@", 1)[0].lower().replace(".", "_")[:40] or provider
+    username = base
+    suffix = 0
+    while get_user_by_username(conn, username) is not None:
+        suffix += 1
+        username = f"{base[:30]}_{suffix}"
+    cur = conn.cursor()
+    # A social user has no password; password_hash stores an unusable sentinel.
+    cur.execute(
+        """INSERT INTO users
+                (username, password_hash, full_name, role, email, is_active,
+                 auth_provider, provider_sub)
+            VALUES (%s, %s, %s, %s, %s, TRUE, %s, %s)
+            RETURNING id""",
+        (
+            username,
+            f"!social:{provider}:{provider_sub}",
+            full_name,
+            default_role,
+            email,
+            provider,
+            provider_sub,
+        ),
+    )
+    return get_user_by_id(conn, cur.fetchone()["id"]), True
+
+
+
 def get_user_by_phone(conn, phone: str) -> dict | None:
     """Return the single user bound to a normalized WhatsApp *phone* (or None).
 

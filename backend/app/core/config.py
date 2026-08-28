@@ -93,6 +93,17 @@ class Settings:
             os.getenv("RAZORPAY_TEST_MODE", "1").strip().lower() in ("1", "true", "yes")
         )
 
+        # ---- Social login (Google / Facebook) -------------------------------
+        # When unset, the corresponding button is hidden on the login page and
+        # the /auth/google | /auth/facebook endpoints return 503 (feature off).
+        self.google_client_id: str | None = os.getenv("GOOGLE_CLIENT_ID")
+        self.google_client_secret: str | None = os.getenv("GOOGLE_CLIENT_SECRET")
+        self.facebook_app_id: str | None = os.getenv("FACEBOOK_APP_ID")
+        self.facebook_app_secret: str | None = os.getenv("FACEBOOK_APP_SECRET")
+        # Role assigned to users created via social sign-up (no fleet binding —
+        # a Super Admin can attach them to a fleet later from /users).
+        self.social_default_role: str = os.getenv("SOCIAL_DEFAULT_ROLE", "trip_manager")
+
 
 def _require(name: str) -> str:
     value = os.getenv(name)

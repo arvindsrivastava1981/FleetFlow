@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import SocialLogin from "../components/SocialLogin.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 
@@ -214,6 +215,8 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <SocialLogin busy={busy} />
 
           {busy && elapsed >= COLD_START_HINT_AFTER_S && (
             <div className="alert alert-info mt-4">
