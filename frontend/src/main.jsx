@@ -5,9 +5,11 @@ import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ToastProvider } from "./context/ToastContext.jsx";
 import "./index.css";
+import NewVersionBanner from "./components/NewVersionBanner.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
+    <NewVersionBanner />
     <BrowserRouter>
       <ToastProvider>
         <AuthProvider>
