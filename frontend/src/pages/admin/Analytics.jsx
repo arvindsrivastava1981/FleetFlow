@@ -23,7 +23,8 @@ function Bar({ label, value, max, suffix = "", accent = "bg-brand-500" }) {
   );
 }
 
-// Super-admin analytics (feature F-4) — read-only aggregates from the ledger.
+// Fleet analytics (feature F-4) — read-only aggregates from the ledger.
+// Super Admin sees platform-wide data; Trip Manager sees only their own fleet.
 export default function AnalyticsPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -50,7 +51,7 @@ export default function AnalyticsPage() {
     <div className="space-y-5">
       <div>
         <h2 className="page-title">Analytics</h2>
-        <p className="page-sub">Fleet-wide performance from the unified expense ledger.</p>
+        <p className="page-sub">Fleet performance from the unified expense ledger.</p>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}

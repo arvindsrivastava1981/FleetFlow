@@ -53,7 +53,7 @@ const SECTIONS = [
     roles: ["super_admin"],
     links: [
       { to: "/users", label: "Users", labelHi: "उपयोगकर्ता", icon: "👨", roles: ["super_admin"] },
-      { to: "/analytics", label: "Analytics", labelHi: "एनालिटिक्स", icon: "📈", roles: ["super_admin"] },
+      { to: "/analytics", label: "Analytics", labelHi: "एनालिटिक्स", icon: "📈", roles: ["trip_manager", "super_admin"] },
       { to: "/error-logs", label: "Error Logs", labelHi: "एरर लॉग", icon: "🚨", roles: ["super_admin"] },
     ],
   },

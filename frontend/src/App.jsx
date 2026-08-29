@@ -204,7 +204,7 @@ export default function App() {
       <Route
         path="/analytics"
         element={
-          <ProtectedRoute roles={["super_admin"]}>
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <AnalyticsPage />
             </Layout>
