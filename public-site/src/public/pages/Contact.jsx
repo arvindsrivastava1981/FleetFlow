@@ -69,6 +69,17 @@ export default function Contact() {
           website: form.website,
         }),
       });
+      // A non-JSON response (e.g. the SPA's index.html, served when
+      // VITE_API_URL is missing so the form POSTs to the static site itself)
+      // must not be silently reduced to `{}` — surface it honestly.
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        setErrorMsg(
+          "The contact service is not reachable right now (API endpoint misconfigured). Please email us directly below."
+        );
+        setState("error");
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.data?.sent) {
         setState("sent");
@@ -121,7 +132,7 @@ export default function Contact() {
           <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
             Let's talk about your fleet.
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground" lang="hi">
             बस एक संदेश — हम आपका फ्लीट समझेंगे और जल्द से जल्द मदद करेंगे।
           </p>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">

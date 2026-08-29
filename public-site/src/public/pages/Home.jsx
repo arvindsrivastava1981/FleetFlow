@@ -44,6 +44,10 @@ export default function Home() {
             VahanKhata verifies fuel, tracks trips and settles driver salary —
             from dispatch to signed settlement.
           </p>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base" lang="hi">
+            आपके फ्लीट का हर खर्च — पेट्रोल से लेकर ड्राइवर वेतन तक — WhatsApp पर,
+            बिना किसी ऐप के। ड्राइवर रसीद भेजता है, सब कुछ अपने आप जमा और जाँच होता है।
+          </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild size="lg">
               <a href="/request-demo">Start free trial</a>

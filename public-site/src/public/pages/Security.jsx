@@ -29,7 +29,7 @@ export default function Security() {
           <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
             Your fleet data, guarded like a fleet.
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground" lang="hi">
             सही इंसान को सही चीज़ दिखे, हर बदलाव दर्ज हो — और ज़रूरत के वक़्त कोई शोर न हो।
           </p>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">

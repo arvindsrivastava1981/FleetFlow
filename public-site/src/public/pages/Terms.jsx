@@ -20,7 +20,7 @@ export default function Terms() {
             Terms of Service
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">Last updated: August 2026</p>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground" lang="hi">
             ये शर्तें बताती हैं कि VahanKhata सेवा का इस्तेमाल कैसे करें — अकाउंट की ज़िम्मेदारी, Razorpay से बिलिंग, डेटा का
             मालिकाना हक़ और सेवा रोकने/बंद करने के नियम। पूरी शर्तें नीचे अंग्रेज़ी में हैं।
           </p>

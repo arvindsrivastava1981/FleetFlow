@@ -22,7 +22,7 @@ export default function Privacy() {
             Privacy Policy
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">Last updated: August 2026</p>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground" lang="hi">
             यह नीति बताती है कि VahanKhata आपका डेटा (फ़ोन नंबर, OTP, ट्रिप और खर्च की जानकारी) कैसे इकट्ठा करता है, इस्तेमाल
             करता है और सुरक्षित रखता है। हम आपका डेटा किसी को बेचते नहीं — सिर्फ सेवा चलाने के लिए ज़रूरी पार्टनर्स (Razorpay,
             messaging, hosting) के साथ साझा करते हैं। पूरी जानकारी नीचे अंग्रेज़ी में है।

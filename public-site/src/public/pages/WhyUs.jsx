@@ -40,7 +40,7 @@ export default function WhyUs() {
           <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
             Spreadsheets lost the money. So did heavy ERPs.
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground" lang="hi">
             ज़्यादा पैसा बचाना है या बिना झगड़े में समझौता होना है — वहीं चाहिए ये सिर्फ़ एक ऐप नहीं, एक सीधा सा ढंग चाहिए।
           </p>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">

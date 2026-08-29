@@ -40,7 +40,7 @@ export default function About() {
           <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
             Every rupee accounted for. Every driver treated fairly.
           </h1>
-          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground" lang="hi">
             भारतीय ट्रांसपोर्ट वहां चलता है जहाँ भरोसा सबसे पहले होता है —
             वहाँखाता उस भरोसे का एक साफ़ रिकॉर्ड रखता है।
           </p>

@@ -20,7 +20,7 @@ export default function Cookies() {
             Cookie Policy
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">Last updated: August 2026</p>
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground" lang="hi">
             हम कम से कम कुकीज़ इस्तेमाल करते हैं — साइन-इन और सुरक्षा के लिए ज़रूरी कुकीज़ हमेशा लगती हैं, एनालिटिक्स सिर्फ
             आपकी मर्ज़ी से। विज्ञापन या क्रॉस-साइट ट्रैकिंग कुकीज़ नहीं।
           </p>
