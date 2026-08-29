@@ -9,6 +9,7 @@ from backend.app.api.v1 import (
     billing,
     contact,
     dashboard,
+    error_logs,
     expenses,
     fleets,
     notifications,
@@ -38,6 +39,7 @@ _DOMAIN_ROUTERS = (
     trip_templates.router,
     notifications.router,
     analytics.router,
+    error_logs.router,
     whatsapp.router,
     states.router,
 )

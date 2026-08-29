@@ -16,6 +16,7 @@ const BenchmarksPage = lazy(() => import("./pages/admin/Benchmarks.jsx"));
 const OnboardFirmPage = lazy(() => import("./pages/admin/OnboardFirm.jsx"));
 const OnboardingPage = lazy(() => import("./pages/Onboarding.jsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/Analytics.jsx"));
+const ErrorLogsPage = lazy(() => import("./pages/admin/ErrorLogs.jsx"));
 const SubscriptionPage = lazy(() => import("./pages/Billing.jsx"));
 const SettledTripsPage = lazy(() => import("./pages/SettledTrips.jsx"));
 const ChangePasswordPage = lazy(() => import("./pages/ChangePassword.jsx"));
@@ -206,6 +207,16 @@ export default function App() {
           <ProtectedRoute roles={["super_admin"]}>
             <Layout>
               <AnalyticsPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/error-logs"
+        element={
+          <ProtectedRoute roles={["super_admin"]}>
+            <Layout>
+              <ErrorLogsPage />
             </Layout>
           </ProtectedRoute>
         }
