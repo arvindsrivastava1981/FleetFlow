@@ -2,7 +2,6 @@ import { Routes, Route } from "react-router-dom";
 import PublicLayout from "./public/PublicLayout.jsx";
 import HomePage from "./public/pages/Home.jsx";
 import AboutPage from "./public/pages/About.jsx";
-import WhyUsPage from "./public/pages/WhyUs.jsx";
 import FeaturesPage from "./public/pages/Features.jsx";
 import PricingPage from "./public/pages/Pricing.jsx";
 import FaqPage from "./public/pages/Faq.jsx";
@@ -35,7 +34,6 @@ export default function App() {
     <Routes>
       <Route path="/" element={<PublicLayout><HomePage /></PublicLayout>} />
       <Route path="/about" element={<PublicLayout><AboutPage /></PublicLayout>} />
-      <Route path="/why-us" element={<PublicLayout><WhyUsPage /></PublicLayout>} />
       <Route path="/features" element={<PublicLayout><FeaturesPage /></PublicLayout>} />
       <Route path="/pricing" element={<PublicLayout><PricingPage /></PublicLayout>} />
       <Route path="/faq" element={<PublicLayout><FaqPage /></PublicLayout>} />

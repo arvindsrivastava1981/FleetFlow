@@ -6,7 +6,6 @@ const FOOTER_COLUMNS = [
     links: [
       { label: "Features", to: "/features" },
       { label: "Pricing", to: "/pricing" },
-      { label: "Why VahanKhata", to: "/why-us" },
       { label: "FAQ", to: "/faq" },
       { label: "Start free trial", to: "/request-demo" },
     ],

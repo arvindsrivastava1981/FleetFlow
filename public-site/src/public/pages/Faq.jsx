@@ -80,24 +80,6 @@ export default function Faq() {
           </Button>
         </div>
       </section>
-
-      {/* CLOSING CTA */}
-      <section className="mx-auto mb-24 max-w-3xl px-4 py-16 text-center sm:px-6">
-        <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-          Still got questions?
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Book a free demo — see the full trip-to-settlement flow without a spreadsheet.
-        </p>
-        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <Button asChild size="lg">
-            <a href="/request-demo">Book a demo</a>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a href="/">Log in</a>
-          </Button>
-        </div>
-      </section>
     </>
   );
 }

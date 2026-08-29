@@ -1,7 +1,6 @@
 import React from "react";
 import Seo from "../Seo";
 import { Button } from "../../components/ui/button.jsx";
-import { Card } from "../../components/ui/card.jsx";
 import {
   MessagesSquare,
   Gauge,
@@ -73,36 +72,23 @@ export default function Features() {
       </section>
 
       {/* FEATURES */}
-      <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6">
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mx-auto max-w-4xl px-4 py-16 sm:px-6">
+        <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
           {FEATURES.map((f) => (
-            <Card key={f.title} className="p-6">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <f.icon className="h-5 w-5" />
+            <div key={f.title} className="flex items-start gap-3">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <f.icon className="h-4 w-4" aria-hidden="true" />
               </div>
-              <h3 className="mt-4 text-base font-bold text-foreground">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {f.text}
-              </p>
-            </Card>
+              <div>
+                <h3 className="text-sm font-bold text-foreground">{f.title}</h3>
+                <p className="mt-0.5 text-sm text-muted-foreground">{f.text}</p>
+              </div>
+            </div>
           ))}
         </div>
-      </section>
-
-      {/* CLOSING CTA */}
-      <section className="mx-auto mb-24 max-w-3xl px-4 py-16 text-center sm:px-6">
-        <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-          See it on your fleet.
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Book a free demo and we'll map the right setup to your vehicles and drivers.
-        </p>
-        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+        <div className="mt-12 text-center">
           <Button asChild size="lg">
-            <a href="/request-demo">Book a demo</a>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a href="/">Log in</a>
+            <a href="/request-demo">Start free trial</a>
           </Button>
         </div>
       </section>
