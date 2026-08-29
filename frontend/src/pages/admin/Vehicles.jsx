@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api.js";
 import { useToast } from "../../context/ToastContext.jsx";
+import { useAuth } from "../../context/AuthContext.jsx";
 import Loader from "../../components/Loader.jsx";
 
 // Standard Indian registration plate regex (system invariant).
@@ -15,6 +16,7 @@ const emptyForm = {
   insurance_expiry: "",
   puc_expiry: "",
   fitness_expiry: "",
+  fleet_id: "",
 };
 
 const initialErrors = {
@@ -66,8 +68,11 @@ export default function VehiclesPage() {
   const [editingId, setEditingId] = useState(null);
   const [fieldErrors, setFieldErrors] = useState(initialErrors);
   const [busy, setBusy] = useState(false);
+  const [fleets, setFleets] = useState([]);
+  const { user } = useAuth();
 
   function load() {
+    api.get("/api/v1/fleets").then(setFleets).catch(() => {});
     api
       .get("/api/v1/vehicles")
       .then(setVehicles)
@@ -107,6 +112,7 @@ export default function VehiclesPage() {
             ? Number(form.expected_km_per_liter)
             : 4,
         owner_phone: form.owner_phone.trim() || null,
+        fleet_id: form.fleet_id ? Number(form.fleet_id) : null,
         insurance_expiry: form.insurance_expiry || null,
         puc_expiry: form.puc_expiry || null,
         fitness_expiry: form.fitness_expiry || null,
@@ -141,6 +147,7 @@ export default function VehiclesPage() {
       insurance_expiry: v.insurance_expiry ? String(v.insurance_expiry).slice(0, 10) : "",
       puc_expiry: v.puc_expiry ? String(v.puc_expiry).slice(0, 10) : "",
       fitness_expiry: v.fitness_expiry ? String(v.fitness_expiry).slice(0, 10) : "",
+      fleet_id: v.fleet_id ? String(v.fleet_id) : "",
     });
     setFieldErrors(initialErrors);
     setError("");
@@ -209,6 +216,48 @@ export default function VehiclesPage() {
             />
             <FieldError msg={fieldErrors.make_model} />
           </div>
+
+          {/* Fleet (super admin assigns; trip manager sees own, read-only) */}
+          {user?.role === "super_admin" ? (
+            <div>
+              <label className="label" htmlFor="fleet_id">
+                Fleet <Required />
+              </label>
+              <select
+                id="fleet_id"
+                value={form.fleet_id}
+                onChange={(e) => set("fleet_id", e.target.value)}
+                required
+                className={fieldClass(false)}
+              >
+                <option value="">Select fleet…</option>
+                {fleets.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.owner_name}
+                  </option>
+                ))}
+              </select>
+              <FieldError msg={fieldErrors.fleet_id} />
+            </div>
+          ) : (
+            fleets.length > 0 && (
+              <div>
+                <label className="label" htmlFor="fleet_readonly">
+                  Fleet
+                </label>
+                <input
+                  id="fleet_readonly"
+                  value={fleets[0].owner_name}
+                  readOnly
+                  className="input bg-slate-50 text-ink-500 cursor-not-allowed"
+                  aria-label="Fleet (assigned to your firm)"
+                />
+                <p className="mt-1 text-[11px] text-ink-400">
+                  Vehicles you add belong to your firm's fleet.
+                </p>
+              </div>
+            )
+          )}
 
           {/* Tank Capacity */}
           <div>

@@ -21,6 +21,7 @@ from backend.app.db.connection import get_db
 from backend.app.db.queries.fleets import (
     get_default_fleet,
     get_fleet_entitlement,
+    get_fleet_by_id,
 )
 from backend.app.db.queries.users import get_user_fleet_id
 from backend.app.db.queries.vehicles import (
@@ -88,6 +89,10 @@ async def api_create_vehicle(request: Request):
     tank_capacity_liters = float(body.get("tank_capacity_liters", 350.0))
     expected_km_per_liter = float(body.get("expected_km_per_liter", 4.0))
     owner_phone = (body.get("owner_phone") or "").strip() or None
+    # Optional explicit fleet binding — super admin only (managers always
+    # resolve to their own fleet; the field is ignored for them).
+    requested_fleet_id = body.get("fleet_id")
+    requested_fleet_id = int(requested_fleet_id) if requested_fleet_id else None
 
     # Audit P-4: optional compliance dates (YYYY-MM-DD).
     doc_dates = {}
@@ -105,6 +110,10 @@ async def api_create_vehicle(request: Request):
         if vehicle_number_exists(conn, number):
             return _bad("vehicle number already exists", "DUP_VEHICLE")
         fleet_id = _resolve_vehicle_fleet(conn, user)
+        if user.get("role") == "super_admin" and requested_fleet_id is not None:
+            if get_fleet_by_id(conn, requested_fleet_id) is None:
+                return _bad("unknown fleet_id", "INVALID_FLEET")
+            fleet_id = requested_fleet_id
         if fleet_id is None:
             return _bad("no fleet configured for this user", "NO_FLEET")
         entitlement = get_fleet_entitlement(conn, fleet_id)
