@@ -43,9 +43,23 @@ def list_error_groups(
         )
         rows = cur.fetchall()
         cols = [d[0] for d in cur.description]
-        cur.execute(f"SELECT COUNT(*), COALESCE(SUM(count), 0) FROM ({_GROUP_SQL}) g")
-        total_groups, total_occurrences = cur.fetchone()
-    groups = [dict(zip(cols, r)) for r in rows]
+        cur.execute(
+            "SELECT COUNT(*) AS total_groups, "
+            "COALESCE(SUM(g.count), 0) AS total_occurrences "
+            f"FROM ({_GROUP_SQL}) g"
+        )
+        totals = cur.fetchone()
+    groups = [
+        r if not isinstance(r, (list, tuple)) else dict(zip(cols, r))
+        for r in rows
+    ]
+    if not isinstance(totals, (list, tuple)):
+        total_groups, total_occurrences = (
+            totals["total_groups"],
+            totals["total_occurrences"],
+        )
+    else:
+        total_groups, total_occurrences = totals
     return {
         "groups": groups,
         "total_groups": int(total_groups or 0),
@@ -111,7 +125,10 @@ def list_error_rows(
     with conn.cursor() as cur:
         cur.execute(sql, params)
         cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
+        return [
+            r if not isinstance(r, (list, tuple)) else dict(zip(cols, r))
+            for r in cur.fetchall()
+        ]
 
 
 def count_error_rows(
@@ -138,8 +155,12 @@ def count_error_rows(
         where.append("COALESCE(message, '') = %s")
         params.append(message)
     with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) FROM error_logs WHERE " + " AND ".join(where), params)
-        return int(cur.fetchone()[0] or 0)
+        cur.execute(
+            "SELECT COUNT(*) AS total FROM error_logs WHERE " + " AND ".join(where),
+            params,
+        )
+        row = cur.fetchone()
+    return int(row["total"] if not isinstance(row, (list, tuple)) else row[0] or 0)
 
 
 def clear_error_logs(conn) -> int:
