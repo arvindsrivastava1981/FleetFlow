@@ -10,9 +10,39 @@ const API_PATH = "/api/v1/contact";
 
 const initialForm = { name: "", firm: "", email: "", phone: "", message: "", website: "" };
 
+// Turn the backend's error envelope into a human-readable message. For 422s the
+// useful info lives in `details` ([{loc, msg, type}]) while `error` is generic.
+const FIELD_LABELS = {
+  name: "Name",
+  firm: "Firm name",
+  email: "Email",
+  phone: "Phone",
+  message: "Message",
+  website: "Website",
+};
+
+function extractApiError(data) {
+  const fallback = "Something went wrong. Please try again.";
+  if (Array.isArray(data?.details) && data.details.length > 0) {
+    const parts = data.details.map((d) => {
+      const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : null;
+      const label = FIELD_LABELS[field] || field || "Request";
+      const msg = String(d.msg || "").replace(/^Value error,\s*/i, "").trim();
+      return msg ? `${label}: ${msg}` : `${label} is invalid.`;
+    });
+    return parts.join(". ");
+  }
+  return (
+    data?.error ||
+    data?.detail ||
+    data?.data?.message ||
+    fallback
+  );
+}
+
 export default function Contact() {
   const [form, setForm] = useState(initialForm);
-  const [state, setState] = useState("idle"); // "idle" | "submitting" | "sent" | "error"
+  const [state, setState] = useState("idle"); // "idle" | "submitting" | "sent" | "received" | "error"
   const [errorMsg, setErrorMsg] = useState("");
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -42,13 +72,13 @@ export default function Contact() {
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.data?.sent) {
         setState("sent");
+      } else if (res.ok && data.data?.sent === false && data.data?.message) {
+        // Email transport not configured in this environment (e.g. dev/CI).
+        // The submission itself was accepted — show it as a soft notice.
+        setErrorMsg(data.data.message);
+        setState("received");
       } else {
-        const detail =
-          data.error ||
-          data.detail ||
-          data.data?.message ||
-          "Something went wrong. Please try again.";
-        setErrorMsg(detail);
+        setErrorMsg(extractApiError(data));
         setState("error");
       }
     } catch {
@@ -62,6 +92,13 @@ export default function Contact() {
     setState("idle");
     setErrorMsg("");
   };
+
+  // Pre-filled mailto fallback so a failed submission is never a dead end.
+  const mailtoFallback = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
+    "VahanKhata enquiry"
+  )}&body=${encodeURIComponent(
+    `${form.message}\n\n— ${form.name || ""}${form.firm ? `, ${form.firm}` : ""}\n${form.email || ""}`
+  )}`;
 
   const inputCls =
     "w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1";
@@ -103,6 +140,21 @@ export default function Contact() {
                 <p className="text-lg font-bold text-emerald-700">Message sent!</p>
                 <p className="mt-2 text-sm text-emerald-800">
                   Your message has been sent to {CONTACT_EMAIL}. We'll reply within one business day.
+                </p>
+                <Button variant="outline" className="mt-4" onClick={reset}>
+                  Send another
+                </Button>
+              </div>
+            ) : state === "received" ? (
+              <div className="rounded-xl bg-amber-50 p-6 text-center">
+                <p className="text-lg font-bold text-amber-700">Message received</p>
+                <p className="mt-2 text-sm text-amber-800">{errorMsg}</p>
+                <p className="mt-2 text-sm text-amber-800">
+                  Need an urgent reply? Email us directly at{" "}
+                  <a className="font-semibold underline" href={`mailto:${CONTACT_EMAIL}`}>
+                    {CONTACT_EMAIL}
+                  </a>
+                  .
                 </p>
                 <Button variant="outline" className="mt-4" onClick={reset}>
                   Send another
@@ -176,9 +228,22 @@ export default function Contact() {
                   />
                 </div>
                 {state === "error" && (
-                  <div className="flex items-start gap-2 rounded-md bg-rose-50 p-3 text-sm text-rose-800">
-                    <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                    <span>{errorMsg}</span>
+                  <div className="rounded-md bg-rose-50 p-3 text-sm text-rose-800">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                      <span>{errorMsg}</span>
+                    </div>
+                    <p className="mt-2">
+                      Your message is still here — try again, or{" "}
+                      <a
+                        className="font-semibold underline"
+                        href={mailtoFallback}
+                        aria-label={`Email your enquiry to ${CONTACT_EMAIL}`}
+                      >
+                        send it as an email
+                      </a>{" "}
+                      instead.
+                    </p>
                   </div>
                 )}
 

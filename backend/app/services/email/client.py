@@ -66,6 +66,18 @@ async def send_email(
         logger.info("[email] Email sent successfully | recipient=%s", to_email)
         return result
 
+    except httpx.HTTPStatusError as exc:
+        # Include Resend's response body so failures are diagnosable (e.g.
+        # 403 "domain not verified", 422 validation, 429 rate limit).
+        result["status"] = "error"
+        resp_body = exc.response.text[:500] if exc.response is not None else ""
+        result["error"] = f"{exc.response.status_code}: {resp_body}" if exc.response is not None else str(exc)
+        logger.error(
+            "[email] Resend delivery failed | recipient=%s status=%s error=%s",
+            to_email, exc.response.status_code if exc.response is not None else "?", resp_body,
+        )
+        return result
+
     except httpx.HTTPError as exc:
         result["status"] = "error"
         result["error"] = str(exc)
