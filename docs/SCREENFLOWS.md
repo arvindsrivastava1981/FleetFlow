@@ -21,7 +21,7 @@ Fleet-less trip_manager (e.g. social sign-up)
 
 ## 2. Super Admin (`role = "super_admin"`)
 
-**Sidebar sections:** Onboarding · Operations · Fleet & Assets · System & Reports · Account
+**Sidebar sections:** Operations · Fleet & Assets · Settings (Rules & Rates) · Account
 
 | Step | Screen | Next actions |
 |---|---|---|
@@ -39,7 +39,7 @@ Fleet-less trip_manager (e.g. social sign-up)
 
 ## 3. Trip Manager (`role = "trip_manager"`)
 
-**Sidebar sections:** Operations · Fleet & Assets (incl. **My Fleet**, read-only) · Account
+**Sidebar sections:** Operations · Fleet & Assets (incl. **My Fleet**, read-only) · Settings (Rules & Rates) · Account
 (no Onboarding, no System & Reports). All data scoped to own `fleet_id` / `created_by`.
 
 | Step | Screen | Next actions |

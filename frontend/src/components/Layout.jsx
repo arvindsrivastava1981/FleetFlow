@@ -37,6 +37,13 @@ const SECTIONS = [
       { to: "/fleets", label: (r) => (r === "trip_manager" ? "My Fleet" : "Fleets"), labelHi: "बेड़े", icon: "🏢", roles: ["trip_manager", "super_admin"] },
       { to: "/vehicles", label: "Vehicles", labelHi: "वाहन", icon: "🚛", roles: ["trip_manager", "super_admin"] },
       { to: "/drivers", label: "Drivers", labelHi: "ड्राइवर", icon: "👨", roles: ["trip_manager", "super_admin"] },
+    ],
+  },
+  {
+    title: "Settings",
+    titleHi: "सेटिंग्स",
+    roles: ["trip_manager", "super_admin"],
+    links: [
       { to: "/benchmarks", label: "Rules & Rates", labelHi: "नियम व दरें", icon: "⚖️", roles: ["trip_manager", "super_admin"] },
     ],
   },
