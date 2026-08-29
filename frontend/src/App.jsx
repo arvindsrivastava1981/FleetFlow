@@ -182,7 +182,7 @@ export default function App() {
       <Route
         path="/subscription"
         element={
-          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
+          <ProtectedRoute roles={["trip_manager"]}>
             <Layout>
               <SubscriptionPage />
             </Layout>

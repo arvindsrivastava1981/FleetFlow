@@ -34,7 +34,7 @@ const SECTIONS = [
     title: "Fleet & Assets",
     titleHi: "बेड़ा व संसाधन",
     links: [
-      { to: "/fleets", label: "Fleets", labelHi: "बेड़े", icon: "🏢", roles: ["super_admin"] },
+      { to: "/fleets", label: (r) => (r === "trip_manager" ? "My Fleet" : "Fleets"), labelHi: "बेड़े", icon: "🏢", roles: ["trip_manager", "super_admin"] },
       { to: "/vehicles", label: "Vehicles", labelHi: "वाहन", icon: "🚛", roles: ["trip_manager", "super_admin"] },
       { to: "/drivers", label: "Drivers", labelHi: "ड्राइवर", icon: "👨", roles: ["trip_manager", "super_admin"] },
       { to: "/benchmarks", label: "Rules & Rates", labelHi: "नियम व दरें", icon: "⚖️", roles: ["trip_manager", "super_admin"] },
@@ -70,15 +70,18 @@ function navLang() {
 }
 
 function navClass({ isActive }) {
-  return `flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
+  return `group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 ${
     isActive
-      ? "bg-brand-50 font-semibold text-brand-700"
+      ? "bg-brand-50 font-semibold text-brand-700 shadow-sm"
       : "font-medium text-ink-600 hover:bg-ink-100 hover:text-ink-900"
   }`;
 }
 function Sidebar({ role, lang = "en", onToggleLang }) {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const hi = lang === "hi";
+  // Fleet-less trip managers are gated to /onboarding by ProtectedRoute — hide
+  // nav links that would just bounce so the sidebar never shows dead entries.
+  const fleetless = role === "trip_manager" && !user?.fleet_id;
   const sections = SECTIONS.filter((s) => !s.roles || s.roles.includes(role));
   const resolve = (value) => (typeof value === "function" ? value(role) : value);
   const labelFor = (link) => {
@@ -119,9 +122,18 @@ function Sidebar({ role, lang = "en", onToggleLang }) {
         </div>
       </div>
 
+      {fleetless && (
+        <NavLink to="/onboarding" className={navClass}>
+          <span className="w-5 text-center text-base leading-none">🚧</span>
+          <span>{hi ? "फर्म सेटअप पूरा करें" : "Finish Firm Setup"}</span>
+        </NavLink>
+      )}
+
       {sections.map((section) => {
         const links = section.links.filter(
-          (l) => !l.roles || l.roles.includes(role)
+          (l) =>
+            (!l.roles || l.roles.includes(role)) &&
+            !(fleetless && l.to !== "/dashboard")
         );
         if (!links.length) return null;
         return (
@@ -137,10 +149,20 @@ function Sidebar({ role, lang = "en", onToggleLang }) {
                   end={link.to === "/trips"}
                   className={navClass}
                 >
-                  <span className="w-5 text-center text-base leading-none">
-                    {link.icon}
-                  </span>
-                  <span>{labelFor(link)}</span>
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        aria-hidden="true"
+                        className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-600 transition-all duration-200 ${
+                          isActive ? "opacity-100" : "opacity-0"
+                        }`}
+                      />
+                      <span className="w-5 text-center text-base leading-none">
+                        {link.icon}
+                      </span>
+                      <span>{labelFor(link)}</span>
+                    </>
+                  )}
                 </NavLink>
               ))}
             </div>
@@ -153,7 +175,7 @@ function Sidebar({ role, lang = "en", onToggleLang }) {
           {hi ? "खाता" : "Account"}
         </p>
         <div className="space-y-0.5">
-          {role !== "driver" && (
+          {role === "trip_manager" && !fleetless && (
             <NavLink to="/subscription" className={navClass}>
               <span className="w-5 text-center text-base leading-none">💳</span>
               <span>{hi ? "सदस्यता" : "Subscription"}</span>
@@ -221,9 +243,16 @@ export default function Layout({ children }) {
 
       {/* Mobile nav drawer (audit E-7): replaces the old always-stacked card. */}
       {mobileNavOpen && (
-        <div className="border-b border-ink-200 bg-white px-4 py-3 shadow-sm lg:hidden">
-          <Sidebar role={role} lang={lang} onToggleLang={toggleLang} />
-        </div>
+        <>
+          <div
+            className="fixed inset-0 z-20 bg-ink-900/40 backdrop-blur-sm lg:hidden"
+            aria-hidden="true"
+            onClick={() => setMobileNavOpen(false)}
+          />
+          <div className="relative z-20 border-b border-ink-200 bg-white px-4 py-3 shadow-sm lg:hidden">
+            <Sidebar role={role} lang={lang} onToggleLang={toggleLang} />
+          </div>
+        </>
       )}
 
       <div className="mx-auto flex max-w-screen-2xl items-start gap-6 px-4 py-6 md:px-6">
