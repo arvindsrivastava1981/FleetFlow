@@ -183,7 +183,7 @@ export default function NewTripPage() {
       )}
 
       {loading ? (
-        <Loader label="Loading vehicles &amp; drivers…" />
+        <Loader label="Loading vehicles & drivers…" />
       ) : (
       <div className="card-pad">
         <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 text-sm">

@@ -37,10 +37,8 @@ from backend.app.schemas.api_v1 import (
     Data,
     LoginResult,
     LogoutResult,
-    RegisterRequest,
     RegisterResponse,
     SessionRefreshResult,
-    VerifyResponse,
 )
 
 router = APIRouter(prefix="/api/v1")

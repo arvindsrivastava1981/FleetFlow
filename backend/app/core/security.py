@@ -1,7 +1,6 @@
 from __future__ import annotations
 import hashlib, hmac, logging, secrets, threading, time
 from datetime import datetime, timezone
-from fastapi import Request
 from fastapi.responses import JSONResponse
 from backend.app.core.config import settings
 from backend.app.db.connection import get_db

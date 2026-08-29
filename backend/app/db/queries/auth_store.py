@@ -1,6 +1,5 @@
 """Durable backing store for auth sessions + login throttling (audit R-1)."""
 from __future__ import annotations
-from typing import Any
 
 
 def insert_auth_session(conn, token_hash, user_id, role, issued_at, expires_at):

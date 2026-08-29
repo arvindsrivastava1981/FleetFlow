@@ -69,7 +69,7 @@ export default function DashboardPage() {
             {role === "super_admin"
               ? "Fleet-wide control"
               : role === "trip_manager"
-              ? "Dispatch &amp; settlement"
+              ? "Dispatch & settlement"
               : "Your trip at a glance"}
           </p>
           <h2 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">
