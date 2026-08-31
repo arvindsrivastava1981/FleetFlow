@@ -101,7 +101,7 @@ export default function DriversPage() {
     <div className="space-y-4">
       <div>
         <h2 className="page-title">Drivers</h2>
-        <p className="text-xs text-slate-500">Registered driver users and their batta profile.</p>
+        <p className="page-sub">Registered driver users and their batta profile.</p>
       </div>
       {error && (
         <div className="alert alert-error">
@@ -246,72 +246,68 @@ export default function DriversPage() {
       ) : (
       <div className="table-wrap">
         <table className="table">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead>
             <tr>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Email</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Name</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Salary Type</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Salary Rate</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Phone</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Salary Type</th>
+              <th>Salary Rate</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {drivers.map((d) => (
-              <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-3 text-xs font-bold text-slate-800">{d.email}</td>
-                <td className="p-3 text-xs text-slate-600">
+              <tr key={d.id}>
+                <td className="font-semibold text-ink-800">{d.email}</td>
+                <td>
                   {d.full_name}
                   {d.licence_expiry && new Date(d.licence_expiry) <= new Date(Date.now() + 14 * 864e5) && (
                     <span
-                      className="ml-1 rounded bg-rose-100 px-1 py-0.5 text-[9px] font-bold text-rose-700"
+                      className="badge badge-danger ml-1"
                       title={`Licence expires ${d.licence_expiry}`}
                     >
                       licence ⚠
                     </span>
                   )}
                 </td>
-                <td className="p-3 text-xs text-slate-600">
+                <td>
                   {d.batta_type === "NONE" ? (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-ink-400">—</span>
                   ) : (
                     d.batta_type || "FIXED_TRIP"
                   )}
                 </td>
-                <td className={`p-3 text-xs font-semibold ${d.batta_type === "NONE" ? "text-slate-400" : "text-emerald-700"}`}>
+                <td className={d.batta_type === "NONE" ? "text-ink-400" : "font-semibold text-emerald-700"}>
                   {d.batta_type === "NONE"
                     ? "—"
                     : `₹${(Number(d.default_batta_rate) || 0).toLocaleString("en-IN")} ${BATTA_UNIT[d.batta_type] || BATTA_UNIT.FIXED_TRIP}`}
                 </td>
-                <td className="p-3 text-xs text-slate-600">{d.phone || "—"}</td>
-                <td className="p-3 text-xs">
-                  <span
-                    className={`badge ${
-                      d.is_active
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-rose-100 text-rose-800"
-                    }`}
-                  >
+                <td>{d.phone || "—"}</td>
+                <td>
+                  <span className={`badge ${d.is_active ? "badge-success" : "badge-danger"}`}>
                     {d.is_active ? "Active" : "Inactive"}
                   </span>
                 </td>
-                <td className="p-3 text-xs flex gap-3">
-                  <button onClick={() => startEdit(d)} className="text-brand-600 hover:text-brand-800 font-semibold">
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => toggle(d)}
-                    className={d.is_active ? "text-rose-600 hover:text-rose-800 font-semibold" : "text-emerald-600 hover:text-emerald-800 font-semibold"}
-                  >
-                    {d.is_active ? "Deactivate" : "Activate"}
-                  </button>
+                <td>
+                  <div className="flex gap-3 text-sm font-semibold">
+                    <button onClick={() => startEdit(d)} className="text-brand-600 hover:text-brand-800">
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => toggle(d)}
+                      className={d.is_active ? "text-rose-600 hover:text-rose-800" : "text-emerald-600 hover:text-emerald-800"}
+                    >
+                      {d.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {!drivers.length && (
               <tr>
-                <td colSpan="7" className="p-6 text-center text-xs text-slate-400">
+                <td colSpan="7" className="empty">
                   No drivers yet.
                 </td>
               </tr>

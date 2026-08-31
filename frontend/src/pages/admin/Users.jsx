@@ -100,7 +100,10 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="page-title">Manage Users</h2>
+      <div>
+        <h2 className="page-title">Manage Users</h2>
+        <p className="page-sub">All users in your fleet with their roles and status.</p>
+      </div>
       {error && (
         <div className="alert alert-error">
           {error}
@@ -274,41 +277,47 @@ export default function UsersPage() {
       ) : (
       <div className="table-wrap">
         <table className="table">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead>
             <tr>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Email</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Name</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Role</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Phone</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Email</th>
-              <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Action</th>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50">
-                <td className="p-3 text-xs font-bold text-slate-800">{u.email}</td>
-                <td className="p-3 text-xs text-slate-600">{u.full_name}</td>
-                <td className="p-3 text-xs">
+              <tr key={u.id}>
+                <td className="font-semibold text-ink-800">{u.email}</td>
+                <td>{u.full_name}</td>
+                <td>
                   <span className="badge badge-info">
                     {ROLE_LABELS[u.role] || u.role}
                   </span>
                 </td>
-                <td className="p-3 text-xs text-slate-600">{u.phone || "—"}</td>
-                <td className="p-3 text-xs text-slate-600">{u.email || "—"}</td>
-                <td className="p-3 text-xs flex gap-3">
-                  <button onClick={() => startEdit(u)} className="text-brand-600 hover:text-brand-800 font-semibold">
-                    Edit
-                  </button>
-                  <button onClick={() => toggle(u)} className={u.is_active ? "text-rose-600 hover:text-rose-800 font-semibold" : "text-emerald-600 hover:text-emerald-800 font-semibold"}>
-                    {u.is_active ? "Deactivate" : "Activate"}
-                  </button>
+                <td>{u.phone || "—"}</td>
+                <td>
+                  <span className={`badge ${u.is_active ? "badge-success" : "badge-danger"}`}>
+                    {u.is_active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td>
+                  <div className="flex gap-3 text-sm font-semibold">
+                    <button onClick={() => startEdit(u)} className="text-brand-600 hover:text-brand-800">
+                      Edit
+                    </button>
+                    <button onClick={() => toggle(u)} className={u.is_active ? "text-rose-600 hover:text-rose-800" : "text-emerald-600 hover:text-emerald-800"}>
+                      {u.is_active ? "Deactivate" : "Activate"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
             {!users.length && (
               <tr>
-                <td colSpan="6" className="p-6 text-center text-xs text-slate-400">
+                <td colSpan="6" className="empty">
                   No users yet.
                 </td>
               </tr>

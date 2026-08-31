@@ -292,14 +292,14 @@ export default function NewTripPage() {
             <button
               type="submit"
               disabled={busy}
-              className="btn-primary py-2 px-4 rounded-xl transition shadow disabled:opacity-50"
+              className="btn-primary"
             >
               {busy ? "Creating…" : "Start Trip"}
             </button>
             <button
               type="button"
               onClick={() => navigate("/trips")}
-              className="btn-secondary py-2 px-4 rounded-xl"
+              className="btn-secondary"
             >
               Cancel
             </button>

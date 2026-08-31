@@ -5,11 +5,11 @@ import { useToast } from "../context/ToastContext.jsx";
 import Loader from "../components/Loader.jsx";
 
 const STATUS_BADGES = {
-  TRIAL: "bg-amber-100 text-amber-800",
-  ACTIVE: "bg-emerald-100 text-emerald-800",
-  PAST_DUE: "bg-red-100 text-red-800",
-  CANCELLED: "bg-gray-100 text-gray-600",
-  EXPIRED: "bg-gray-100 text-gray-600",
+  TRIAL: "badge-warning",
+  ACTIVE: "badge-success",
+  PAST_DUE: "badge-danger",
+  CANCELLED: "badge-neutral",
+  EXPIRED: "badge-neutral",
 };
 
 function statusLabel(s) {
@@ -39,7 +39,7 @@ function ManagerSubscription({ fleet, plans, onAction }) {
             <p className="text-xl font-extrabold text-ink-900">
               {fleet?.plan_code || "NONE"}
               <span
-                className={`ml-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${STATUS_BADGES[currentStatus] || "bg-ink-100 text-ink-600"}`}
+                className={`badge ml-2 ${STATUS_BADGES[currentStatus] || "badge-neutral"}`}
               >
                 {statusLabel(currentStatus)}
               </span>
@@ -176,7 +176,7 @@ function AdminSubscriptionTable({ subscriptions, onRenew }) {
               <td className="px-3 py-3 font-semibold">{s.plan_name || "—"}</td>
                             <td className="px-3 py-3">
                 <span
-                  className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-bold ${STATUS_BADGES[s.subscription_status] || "bg-ink-100 text-ink-600"}`}
+                  className={`badge ${STATUS_BADGES[s.subscription_status] || "badge-neutral"}`}
                 >
                   {statusLabel(s.subscription_status)}
                 </span>

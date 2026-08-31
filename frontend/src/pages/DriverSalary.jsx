@@ -49,9 +49,7 @@ export default function DriverSalaryPage() {
     <div className="space-y-4">
       <div>
         <h2 className="page-title">Driver Salary</h2>
-        <p className="text-xs text-slate-500">
-          Read-only view of your batta allowance and settlement earnings.
-        </p>
+        <p className="page-sub">Read-only view of your batta allowance and settlement earnings.</p>
       </div>
 
       {error && (
@@ -87,23 +85,23 @@ export default function DriverSalaryPage() {
           </div>
           <div className="table-wrap">
             <table className="table">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead>
                 <tr>
-                  <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Trip</th>
-                  <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Status</th>
-                  <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Completed</th>
-                  <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Driver Salary</th>
-                  <th className="p-3 text-[10px] font-bold text-slate-500 uppercase">Net Due</th>
+                  <th>Trip</th>
+                  <th>Status</th>
+                  <th>Completed</th>
+                  <th>Driver Salary</th>
+                  <th>Net Due</th>
                 </tr>
               </thead>
               <tbody>
                 {trips.map((t) => (
-                  <tr key={t.trip_code} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="p-3 text-xs font-bold text-slate-800">{t.trip_code}</td>
-                    <td className="p-3 text-xs text-slate-600">{t.status}</td>
-                    <td className="p-3 text-xs text-slate-500">{fmtDate(t.completed_at || t.settled_at)}</td>
-                    <td className="p-3 text-xs text-slate-700">₹{(t.driver_batta || 0).toLocaleString("en-IN")}</td>
-                    <td className="p-3 text-xs text-slate-700">
+                  <tr key={t.trip_code}>
+                    <td className="font-semibold text-ink-800">{t.trip_code}</td>
+                    <td>{t.status}</td>
+                    <td className="text-ink-500">{fmtDate(t.completed_at || t.settled_at)}</td>
+                    <td>₹{(t.driver_batta || 0).toLocaleString("en-IN")}</td>
+                    <td>
                       ₹{Math.abs(t.net_balance || 0).toLocaleString("en-IN")}
                       {t.net_balance < 0 ? " (to you)" : t.net_balance > 0 ? " (to fleet)" : ""}
                     </td>
@@ -111,7 +109,7 @@ export default function DriverSalaryPage() {
                 ))}
                 {!trips.length && (
                   <tr>
-                    <td colSpan="5" className="p-6 text-center text-xs text-slate-400">
+                    <td colSpan="5" className="empty">
                       No trips assigned yet.
                     </td>
                   </tr>
