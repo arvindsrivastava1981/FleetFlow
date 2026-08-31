@@ -79,6 +79,42 @@ def settlement_ready_count(conn, manager_id: int | None = None) -> int:
     return int(cur.fetchone()["c"])
 
 
+def drivers_licence_expiring(conn, manager_id: int | None = None, days: int = 14) -> list[dict[str, Any]]:
+    """Driver users whose licence expires within ``days`` (or already has).
+
+    Mirrors the 14-day ⚠ chip on the Drivers page. ``manager_id=None`` →
+    fleet-wide (super admin view); otherwise only drivers created by that
+    manager (same scoping as ``get_drivers_for_user``).
+    """
+    cur = conn.cursor()
+    if manager_id is None:
+        cur.execute(
+            """SELECT id, full_name, email, licence_expiry
+                 FROM users
+                WHERE role = 'driver'
+                  AND is_active = TRUE
+                  AND licence_expiry IS NOT NULL
+                  AND licence_expiry <= CURRENT_DATE + INTERVAL '%s days'
+                ORDER BY licence_expiry
+                LIMIT 10""",
+            (days,),
+        )
+    else:
+        cur.execute(
+            """SELECT id, full_name, email, licence_expiry
+                 FROM users
+                WHERE role = 'driver'
+                  AND is_active = TRUE
+                  AND created_by = %s
+                  AND licence_expiry IS NOT NULL
+                  AND licence_expiry <= CURRENT_DATE + INTERVAL '%s days'
+                ORDER BY licence_expiry
+                LIMIT 10""",
+            (manager_id, days),
+        )
+    return cur.fetchall()
+
+
 def managers_with_emails(conn) -> list[dict[str, Any]]:
     """Active managers/super-admins with an email on file (digest recipients)."""
     cur = conn.cursor()

@@ -1,12 +1,15 @@
 """In-app notification feed (feature F-3) — derived live, nothing stored."""
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Request
 
 from backend.app.api.v1.deps import _identity, _ok
 from backend.app.core.security import require_json_auth
 from backend.app.db.connection import get_db
 from backend.app.db.queries.notifications import (
+    drivers_licence_expiring,
     fleet_trial_ending,
     pending_approvals,
     settlement_ready_count,
@@ -38,6 +41,23 @@ def api_notifications(request: Request):
                     "detail": (
                         f"₹{float(row['amount']):,.0f} · {row['trip_code']} "
                         f"({row['vehicle_no']}) — waiting more than 24h"
+                    ),
+                }
+            )
+        for row in drivers_licence_expiring(conn, scope_id):
+            expired = row["licence_expiry"] < date.today()
+            items.append(
+                {
+                    "type": "licence_expiry",
+                    "title": (
+                        f"{row['full_name']}'s licence expired"
+                        if expired
+                        else f"{row['full_name']}'s licence expiring soon"
+                    ),
+                    "detail": (
+                        f"Licence {'expired' if expired else 'expires'} "
+                        f"{row['licence_expiry'].isoformat()} — renew before "
+                        f"the next dispatch ({row['email']})."
                     ),
                 }
             )

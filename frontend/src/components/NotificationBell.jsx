@@ -15,11 +15,22 @@ export default function NotificationBell() {
 
   useEffect(() => {
     load();
+    // Poll for new alerts every 60s so the badge stays fresh without a
+    // manual click; also refresh when the tab regains focus.
+    const interval = setInterval(load, 60_000);
+    function onFocus() {
+      if (document.visibilityState === "visible") load();
+    }
+    document.addEventListener("visibilitychange", onFocus);
     function onDoc(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onFocus);
+      document.removeEventListener("mousedown", onDoc);
+    };
   }, []);
 
   return (
