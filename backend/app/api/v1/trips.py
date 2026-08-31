@@ -37,6 +37,7 @@ from backend.app.db.queries.trips import (
 from backend.app.db.queries.trips import (
     settle_trip as mark_trip_settled,
 )
+from backend.app.db.queries.vehicles import get_vehicle_by_id
 from backend.app.db.queries.users import (
     get_driver_batta_profile,
     get_user_by_id,
@@ -184,6 +185,19 @@ async def api_create_trip(request: Request):
         if (
             user.get("role", "super_admin") != "super_admin"
             and driver_row.get("created_by") != user.get("user_id")
+        ):
+            return JSONResponse(
+                status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
+            )
+        # Ownership: a manager may only dispatch trips on vehicles they created
+        # (a foreign vehicle_id must never be usable cross-manager — 403).
+        if (
+            vehicle_id is not None
+            and user.get("role", "super_admin") != "super_admin"
+            and get_vehicle_by_id(
+                conn, int(vehicle_id), role=user.get("role"),
+                user_id=user.get("user_id"),
+            ) is None
         ):
             return JSONResponse(
                 status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
