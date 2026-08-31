@@ -6,6 +6,10 @@ import Loader from "../../components/Loader.jsx";
 
 const emptyForm = { owner_name: "", phone: "", email: "", subscription_plan: "MONTHLY" };
 
+function Required() {
+  return <span className="text-rose-500 ml-0.5">*</span>;
+}
+
 export default function FleetsPage() {
   const { user } = useAuth();
   const toast = useToast();
@@ -102,25 +106,86 @@ export default function FleetsPage() {
             Creating a fleet makes it your active fleet — new vehicles you add will belong to it.
           </p>
         )}
-        <form onSubmit={onSubmit} className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-          <input value={form.owner_name} onChange={(e) => set("owner_name", e.target.value)} placeholder="Owner Name" required className="input" />
-          <input value={form.phone} onChange={(e) => set("phone", e.target.value)} placeholder="Phone" required className="input" />
-          <input value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email" className="input" />
-          <select value={form.subscription_plan} onChange={(e) => set("subscription_plan", e.target.value)} className="input" disabled={!!editingId}>
-            {plans
-              .filter((p) => p.code !== "TRIAL")
-              .map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.name} (₹{p.price})
-                </option>
-              ))}
-          </select>
-          <div className="col-span-2 flex gap-2 md:col-span-4">
+        <form
+          onSubmit={onSubmit}
+          className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4"
+        >
+          {/* Owner Name */}
+          <div>
+            <label className="label" htmlFor="owner_name">
+              Owner Name <Required />
+            </label>
+            <input
+              id="owner_name"
+              value={form.owner_name}
+              onChange={(e) => set("owner_name", e.target.value)}
+              placeholder="e.g. Sharma Transports"
+              required
+              className="input"
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="label" htmlFor="phone">
+              Phone <Required />
+            </label>
+            <input
+              id="phone"
+              value={form.phone}
+              onChange={(e) => set("phone", e.target.value)}
+              placeholder="e.g. +919876543210"
+              required
+              className="input"
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="label" htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              value={form.email}
+              onChange={(e) => set("email", e.target.value)}
+              placeholder="e.g. owner@firm.com"
+              className="input"
+            />
+          </div>
+
+          {/* Subscription Plan */}
+          <div>
+            <label className="label" htmlFor="subscription_plan">
+              Subscription Plan <Required />
+            </label>
+            <select
+              id="subscription_plan"
+              value={form.subscription_plan}
+              onChange={(e) => set("subscription_plan", e.target.value)}
+              className="input"
+              disabled={!!editingId}
+            >
+              {plans
+                .filter((p) => p.code !== "TRIAL")
+                .map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.name} (₹{p.price})
+                  </option>
+                ))}
+            </select>
+          </div>
+
+          {/* Actions */}
+          <div className="sm:col-span-2 lg:col-span-4 flex gap-2">
             <button type="submit" className="btn-primary">
               {editingId ? "Save Changes" : "Create Fleet"}
             </button>
             {editingId && (
-              <button type="button" onClick={() => { setForm(emptyForm); setEditingId(null); }} className="btn-secondary">
+              <button
+                type="button"
+                onClick={() => { setForm(emptyForm); setEditingId(null); setError(""); }}
+                className="btn-secondary"
+              >
                 Cancel
               </button>
             )}

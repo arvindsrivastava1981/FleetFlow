@@ -21,6 +21,10 @@ const emptyForm = {
   licence_expiry: "",
 };
 
+function Required() {
+  return <span className="text-rose-500 ml-0.5">*</span>;
+}
+
 export default function DriversPage() {
   const toast = useToast();
   const [drivers, setDrivers] = useState([]);
@@ -28,6 +32,7 @@ export default function DriversPage() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
+  const [busy, setBusy] = useState(false);
 
   function load() {
     api
@@ -45,6 +50,7 @@ export default function DriversPage() {
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
+    setBusy(true);
     try {
       if (editingId) {
         const { email, ...payload } = form;
@@ -60,6 +66,8 @@ export default function DriversPage() {
     } catch (err) {
       setError(err.message);
       toast.error(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -104,72 +112,127 @@ export default function DriversPage() {
         <h3 className="text-sm font-extrabold text-slate-800 mb-3">
           {editingId ? "Edit Driver" : "Add New Driver"}
         </h3>
-        <form onSubmit={onSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-          <input
-            value={form.full_name}
-            onChange={(e) => set("full_name", e.target.value)}
-            placeholder="Full Name"
-            required
-            className="input"
-          />
-          <input
-            value={form.phone}
-            onChange={(e) => set("phone", e.target.value)}
-            placeholder="Phone (+91...)"
-            className="input"
-          />
-          <input
-            value={form.email}
-            onChange={(e) => set("email", e.target.value)}
-            placeholder="Email"
-            type="email"
-            className="input"
-          />
-          <input
-            value={form.password}
-            onChange={(e) => set("password", e.target.value)}
-            placeholder={editingId ? "Password (blank = keep)" : "Password"}
-            required={!editingId}
-            type="password"
-            className="input"
-          />
-          <select
-            value={form.batta_type}
-            onChange={(e) => set("batta_type", e.target.value)}
-            className="input"
-          >
-            {BATTA_TYPES.map((b) => (
-              <option key={b} value={b}>
-                {b}
-              </option>
-            ))}
-          </select>
-          <input
-            value={form.default_batta_rate}
-            onChange={(e) => set("default_batta_rate", e.target.value)}
-            placeholder={`Batta Rate (${BATTA_UNIT[form.batta_type] || "₹/trip"})`}
-            type="number"
-            step="0.01"
-            min="0"
-            disabled={form.batta_type === "NONE"}
-            className="input disabled:opacity-50"
-          />
-          <input
-            value={form.licence_expiry}
-            onChange={(e) => set("licence_expiry", e.target.value)}
-            placeholder="Licence Expiry (YYYY-MM-DD)"
-            type="date"
-            className="input"
-          />
-          <div className="col-span-2 md:col-span-3 flex gap-2">
-            <button type="submit" className="btn-primary py-2 px-4 rounded-xl transition shadow">
-              {editingId ? "Save Changes" : "Add Driver"}
+        <form
+          onSubmit={onSubmit}
+          className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {/* Full Name */}
+          <div>
+            <label className="label" htmlFor="full_name">
+              Full Name <Required />
+            </label>
+            <input
+              id="full_name"
+              value={form.full_name}
+              onChange={(e) => set("full_name", e.target.value)}
+              placeholder="e.g. Ramesh Kumar"
+              required
+              className="input"
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <label className="label" htmlFor="phone">Phone</label>
+            <input
+              id="phone"
+              value={form.phone}
+              onChange={(e) => set("phone", e.target.value)}
+              placeholder="e.g. +919876543210"
+              className="input"
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label className="label" htmlFor="email">
+              Email <Required />
+            </label>
+            <input
+              id="email"
+              value={form.email}
+              onChange={(e) => set("email", e.target.value)}
+              placeholder="e.g. ramesh@fleet.com"
+              type="email"
+              required
+              className="input"
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label className="label" htmlFor="password">
+              Password {editingId ? "" : <Required />}
+            </label>
+            <input
+              id="password"
+              value={form.password}
+              onChange={(e) => set("password", e.target.value)}
+              placeholder={editingId ? "Leave blank to keep current" : "Set login password"}
+              required={!editingId}
+              type="password"
+              className="input"
+            />
+          </div>
+
+          {/* Salary Type */}
+          <div>
+            <label className="label" htmlFor="batta_type">Salary Type <Required /></label>
+            <select
+              id="batta_type"
+              value={form.batta_type}
+              onChange={(e) => set("batta_type", e.target.value)}
+              className="input"
+            >
+              {BATTA_TYPES.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Salary Rate */}
+          <div>
+            <label className="label" htmlFor="default_batta_rate">
+              Salary Rate ({BATTA_UNIT[form.batta_type] || "₹/trip"}){" "}
+              {form.batta_type !== "NONE" && <Required />}
+            </label>
+            <input
+              id="default_batta_rate"
+              value={form.default_batta_rate}
+              onChange={(e) => set("default_batta_rate", e.target.value)}
+              placeholder="e.g. 2500.00"
+              type="number"
+              step="0.01"
+              min="0"
+              disabled={form.batta_type === "NONE"}
+              className="input disabled:opacity-50"
+            />
+          </div>
+
+          {/* Licence Expiry */}
+          <div>
+            <label className="label" htmlFor="licence_expiry">Licence Expiry</label>
+            <input
+              id="licence_expiry"
+              type="date"
+              value={form.licence_expiry}
+              onChange={(e) => set("licence_expiry", e.target.value)}
+              className="input"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="sm:col-span-2 lg:col-span-3 flex gap-2">
+            <button type="submit" disabled={busy} className="btn-primary">
+              {busy ? "Saving…" : editingId ? "Save Changes" : "Add Driver"}
             </button>
             {editingId && (
               <button
                 type="button"
-                onClick={() => { setForm(emptyForm); setEditingId(null); }}
-                className="btn-secondary py-2 px-4 rounded-xl"
+                onClick={() => { setForm(emptyForm); setEditingId(null); setError(""); }}
+                className="btn-secondary"
               >
                 Cancel
               </button>

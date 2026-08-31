@@ -48,8 +48,11 @@ export default function ChangePasswordPage() {
         className="card-pad space-y-4"
       >
         <div>
-          <label className="label">Current Password</label>
+          <label className="label" htmlFor="current_password">
+            Current Password <span className="text-rose-500 ml-0.5">*</span>
+          </label>
           <input
+            id="current_password"
             type="password"
             value={form.current_password}
             onChange={(e) => set("current_password", e.target.value)}
@@ -58,8 +61,11 @@ export default function ChangePasswordPage() {
           />
         </div>
         <div>
-          <label className="label">New Password</label>
+          <label className="label" htmlFor="new_password">
+            New Password <span className="text-rose-500 ml-0.5">*</span>
+          </label>
           <input
+            id="new_password"
             type="password"
             value={form.new_password}
             onChange={(e) => set("new_password", e.target.value)}
@@ -70,8 +76,11 @@ export default function ChangePasswordPage() {
           />
         </div>
         <div>
-          <label className="label">Confirm New Password</label>
+          <label className="label" htmlFor="confirm_password">
+            Confirm New Password <span className="text-rose-500 ml-0.5">*</span>
+          </label>
           <input
+            id="confirm_password"
             type="password"
             value={form.confirm_password}
             onChange={(e) => set("confirm_password", e.target.value)}
