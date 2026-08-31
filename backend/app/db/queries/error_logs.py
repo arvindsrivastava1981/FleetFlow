@@ -50,7 +50,7 @@ def list_error_groups(
         )
         totals = cur.fetchone()
     groups = [
-        r if not isinstance(r, (list, tuple)) else dict(zip(cols, r))
+        r if not isinstance(r, (list, tuple)) else dict(zip(cols, r, strict=True))
         for r in rows
     ]
     if not isinstance(totals, (list, tuple)):
@@ -126,9 +126,10 @@ def list_error_rows(
         cur.execute(sql, params)
         cols = [d[0] for d in cur.description]
         return [
-            r if not isinstance(r, (list, tuple)) else dict(zip(cols, r))
+            r if not isinstance(r, (list, tuple)) else dict(zip(cols, r, strict=True))
             for r in cur.fetchall()
         ]
+
 
 
 def count_error_rows(

@@ -37,12 +37,12 @@ from backend.app.db.queries.trips import (
 from backend.app.db.queries.trips import (
     settle_trip as mark_trip_settled,
 )
-from backend.app.db.queries.vehicles import get_vehicle_by_id
 from backend.app.db.queries.users import (
     get_driver_batta_profile,
     get_user_by_id,
     get_user_fleet_id,
 )
+from backend.app.db.queries.vehicles import get_vehicle_by_id
 from backend.app.schemas.api_v1 import (
     CreateTripResult,
     Data,

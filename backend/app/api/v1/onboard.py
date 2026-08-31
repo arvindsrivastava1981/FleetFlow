@@ -42,6 +42,10 @@ _PLATE_RE = _re.compile(settings.plate_regex)
 _VALID_PLANS = ("TRIAL", "MONTHLY", "YEARLY")
 
 
+def _not_found(message: str, code: str = "NOT_FOUND") -> JSONResponse:
+    return JSONResponse(status_code=404, content={"error": message, "code": code})
+
+
 def _login_url(request: Request) -> str:
     """Derive the web login URL for the manager onboarding email.
 
@@ -71,7 +75,6 @@ async def api_onboard_fleet(request: Request):
     phone = str(fleet_c.get("phone", "")).strip()
     email = ((fleet_c.get("email") or owner_c.get("email") or "")).strip() or None
 
-    username = (email or "").lower()  # kept for compatibility in the context, not DB
     full_name = str(owner_c.get("full_name", "")).strip()
     password = str(owner_c.get("password", "")).strip()
     owner_email = ((owner_c.get("email") or "")).strip() or email

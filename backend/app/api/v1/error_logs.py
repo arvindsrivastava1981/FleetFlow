@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-from backend.app.api.v1.deps import _ok
+from backend.app.api.v1.deps import _ok, _page_params
 from backend.app.core.errors import not_found
 from backend.app.core.security import require_json_role
 from backend.app.db.connection import get_db
@@ -20,7 +20,6 @@ from backend.app.db.queries.error_logs import (
     list_error_groups,
     list_error_rows,
 )
-from backend.app.api.v1.deps import _page_params
 
 router = APIRouter(prefix="/api/v1")
 

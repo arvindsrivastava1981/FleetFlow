@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-import hashlib, secrets, time
+import hashlib
+import secrets
+import time
+
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 

@@ -20,8 +20,8 @@ from backend.app.core.security import require_json_auth, require_json_role
 from backend.app.db.connection import get_db
 from backend.app.db.queries.fleets import (
     get_default_fleet,
-    get_fleet_entitlement,
     get_fleet_by_id,
+    get_fleet_entitlement,
 )
 from backend.app.db.queries.users import get_user_fleet_id
 from backend.app.db.queries.vehicles import (

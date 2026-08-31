@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from backend.app.services.audit.cash import DEFAULT_DRIVER_BATTA as DEFAULT_BATTA_RATE
 
 BATTA_TYPES = ("FIXED_TRIP", "PER_KM", "DAILY", "NONE")
@@ -134,23 +135,32 @@ def update_user(conn, user_id, full_name, role, phone=None, email=None, is_activ
     cur = conn.cursor()
     fields, values = [], []
     if full_name is not None:
-        fields.append("full_name=%s"); values.append(full_name)
+        fields.append("full_name=%s")
+        values.append(full_name)
     if role is not None:
-        fields.append("role=%s"); values.append(role)
+        fields.append("role=%s")
+        values.append(role)
     if phone is not None:
-        fields.append("phone=%s"); values.append(phone)
+        fields.append("phone=%s")
+        values.append(phone)
     if email is not None:
-        fields.append("email=%s"); values.append(email)
+        fields.append("email=%s")
+        values.append(email)
     if is_active is not None:
-        fields.append("is_active=%s"); values.append(is_active)
+        fields.append("is_active=%s")
+        values.append(is_active)
     if password_hash is not None:
-        fields.append("password_hash=%s"); values.append(password_hash)
+        fields.append("password_hash=%s")
+        values.append(password_hash)
     if fleet_id is not None:
-        fields.append("fleet_id=%s"); values.append(fleet_id)
+        fields.append("fleet_id=%s")
+        values.append(fleet_id)
     if batta_type is not None:
         bt, rate = _normalise_batta(batta_type, default_batta_rate)
-        fields.append("batta_type=%s"); values.append(bt)
-        fields.append("default_batta_rate=%s"); values.append(rate)
+        fields.append("batta_type=%s")
+        values.append(bt)
+        fields.append("default_batta_rate=%s")
+        values.append(rate)
     if not fields:
         return False
     values.append(user_id)
