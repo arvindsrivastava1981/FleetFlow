@@ -10,6 +10,7 @@ from backend.app.db.queries.benchmarks import get_benchmark_price_and_tolerance
 from backend.app.db.queries.dashboards import open_escalations_detail
 from backend.app.db.queries.expenses import (
     action_expense_status,
+    delete_expense,
     get_expense_by_id,
     get_expense_trip_code,
     get_expenses_for_trip,
@@ -183,7 +184,7 @@ async def api_create_expense(request: Request):
             manager_status = "PENDING" if verdict.flagged or exp_type in GOODS_TYPES else "APPROVED"
             is_flagged = bool(verdict.flagged)
             flag_reason = verdict.reason or None
-        insert_expense(
+        expense_id = insert_expense(
             conn,
             trip_code=trip_code,
             exp_type=exp_type,
@@ -203,6 +204,7 @@ async def api_create_expense(request: Request):
             update_trip_odometer(conn, trip_code, odometer)
     payload = {
         "accepted": True,
+        "expense_id": expense_id,
         "trip_code": trip_code,
         "exp_type": exp_type,
         "manager_status": manager_status,
@@ -321,4 +323,104 @@ async def api_action_expense(request: Request, expense_id: int):
         "trip_code": trip_code,
         "label_en": label_en,
         "label_hi": label_hi,
+    })
+
+
+@router.delete("/expenses/{expense_id}", response_model=Data[dict])
+async def api_delete_expense(request: Request, expense_id: int):
+    """Undo/remove a just-created, manager-entered expense row.
+
+    Quick-entry (ExpenseEntry) shows an "Undo" toast after Save; this endpoint
+    permanently deletes that row. Guards:
+      - manager-only (trip_manager / super_admin);
+      - trip must be in the caller's fleet scope;
+      - only rows the manager themselves keyed in (`entry_source == MANAGER_MANUAL`);
+      - never auto-posted provisions (CASH_ADVANCE / DRIVER_SALARY) or a
+        SETTLEMENT_TRANSFER closing entry (immutable audit records).
+    """
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    with get_db() as conn:
+        row = get_expense_by_id(conn, expense_id)
+        if row is None:
+            return _not_found("expense not found")
+        exp_type = row.get("exp_type")
+        if exp_type in AUTO_LEDGER_TYPES or exp_type == SETTLEMENT_TRANSFER_TYPE:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "provision ledger entries cannot be removed",
+                    "code": "CANNOT_DELETE",
+                },
+            )
+        if row.get("entry_source") != "MANAGER_MANUAL":
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "only manager-entered expenses can be removed",
+                    "code": "CANNOT_DELETE",
+                },
+            )
+        trip = get_trip_by_code(conn, row.get("trip_code") or "")
+        if trip is None or _trip_forbidden(conn, user, trip):
+            return JSONResponse(
+                status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
+            )
+        trip_code = delete_expense(conn, expense_id)
+    return _ok({
+        "deleted": True,
+        "expense_id": expense_id,
+        "trip_code": trip_code,
+    })
+
+
+@router.delete("/expenses/{expense_id}", response_model=Data[dict])
+async def api_delete_expense(request: Request, expense_id: int):
+    """Undo/remove a just-created, manager-entered expense row.
+
+    Quick-entry (ExpenseEntry) shows an "Undo" toast after Save; this endpoint
+    permanently deletes that row. Guards:
+      - manager-only (trip_manager / super_admin);
+      - trip must be in the caller's fleet scope;
+      - only rows the manager themselves keyed in (`entry_source == MANAGER_MANUAL`);
+      - never auto-posted provisions (CASH_ADVANCE / DRIVER_SALARY) or a
+        SETTLEMENT_TRANSFER closing entry (immutable audit records).
+    """
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    with get_db() as conn:
+        row = get_expense_by_id(conn, expense_id)
+        if row is None:
+            return _not_found("expense not found")
+        exp_type = row.get("exp_type")
+        if exp_type in AUTO_LEDGER_TYPES or exp_type == SETTLEMENT_TRANSFER_TYPE:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "provision ledger entries cannot be removed",
+                    "code": "CANNOT_DELETE",
+                },
+            )
+        if row.get("entry_source") != "MANAGER_MANUAL":
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "only manager-entered expenses can be removed",
+                    "code": "CANNOT_DELETE",
+                },
+            )
+        trip = get_trip_by_code(conn, row.get("trip_code") or "")
+        if trip is None or _trip_forbidden(conn, user, trip):
+            return JSONResponse(
+                status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
+            )
+        trip_code = delete_expense(conn, expense_id)
+    return _ok({
+        "deleted": True,
+        "expense_id": expense_id,
+        "trip_code": trip_code,
     })

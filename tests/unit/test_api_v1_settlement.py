@@ -46,8 +46,10 @@ def _mock_multi_cursor(*fetchone_values, fetchall_value=None):
 
 
 def _exp(exp_type="FUEL", amount=100.0, approved_amount=None,
-         manager_status="APPROVED", liters=10.0) -> dict:
-    return {
+         manager_status="APPROVED", liters=10.0, **kw) -> dict:
+    base = {
+        "id": 1,
+        "trip_code": "TRIP-101",
         "exp_type": exp_type,
         "amount": amount,
         "approved_amount": approved_amount,
@@ -56,7 +58,10 @@ def _exp(exp_type="FUEL", amount=100.0, approved_amount=None,
         "is_flagged": False,
         "odometer": 1000.0,
         "rate": 90.50,
+        "entry_source": "DRIVER_WHATSAPP",
     }
+    base.update(kw)
+    return base
 
 
 
@@ -256,6 +261,48 @@ def test_expense_action_requires_manager_role(client, resolve_db):
     resolve_db(_mock_db_cursor(_trip(), {}), user={"user_id": 5, "username": "d", "role": "driver"})
     resp = client.post("/api/v1/expenses/1/action", json={"action": "APPROVE"})
     assert resp.status_code == 403
+
+
+def test_delete_expense_requires_manager_role(client, resolve_db):
+    """A driver must NOT be able to undo/delete an expense (403)."""
+    resolve_db(_mock_db_cursor(_trip(), {}), user={"user_id": 5, "username": "d", "role": "driver"})
+    resp = client.delete("/api/v1/expenses/1")
+    assert resp.status_code == 403
+
+
+def test_delete_expense_requires_manager_manual_origin(client, resolve_db):
+    """A DRIVER_WHATSAPP row is immutable via the undo endpoint (400)."""
+    row = _exp(exp_type="FUEL", entry_source="DRIVER_WHATSAPP")
+    # get_expense_by_id -> expense row; get_trip_by_code -> trip.
+    db_obj = _mock_multi_cursor(row, _trip())
+    resolve_db(db_obj)
+    resp = client.delete("/api/v1/expenses/1")
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "CANNOT_DELETE"
+
+
+def test_delete_expense_forbids_provision_rows(client, resolve_db):
+    """Auto-posted CASH_ADVANCE/DRIVER_SALARY provisions are immutable (400)."""
+    row = _exp(exp_type="CASH_ADVANCE", manager_status="APPROVED")
+    db_obj = _mock_multi_cursor(row)
+    resolve_db(db_obj)
+    resp = client.delete("/api/v1/expenses/1")
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "CANNOT_DELETE"
+
+
+def test_delete_expense_ok_for_manager_manual_row(client, resolve_db):
+    """A manager can undo a row they keyed in (200, deleted=True)."""
+    row = _exp(exp_type="FUEL", entry_source="MANAGER_MANUAL", id=5)
+    # get_expense_by_id -> row; get_trip_by_code -> trip; delete -> trip_code.
+    db_obj = _mock_multi_cursor(row, _trip(), {"trip_code": "TRIP-101"})
+    resolve_db(db_obj)
+    resp = client.delete("/api/v1/expenses/5")
+    assert resp.status_code == 200
+    body = resp.json()["data"]
+    assert body["deleted"] is True
+    assert body["expense_id"] == 5
+    assert body["trip_code"] == "TRIP-101"
 
 
 def test_expense_action_forbids_cross_scope_manager(client, resolve_db):

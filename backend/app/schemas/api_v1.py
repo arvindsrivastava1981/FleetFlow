@@ -154,6 +154,7 @@ class DriverSalary(BaseModel):
 # ---------------------------------------------------------------------------#
 class ExpenseAccepted(BaseModel):
     accepted: bool
+    expense_id: Optional[int] = None
     trip_code: str
     exp_type: str
     manager_status: str

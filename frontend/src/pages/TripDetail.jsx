@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import Loader from "../components/Loader.jsx";
+import ShortcutBar from "../components/ShortcutBar.jsx";
+import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
 
 const EXPENSE_TYPES = [
   "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
@@ -24,6 +26,9 @@ export default function TripDetailPage() {
   const [busy, setBusy] = useState(false);
   const [settleBusy, setSettleBusy] = useState(false);
   const [endOdo, setEndOdo] = useState("");
+  const skipRef = useRef(false);
+  const dirty = Boolean(amount || liters || rate || odometer);
+  const blocker = useUnsavedGuard(dirty, skipRef);
 
   function load() {
     setError("");
@@ -34,6 +39,28 @@ export default function TripDetailPage() {
   }
 
   useEffect(load, [tripCode]);
+
+  // Keyboard data-entry shortcut: digit 1-9, 0 (no field focused) switches the
+  // expense type by position — mirrors the quick-entry screen.
+  useEffect(() => {
+    function onKey(e) {
+      const el = e.target;
+      const isControl =
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "SELECT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "BUTTON");
+      if (isControl || !/^[0-9]$/.test(e.key)) return;
+      const idx = e.key === "0" ? EXPENSE_TYPES.length - 1 : Number(e.key) - 1;
+      if (idx >= 0 && idx < EXPENSE_TYPES.length) {
+        e.preventDefault();
+        setExpType(EXPENSE_TYPES[idx]);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   async function addExpense(e) {
     e.preventDefault();
@@ -231,6 +258,7 @@ export default function TripDetailPage() {
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Amount ₹"
             required
+            autoFocus
             className="input text-sm"
           />
           <input
@@ -264,6 +292,14 @@ export default function TripDetailPage() {
           >
             {busy ? "Saving…" : "Log Expense"}
           </button>
+          {Number(amount) > 0 && (
+            <p className="col-span-2 md:col-span-4 -mt-1 text-right text-xs font-semibold text-brand-600">
+              Amount: ₹
+              {Number(amount).toLocaleString("en-IN", {
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          )}
         </form>
       </div>
 
@@ -298,7 +334,12 @@ export default function TripDetailPage() {
                     </span>
                   )}
                 </td>
-                <td className="p-3 text-xs text-slate-600">₹{e.amount}</td>
+                <td className="p-3 text-xs text-slate-600">
+                  ₹
+                  {(Number(e.amount) || 0).toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}
+                </td>
                 <td className="p-3 text-xs">
                   <span
                     className={`badge ${
@@ -312,7 +353,11 @@ export default function TripDetailPage() {
                     {e.manager_status}
                   </span>
                 </td>
-                <td className="p-3 text-xs text-slate-500">{e.odometer}</td>
+                <td className="p-3 text-xs text-slate-500">
+                  {e.odometer != null && e.odometer !== ""
+                    ? Number(e.odometer).toLocaleString("en-IN")
+                    : "—"}
+                </td>
               </tr>
             ))}
             {!expenses.length && (
@@ -325,6 +370,14 @@ export default function TripDetailPage() {
           </tbody>
         </table>
       </div>
+
+      <ShortcutBar
+        items={[
+          { keys: ["1–9", "0"], label: "pick type (no field focused)" },
+          { keys: ["Enter"], label: "log expense" },
+        ]}
+      />
+      <LeaveGuardDialog blocker={blocker} onLeave={() => blocker.proceed()} />
     </div>
   );
 }

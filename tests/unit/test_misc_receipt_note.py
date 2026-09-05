@@ -65,8 +65,8 @@ def _insert_calls(cur):
 
 def test_misc_expense_stores_raw_receipt_text(client, resolve_db):
     # fetchone order: trip lookup -> _trip_forbidden fleet row -> trip_status
-    # -> open_settlement_request -> insert_expense trip_id reselect.
-    db_obj = _db([_trip(), {"fleet_id": 1}, {"status": "ACTIVE"}, None, {"id": 1}])
+    # -> open_settlement_request -> insert_expense trip_id reselect -> returned id.
+    db_obj = _db([_trip(), {"fleet_id": 1}, {"status": "ACTIVE"}, None, {"id": 1}, {"id": 77}])
     resolve_db(db_obj)
 
     resp = client.post(
@@ -88,7 +88,7 @@ def test_misc_expense_stores_raw_receipt_text(client, resolve_db):
 
 
 def test_misc_without_note_stores_null_raw_receipt_text(client, resolve_db):
-    db_obj = _db([_trip(), {"fleet_id": 1}, {"status": "ACTIVE"}, None, {"id": 1}])
+    db_obj = _db([_trip(), {"fleet_id": 1}, {"status": "ACTIVE"}, None, {"id": 1}, {"id": 78}])
     resolve_db(db_obj)
 
     resp = client.post(

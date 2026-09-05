@@ -35,11 +35,29 @@ def insert_expense(
                (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
                 is_flagged, flag_reason, manager_status, state_code,
                 raw_receipt_text, station_name, entry_source)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+           RETURNING id""",
         (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
          is_flagged, flag_reason, manager_status, state_code,
          raw_receipt_text, station_name, entry_source),
     )
+    row = cur.fetchone()
+    return row["id"] if row else None
+
+
+def delete_expense(conn, expense_id: int) -> str:
+    """Permanently remove a manager-entered expense and return its trip_code.
+
+    Callers gate on `entry_source == 'MANAGER_MANUAL'` and forbid auto-posted
+    provisions (CASH_ADVANCE / DRIVER_SALARY) before reaching here — see the
+    DELETE /expenses router. Odometer is intentionally *not* rolled back; the
+    undo path is for a just-created mistaken row and rolling odometer back is
+    out of scope (the next fuel entry overwrites it anyway).
+    """
+    cur = conn.cursor()
+    cur.execute("DELETE FROM expenses WHERE id = %s RETURNING trip_code", (expense_id,))
+    row = cur.fetchone()
+    return row["trip_code"] if row else ""
 
 
 def action_expense_status(

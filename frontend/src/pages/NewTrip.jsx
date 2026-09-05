@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useToast } from "../context/ToastContext.jsx";
 import Loader from "../components/Loader.jsx";
+import ShortcutBar from "../components/ShortcutBar.jsx";
+import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
 
 // Standard Indian registration plate regex (system invariant).
 const PLATE_REGEX = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
@@ -53,6 +55,15 @@ export default function NewTripPage() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [fieldErrors, setFieldErrors] = useState(initialErrors);
+  const skipRef = useRef(false);
+  const dirty = Boolean(
+    form.vehicle_id ||
+      form.driver_user_id ||
+      form.vehicle_no ||
+      Number(form.advance_amount || 0) !== 0 ||
+      Number(form.start_odo || 0) !== 0,
+  );
+  const blocker = useUnsavedGuard(dirty, skipRef);
 
   function load() {
     api
@@ -71,6 +82,44 @@ export default function NewTripPage() {
       .catch(() => {}); // templates are optional polish — never block dispatch
   }
   useEffect(load, []);
+
+  // Keyboard data-entry shortcuts (no field focused):
+  //  - Digit 1-9, 0  → select vehicle by position (auto-fills plate/odo/driver).
+  //  - Shift+Digit    → select driver by position.
+  const activeVehicles = vehicles.filter((v) => v.is_active !== false);
+  const activeDrivers = drivers.filter((d) => d.is_active !== false);
+  useEffect(() => {
+    function onKey(e) {
+      const el = e.target;
+      const isControl =
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "SELECT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "BUTTON");
+      if (isControl || !/^[0-9]$/.test(e.key)) return;
+      const idx = e.key === "0" ? 9 : Number(e.key) - 1;
+      if (e.shiftKey) {
+        const d = activeDrivers[idx];
+        if (d) {
+          e.preventDefault();
+          set("driver_user_id", String(d.id));
+        }
+      } else {
+        const v = activeVehicles[idx];
+        if (v) {
+          e.preventDefault();
+          set("vehicle_id", String(v.id));
+          set("vehicle_no", v.vehicle_number || "");
+          if (v.last_odo != null) set("start_odo", String(v.last_odo));
+          if (v.last_driver_user_id)
+            set("driver_user_id", String(v.last_driver_user_id));
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeVehicles, activeDrivers]);
 
   function set(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -120,6 +169,7 @@ export default function NewTripPage() {
       };
       const res = await api.post("/api/v1/trips", payload);
       toast.success("Trip started successfully.");
+      skipRef.current = true;
       // Phase-1: land straight on the tap-first expense entry screen.
       navigate(res?.trip_code ? `/trips/${res.trip_code}/log` : "/trips");
     } catch (err) {
@@ -138,13 +188,14 @@ export default function NewTripPage() {
     return <span className="text-rose-500"> *</span>;
   }
 
-  function FieldError({ msg }) {
-    if (!msg) return null;
-    return <p className="mt-1 text-[11px] text-rose-600">{msg}</p>;
-  }
-
-  const activeVehicles = vehicles.filter((v) => v.is_active !== false);
-  const activeDrivers = drivers.filter((d) => d.is_active !== false);
+  function FieldError({ msg, idFor }) {
+        if (!msg) return null;
+        return (
+          <p id={idFor} role="alert" className="mt-1 text-[11px] text-rose-600">
+            {msg}
+          </p>
+        );
+      }
 
   return (
     <div className="space-y-4">
@@ -178,7 +229,7 @@ export default function NewTripPage() {
       )}
 
       {error && (
-        <div className="alert alert-error">
+        <div className="alert alert-error" role="alert">
           {error}
         </div>
       )}
@@ -227,12 +278,15 @@ export default function NewTripPage() {
                 <input
                   id="vehicle_no"
                   value={form.vehicle_no}
-                  onChange={(e) => set("vehicle_no", e.target.value)}
+                  onChange={(e) => set("vehicle_no", e.target.value.toUpperCase())}
                   placeholder="UP32MA1234"
                   required
+                  autoCapitalize="characters"
+                  aria-invalid={!!fieldErrors.vehicle_no}
+                  aria-describedby={fieldErrors.vehicle_no ? "vehicle_no-err" : undefined}
                   className={fieldClass(!!fieldErrors.vehicle_no)}
                 />
-                <FieldError msg={fieldErrors.vehicle_no} />
+                <FieldError msg={fieldErrors.vehicle_no} idFor="vehicle_no-err" />
               </div>
             )}
           </div>
@@ -299,9 +353,11 @@ export default function NewTripPage() {
                 inputMode="decimal"
                 step="any"
                 min="0"
+                aria-invalid={!!fieldErrors.advance_amount}
+                aria-describedby={fieldErrors.advance_amount ? "advance_amount-err" : undefined}
                 className={fieldClass(!!fieldErrors.advance_amount)}
               />
-              <FieldError msg={fieldErrors.advance_amount} />
+              <FieldError msg={fieldErrors.advance_amount} idFor="advance_amount-err" />
             </div>
 
             <div>
@@ -318,9 +374,11 @@ export default function NewTripPage() {
                 step="any"
                 min="0"
                 required
+                aria-invalid={!!fieldErrors.start_odo}
+                aria-describedby={fieldErrors.start_odo ? "start_odo-err" : undefined}
                 className={fieldClass(!!fieldErrors.start_odo)}
               />
-              <FieldError msg={fieldErrors.start_odo} />
+              <FieldError msg={fieldErrors.start_odo} idFor="start_odo-err" />
             </div>
           </div>
 
@@ -343,6 +401,14 @@ export default function NewTripPage() {
         </form>
       </div>
       )}
+      <ShortcutBar
+        items={[
+          { keys: ["1–9", "0"], label: "pick vehicle" },
+          { keys: ["Shift", "1–9"], label: "pick driver" },
+          { keys: ["Enter"], label: "start trip" },
+        ]}
+      />
+      <LeaveGuardDialog blocker={blocker} onLeave={() => blocker.proceed()} />
     </div>
   );
 }

@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useToast } from "../context/ToastContext.jsx";
 import Loader from "../components/Loader.jsx";
+import ShortcutBar from "../components/ShortcutBar.jsx";
+import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
 
 // Phase-1 tap-first expense entry: icon-chip type picker, one big amount,
 // conditional fields only. 2 taps + 1 number for most entries.
@@ -62,6 +64,30 @@ export default function ExpenseEntryPage() {
   const [stationName, setStationName] = useState("");
   const [settleOdo, setSettleOdo] = useState("");
   const [settleBusy, setSettleBusy] = useState(false);
+  const [savedExpense, setSavedExpense] = useState(null); // {id, label} for Undo
+  const saveRef = useRef();
+  const skipRef = useRef(false);
+  const dirty = Boolean(amount || liters || odometer || note || stationName);
+  const blocker = useUnsavedGuard(dirty, skipRef);
+
+  // Auto-dismiss the Undo snackbar after a short window.
+  useEffect(() => {
+    if (!savedExpense) return undefined;
+    const t = setTimeout(() => setSavedExpense(null), 9000);
+    return () => clearTimeout(t);
+  }, [savedExpense]);
+
+  async function undoLast() {
+    if (!savedExpense) return;
+    try {
+      await api.del(`/api/v1/expenses/${savedExpense.id}`);
+      toast.success("Expense undone.");
+      setSavedExpense(null);
+    } catch (err) {
+      toast.error(err.message);
+      setSavedExpense(null);
+    }
+  }
 
   useEffect(() => {
     api
@@ -88,14 +114,46 @@ export default function ExpenseEntryPage() {
       ? (Number(amount) / Number(liters)).toFixed(2)
       : null;
 
+  // Keyboard data-entry shortcuts:
+  //  - Enter in any expense field → Save & Add Another.
+  //  - Digit keys 1-9, 0 (while no field is focused) → pick expense type by
+  //    position (1=Diesel … 0=last) and jump to the amount field.
+  useEffect(() => {
+    const ENTER_SAVE_IDS = new Set([
+      "ee-amount", "ee-liters", "ee-odo", "ee-station", "ee-note",
+    ]);
+    function onKey(e) {
+      const el = e.target;
+      if (e.key === "Enter") {
+        if (el && ENTER_SAVE_IDS.has(el.id) && !busy) {
+          e.preventDefault();
+          saveRef.current(true);
+        }
+        return;
+      }
+      const isControl = el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA" || el.tagName === "BUTTON");
+      if (!isControl && /^[0-9]$/.test(e.key)) {
+        const idx = e.key === "0" ? TYPES.length - 1 : Number(e.key) - 1;
+        if (idx >= 0 && idx < TYPES.length) {
+          e.preventDefault();
+          setType(TYPES[idx].code);
+          document.getElementById("ee-amount")?.focus();
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, tripCode]);
+
   async function save(again) {
     if (!amount || Number(amount) <= 0) {
       toast.error("Enter the amount first.");
       return;
     }
     setBusy(true);
+    saveRef.current = save;
     try {
-      await api.post("/api/v1/expenses", {
+      const res = await api.post("/api/v1/expenses", {
         trip_code: tripCode,
         exp_type: type,
         amount: Number(amount),
@@ -106,6 +164,9 @@ export default function ExpenseEntryPage() {
         ...(needsNote && note.trim() ? { raw_receipt_text: note.trim() } : {}),
       });
       rememberAmount(type, Number(amount));
+      if (res?.expense_id) {
+        setSavedExpense({ id: res.expense_id, label: `${type} ₹${amount}` });
+      }
       toast.success(`${type} ₹${amount} saved.`);
       if (again) {
         setAmount("");
@@ -113,6 +174,7 @@ export default function ExpenseEntryPage() {
         setLiters("");
         document.getElementById("ee-amount")?.focus();
       } else {
+        skipRef.current = true;
         navigate(`/trips/${tripCode}`);
       }
     } catch (err) {
@@ -123,12 +185,21 @@ export default function ExpenseEntryPage() {
   }
 
   async function settle() {
+    const endOdo = Number(settleOdo || 0);
+    const startOdo = Number(trip?.start_odo);
+    if (startOdo && endOdo && endOdo < startOdo) {
+      toast.error(
+        `End odometer (${endOdo}) is below the trip start (${startOdo}) — check it.`,
+      );
+      return;
+    }
     setSettleBusy(true);
     try {
       await api.post(`/api/v1/trips/${tripCode}/settle`, {
-        end_odo: Number(settleOdo || 0),
+        end_odo: endOdo,
       });
       toast.success("Trip settled. 🤝");
+      skipRef.current = true;
       navigate(`/trips/${tripCode}`);
     } catch (err) {
       toast.error(err.message);
@@ -185,6 +256,14 @@ export default function ExpenseEntryPage() {
           autoFocus
           className="input text-center text-3xl font-extrabold tracking-tight"
         />
+        {Number(amount) > 0 && (
+          <p className="mt-2 text-center text-xs font-semibold text-brand-600">
+            ₹
+            {Number(amount).toLocaleString("en-IN", {
+              maximumFractionDigits: 2,
+            })}
+          </p>
+        )}
         {presets.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {presets.map((p) => (
@@ -344,6 +423,29 @@ export default function ExpenseEntryPage() {
           </p>
         </div>
       )}
+
+      <ShortcutBar
+        items={[
+          { keys: ["Enter"], label: "save & add another" },
+          { keys: ["1–9", "0"], label: "pick type (no field focused)" },
+        ]}
+      />
+      {savedExpense && (
+        <div
+          role="status"
+          className="fixed inset-x-0 bottom-16 z-20 mx-auto flex w-max max-w-[92vw] items-center gap-3 rounded-xl border border-ink-200 bg-ink-900 px-4 py-2.5 text-sm text-white shadow-xl"
+        >
+          <span className="truncate">Saved {savedExpense.label}</span>
+          <button
+            type="button"
+            onClick={undoLast}
+            className="font-bold text-brand-300 underline-offset-2 hover:underline"
+          >
+            Undo
+          </button>
+        </div>
+      )}
+      <LeaveGuardDialog blocker={blocker} onLeave={() => blocker.proceed()} />
     </div>
   );
 }
