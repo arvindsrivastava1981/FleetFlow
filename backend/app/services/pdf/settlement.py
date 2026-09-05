@@ -132,6 +132,85 @@ def _misc_sublines(misc_notes: list[tuple[str, float]]) -> str:
 
 
 # ---------------------------------------------------------------------------#
+# Industry-standard voucher elements (2026-09): amount in words, slip counts,
+# voucher numbering + trip dates, firm letterhead, settled-in-full clause,
+# page footers. Rendering-only — none of these touch the verification hash.
+# ---------------------------------------------------------------------------#
+_ONES = ("", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight",
+         "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen",
+         "Sixteen", "Seventeen", "Eighteen", "Nineteen")
+_TENS = ("", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy",
+         "Eighty", "Ninety")
+
+
+def _two_digits(n: int) -> str:
+    if n < 20:
+        return _ONES[n]
+    return _TENS[n // 10] + (" " + _ONES[n % 10] if n % 10 else "")
+
+
+def _three_digits(n: int) -> str:
+    hundreds, rest = divmod(n, 100)
+    parts = []
+    if hundreds:
+        parts.append(f"{_ONES[hundreds]} Hundred")
+    if rest:
+        parts.append(_two_digits(rest))
+    return " ".join(parts)
+
+
+def _amount_in_words(value: float) -> str:
+    """English amount-in-words, Indian numbering (Crore/Lakh/Thousand).
+
+    Standard anti-tampering element on Indian money vouchers — e.g.
+    ``Rupees Five Thousand and Fifty Paise Only``. Hindi rendering of words is
+    intentionally omitted (num2words-quality Hindi needs a heavy transliteration
+    table); the bilingual voucher carries the digits + this English phrase.
+    """
+    value = round(abs(float(value)), 2)
+    whole = int(value)
+    paise = int(round((value - whole) * 100))
+    if whole == 0 and paise == 0:
+        return "Rupees Zero Only"
+    crore, rest = divmod(whole, 10**7)
+    lakh, rest = divmod(rest, 10**5)
+    thousand, hundred = divmod(rest, 1000)
+    parts = []
+    if crore:
+        parts.append(f"{_three_digits(crore)} Crore")
+    if lakh:
+        parts.append(f"{_three_digits(lakh)} Lakh")
+    if thousand:
+        parts.append(f"{_three_digits(thousand)} Thousand")
+    if hundred:
+        parts.append(_three_digits(hundred))
+    words = "Rupees " + (" ".join(parts) or "Zero")
+    if paise:
+        words += f" and {_two_digits(paise)} Paise"
+    return f"{words} Only"
+
+
+def _slip_counts(expenses: list[dict]) -> dict[str, int]:
+    """Count APPROVED expense slips per bucket so the voucher can print
+    ``Diesel Refills (3 slips)`` — lets the driver cross-check the slips they
+    handed over against the ledger rows."""
+    counts: dict[str, int] = {}
+    for e in expenses:
+        if e.get("manager_status") == "APPROVED":
+            t = str(e.get("exp_type") or "")
+            counts[t] = counts.get(t, 0) + 1
+    return counts
+
+
+def _slip_note(count: int) -> str:
+    """Bilingual slip-count suffix for a ledger bucket label."""
+    if count <= 0:
+        return ""
+    return f" &nbsp;<font size=7 color='#64748b'>({count} slips / {count} पर्ची)</font>"
+
+
+
+# ---------------------------------------------------------------------------#
 # Optional WeasyPrint renderer.
 #
 # reportlab (the default) already shapes Devanagari correctly via HarfBuzz and
@@ -174,13 +253,17 @@ def _build_weasyprint_context(
     manager_consent_name: str | None,
     driver_consent_name: str | None,
     misc_notes: list[tuple[str, float]] | None = None,
+    firm: dict | None = None,
+    expenses: list[dict] | None = None,
 ) -> dict:
     """Assemble the template context from a trip + computed settlement."""
     odo_dist = (trip.get("end_odo") or trip.get("current_odo") or 0) - (trip.get("start_odo") or 0)
     mileage_text = f"{s.avg_kml:.2f} km/L" if s.avg_kml is not None else "N/A"
-
+    firm = firm or {}
+    slip_counts = _slip_counts(expenses or [])
     # Debit rows: every non-zero expense bucket in the canonical order. The
-    # MISC row carries its raw_receipt_text descriptions for sub-line printing.
+    # MISC row carries its raw_receipt_text descriptions for sub-line printing;
+    # every row carries its approved-slip count for the (n slips) suffix.
     debit_rows = []
     for bucket in ROAD_EXPENSE_BUCKETS:
         amount = s.expense_buckets.get(bucket, 0.0)
@@ -191,10 +274,22 @@ def _build_weasyprint_context(
                 if bucket == "MISC"
                 else []
             )
-            debit_rows.append((en, hi, amount, notes))
+            slip_count = slip_counts.get(bucket, 0)
+            debit_rows.append((en, hi, amount, notes, slip_count))
 
     return {
         "trip_code": trip.get("trip_code"),
+        "voucher_no": f"VCH-{trip.get('trip_code')}",
+        "firm_name": str(firm.get("owner_name") or "").strip(),
+        "firm_contact": " | ".join(
+            b for b in (
+                str(firm.get(k) or "").strip() for k in ("phone", "email", "address")
+            ) if b
+        ),
+        "trip_start": _fmt_ts(trip.get("created_at")),
+        "trip_end": _fmt_ts(trip.get("completed_at") or trip.get("settled_at")),
+        "settled_on": _fmt_ts(trip.get("settled_at")),
+        "in_words": _amount_in_words(s.net_balance),
         "vehicle_no": trip.get("vehicle_no"),
         "driver_name": trip.get("driver_name"),
         "driver_phone": trip.get("driver_phone"),
@@ -206,6 +301,8 @@ def _build_weasyprint_context(
         "goods_income": s.goods_income,
         "debit_rows": debit_rows,
         "driver_batta": s.driver_batta,
+        "subtotal_dr": round(s.total_road_expenses + s.driver_batta, 2),
+        "subtotal_cr": round(s.advance_amount + s.goods_income, 2),
         "settlement_transfer": s.settlement_transfer,
         "settlement_transfer_side": s.settlement_transfer_side,
         "total_driver_credits": s.total_driver_credits,
@@ -327,6 +424,7 @@ def build_settlement_pdf(
     manager_consent_name: str | None = None,
     driver_consent_name: str | None = None,
     renderer: str = "reportlab",
+    firm: dict | None = None,
 ) -> bytes:
     """Render the bilingual Dr/Cr settlement voucher PDF.
 
@@ -343,6 +441,17 @@ def build_settlement_pdf(
     """
     s = compute_settlement(trip, expenses)
 
+    # Industry-standard voucher context: firm letterhead data, voucher number,
+    # trip/settlement dates, amount in words, per-bucket slip counts.
+    firm = firm or {}
+    firm_name = str(firm.get("owner_name") or "").strip()
+    voucher_no = f"VCH-{trip.get('trip_code')}"
+    trip_start = _fmt_ts(trip.get("created_at"))
+    trip_end = _fmt_ts(trip.get("completed_at") or trip.get("settled_at"))
+    settled_on = _fmt_ts(trip.get("settled_at"))
+    in_words = _amount_in_words(s.net_balance)
+    slip_counts = _slip_counts(expenses)
+
     # MISC free-text ("what was it for") printed as sub-lines of the
     # Misc & Loading ledger row on the voucher (both renderers).
     misc_notes = [
@@ -357,7 +466,7 @@ def build_settlement_pdf(
             return _render_weasyprint(
                 _build_weasyprint_context(
                     trip, s, manager_consent_name, driver_consent_name,
-                    misc_notes=misc_notes,
+                    misc_notes=misc_notes, firm=firm, expenses=expenses,
                 )
             )
         except Exception as exc:  # pragma: no cover - environment dependent
@@ -374,10 +483,38 @@ def build_settlement_pdf(
     sub_style = _hi_style(styles["Normal"], fontSize=9, leading=12, textColor=colors.HexColor("#0284c7"))
     meta_style = _hi_style(styles["Normal"], fontSize=9, leading=13, textColor=colors.HexColor("#334155"))
 
-    story.append(Paragraph("<b>VahanKhata</b>", title_style))
-    story.append(Paragraph("Official Trip Settlement & Advance Reconciliation Ledger", sub_style))
+    # ---- Letterhead: the FIRM's identity first (industry standard), the app
+    # brand only as a small "powered by" line. Falls back to the brand header
+    # when no firm data was supplied (e.g. unit tests).
+    if firm_name:
+        story.append(Paragraph(f"<b>{html.escape(firm_name)}</b>", title_style))
+        contact_bits = [
+            str(firm.get(k) or "").strip()
+            for k in ("phone", "email", "address")
+        ]
+        contact_bits = [b for b in contact_bits if b]
+        if contact_bits:
+            story.append(Paragraph(
+                html.escape(" | ".join(contact_bits)), meta_style,
+            ))
+        story.append(Paragraph(
+            "Powered by VahanKhata — Official Trip Settlement &amp; Advance Reconciliation Ledger",
+            sub_style,
+        ))
+    else:
+        story.append(Paragraph("<b>VahanKhata</b>", title_style))
+        story.append(Paragraph("Official Trip Settlement & Advance Reconciliation Ledger", sub_style))
     story.append(Spacer(1, 6))
     story.append(Paragraph("TRIP SETTLEMENT VOUCHER / यात्रा हिसाब पर्ची", meta_style))
+    # Voucher number + dates (industry standard: every voucher is numbered/dated).
+    story.append(Paragraph(
+        f"<b>Voucher No:</b> {voucher_no} &nbsp;|&nbsp; <b>Settled On:</b> {settled_on}",
+        meta_style,
+    ))
+    story.append(Paragraph(
+        f"<b>Trip Period:</b> {trip_start} ➔ {trip_end}",
+        meta_style,
+    ))
     story.append(Spacer(1, 10))
 
     odo_dist = (trip.get("end_odo") or trip.get("current_odo") or 0) - (trip.get("start_odo") or 0)
@@ -395,13 +532,19 @@ def build_settlement_pdf(
     story.append(Paragraph(route_text, meta_style))
     story.append(Spacer(1, 12))
 
-    return _fix_pua_tounicode(_render_pdf(doc, buffer, story, styles, s, trip, manager_consent_name, driver_consent_name))
+    return _fix_pua_tounicode(_render_pdf(
+        doc, buffer, story, styles, s, trip,
+        manager_consent_name, driver_consent_name,
+        misc_notes=misc_notes, slip_counts=slip_counts, in_words=in_words,
+    ))
 
 
 def _render_pdf(
     doc, buffer, story, styles, s, trip,
     manager_consent_name, driver_consent_name,
     misc_notes: list[tuple[str, float]] | None = None,
+    slip_counts: dict[str, int] | None = None,
+    in_words: str | None = None,
 ) -> bytes:
     """Build the body flowables for a `SettlementResult` ledger + footer."""
     cell_style = _hi_style(styles["Normal"], fontSize=8.5, leading=11, textColor=colors.HexColor("#1e293b"))
@@ -416,25 +559,32 @@ def _render_pdf(
         Paragraph("<b>Credit Cr / प्राप्ति</b>", cell_style),
     ]]
 
-    # Credit side: Advance + Goods Sale.
-    ledger_rows.append([
-        Paragraph("Trip Cash Advance Issued / प्रारंभिक अग्रिम राशि", cell_style),
-        Paragraph("—", cell_style),
-        Paragraph(f"<b>{_rs(s.advance_amount)}</b>", cell_style),
-    ])
-    ledger_rows.append([
-        Paragraph("Goods Sales Income / माल विक्री आय", cell_style),
-        Paragraph("—", cell_style),
-        Paragraph(_rs(s.goods_income), cell_style),
-    ])
+    # Credit side: each line carries its figure on the Cr column only; the
+    # inactive Dr column shows a dash. Zero-amount lines are omitted entirely
+    # so the voucher never prints a misleading ₹0.00 on both sides.
+    if s.advance_amount:
+        ledger_rows.append([
+            Paragraph("Trip Cash Advance Issued / प्रारंभिक अग्रिम राशि", cell_style),
+            Paragraph("—", cell_style),
+            Paragraph(f"<b>{_rs(s.advance_amount)}</b>", cell_style),
+        ])
+    if s.goods_income:
+        ledger_rows.append([
+            Paragraph("Goods Sales Income / माल विक्री आय", cell_style),
+            Paragraph("—", cell_style),
+            Paragraph(_rs(s.goods_income), cell_style),
+        ])
 
     # Debit side: itemize every non-zero expense bucket, then Driver Batta.
-    for bucket in ("FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY"):
+    for bucket in BUCKET_LABELS:
         amount = s.expense_buckets.get(bucket, 0.0)
         if amount == 0.0:
             continue
         en, hi = BUCKET_LABELS[bucket]
         label = _bi(en, hi)
+        count = (slip_counts or {}).get(bucket, 0)
+        if count:
+            label += _slip_note(count)
         if bucket == "MISC":
             label += _misc_sublines(misc_notes or [])
         ledger_rows.append([
@@ -442,14 +592,24 @@ def _render_pdf(
             Paragraph(f"<b>{_rs(amount)}</b>", cell_style),
             Paragraph("—", cell_style),
         ])
-    ledger_rows.append([
-        Paragraph("<b>Driver Trip Salary / चालक ट्रिप भत्ता</b>", cell_style),
-        Paragraph(f"<b>{_rs(s.driver_batta)}</b>", cell_style),
-        Paragraph("—", cell_style),
-    ])
+    if s.driver_batta:
+        ledger_rows.append([
+            Paragraph("<b>Driver Trip Salary / चालक ट्रिप भत्ता</b>", cell_style),
+            Paragraph(f"<b>{_rs(s.driver_batta)}</b>", cell_style),
+            Paragraph("—", cell_style),
+        ])
 
-    # Closing entry: the approved cash handover that zeroes Dr/Cr.
+    # Closing entry: the approved cash handover that zeroes Dr/Cr. To read as a
+    # textbook double-entry we show the pre-transfer subtotal (Dr vs Cr), then
+    # the closing entry, then a final Total row that balances (Dr == Cr).
     if s.settlement_transfer:
+        pre_dr = round(s.total_road_expenses + s.driver_batta, 2)
+        pre_cr = round(s.advance_amount + s.goods_income, 2)
+        ledger_rows.append([
+            Paragraph("<b>Subtotal (pre-transfer) / कुल योग (स्थानांतरण पूर्व)</b>", cell_style),
+            Paragraph(f"<b>{_rs(pre_dr)}</b>", cell_style),
+            Paragraph(f"<b>{_rs(pre_cr)}</b>", cell_style),
+        ])
         dr = s.settlement_transfer_side == "DR"
         ledger_rows.append([
             Paragraph(_bi("Cash Settlement Transfer", "निपटान रोकड़ भुगतान"), cell_style),
@@ -457,9 +617,10 @@ def _render_pdf(
             Paragraph("—" if dr else f"<b>{_rs(s.settlement_transfer)}</b>", cell_style),
         ])
 
-    # Subtotal row.
+    # Total (balanced): post-transfer, Dr == Cr by construction after the closing
+    # entry — the single strongest anti-confusion signal a reviewer can see.
     ledger_rows.append([
-        Paragraph("<b>Subtotal / कुल योग</b>", cell_style),
+        Paragraph("<b>Total (Balanced) / कुल योग (बराबर)</b>", cell_style),
         Paragraph(f"<b>{_rs(s.total_driver_credits)}</b>", cell_style),
         Paragraph(f"<b>{_rs(s.total_cr)}</b>", cell_style),
     ])
@@ -505,6 +666,26 @@ def _render_pdf(
         ("TOPPADDING", (0, 0), (-1, -1), 8),
     ]))
     story.append(net_box)
+    story.append(Spacer(1, 10))
+
+    # ---- Amount in words (standard anti-tampering practice) ----------------
+    if in_words:
+        story.append(Paragraph(
+            f"<b>In Words / शब्दों में:</b> {html.escape(in_words)}",
+            cell_style,
+        ))
+        story.append(Spacer(1, 8))
+
+    # ---- Settled-in-full clause (the legal point of the voucher) -----------
+    story.append(Paragraph(
+        _bi(
+            "Trip account fully settled on the figures above — no further "
+            "claims payable for this trip.",
+            "यह हिसाब ऊपर की राशि पर पूर्ण निपटान माना गया है — इस ट्रिप के लिए "
+            "अब कोई अन्य दावा मान्य नहीं।",
+        ),
+        cell_style,
+    ))
     story.append(Spacer(1, 12))
 
     # ---- Consent block (Option 1): manager + driver acceptance ---------
@@ -554,7 +735,19 @@ def _render_pdf(
         cell_style,
     ))
 
-    doc.build(story)
+    # ---- Page footer: identity + page number on every page -----------------
+    def _footer(canvas, _doc):
+        canvas.saveState()
+        canvas.setFont(_FONT_NAME, 7)
+        canvas.setFillColor(colors.HexColor("#94a3b8"))
+        canvas.drawString(
+            36, 20,
+            "Computer-generated voucher / कंप्यूटर-निर्मित पर्ची — Powered by VahanKhata",
+        )
+        canvas.drawRightString(559, 20, f"Page {_doc.page}")
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return pdf_bytes

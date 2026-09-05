@@ -24,7 +24,7 @@ from backend.app.db.queries.expenses import (
     get_ledger_expenses_for_trip,
     insert_expense,
 )
-from backend.app.db.queries.fleets import get_default_fleet
+from backend.app.db.queries.fleets import get_default_fleet, get_fleet_by_id
 from backend.app.db.queries.settlement import get_settled_trips
 from backend.app.db.queries.trips import (
     active_trip_exists,
@@ -376,6 +376,9 @@ def api_settlement_pdf(request: Request, trip_code: str):
         if _trip_forbidden(conn, user, trip):
             return Response("Forbidden", status_code=403)
         expenses = get_expenses_for_trip(conn, trip_code)
+        # Industry-standard letterhead: the voucher carries the transport
+        # firm's own identity (from its fleet record), not the SaaS brand.
+        firm = get_fleet_by_id(conn, trip["fleet_id"]) if trip.get("fleet_id") else None
         # Resolve consent actor names (Option 1): resolve the user rows for the
         # stored manager_consent_by / driver_consent_by ids so the PDF footer can
         # print human-readable acceptance names. None/null-consent trips print
@@ -393,6 +396,7 @@ def api_settlement_pdf(request: Request, trip_code: str):
         trip, expenses,
         manager_consent_name=manager_name,
         driver_consent_name=driver_consent_name,
+        firm=firm,
     )
     return Response(
         content=pdf_bytes,

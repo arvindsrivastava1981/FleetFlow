@@ -7,6 +7,16 @@
     @page {
       size: A4;
       margin: 15mm;
+      @bottom-left {
+        content: "Computer-generated voucher / कंप्यूटर-निर्मित पर्ची — Powered by VahanKhata";
+        font-size: 8px;
+        color: #94a3b8;
+      }
+      @bottom-right {
+        content: "Page " counter(page);
+        font-size: 8px;
+        color: #94a3b8;
+      }
     }
     body {
       font-family: 'Noto Sans Devanagari', 'Noto Sans', sans-serif;
@@ -104,13 +114,23 @@
 <body>
 
   <div class="header">
-    <div class="title">VahanKhata — Trip Settlement Voucher / यात्रा हिसाब पर्ची</div>
-    <div class="sub">Official Trip Settlement &amp; Advance Reconciliation Ledger</div>
+    <div class="title">
+      {% if firm_name %}{{ firm_name }} — Trip Settlement Voucher / यात्रा हिसाब पर्ची{% else %}VahanKhata — Trip Settlement Voucher / यात्रा हिसाब पर्ची{% endif %}
+    </div>
+    {% if firm_contact %}<div class="sub">{{ firm_contact }}</div>{% endif %}
+    <div class="sub">
+      {% if firm_name %}Powered by VahanKhata — {% endif %}Official Trip Settlement &amp; Advance Reconciliation Ledger
+    </div>
   </div>
 
   <div class="summary-grid">
     <div class="summary-row">
+      <div class="summary-cell"><strong>Voucher No / वाउचर:</strong> {{ voucher_no }}</div>
+      <div class="summary-cell"><strong>Settled On / निपटान दिनांक:</strong> {{ settled_on }}</div>
       <div class="summary-cell"><strong>Trip Code / ट्रिप:</strong> {{ trip_code }}</div>
+    </div>
+    <div class="summary-row">
+      <div class="summary-cell"><strong>Trip Period / अवधि:</strong> {{ trip_start }} ➔ {{ trip_end }}</div>
       <div class="summary-cell"><strong>Vehicle / वाहन:</strong> {{ vehicle_no }}</div>
       <div class="summary-cell"><strong>Driver / चालक:</strong> {{ driver_name }} ({{ driver_phone }})</div>
     </div>
@@ -131,20 +151,24 @@
       </tr>
     </thead>
     <tbody>
+      {% if advance_amount %}
       <tr>
         <td>प्रारंभिक अग्रिम राशि / Trip Cash Advance Issued</td>
         <td class="text-right">—</td>
         <td class="text-right">₹{{ "%.2f"|format(advance_amount) }}</td>
       </tr>
+      {% endif %}
+      {% if goods_income %}
       <tr>
         <td>माल विक्री आय / Goods Sales Income</td>
         <td class="text-right">—</td>
         <td class="text-right">₹{{ "%.2f"|format(goods_income) }}</td>
       </tr>
-      {% for en, hi, amount, notes in debit_rows %}
+      {% endif %}
+      {% for en, hi, amount, notes, slip_count in debit_rows %}
       <tr>
         <td>
-          {{ hi }} / {{ en }}
+          {{ hi }} / {{ en }}{% if slip_count %} <small>({{ slip_count }} slips / {{ slip_count }} पर्ची)</small>{% endif %}
           {% if notes %}
           <br>
           {% for n in notes %}<small>• {{ n }}</small>{% if not loop.last %}<br>{% endif %}{% endfor %}
@@ -154,12 +178,19 @@
         <td class="text-right">—</td>
       </tr>
       {% endfor %}
+      {% if driver_batta %}
       <tr>
         <td><strong>चालक ट्रिप भत्ता / Driver Trip Salary</strong></td>
         <td class="text-right">₹{{ "%.2f"|format(driver_batta) }}</td>
         <td class="text-right">—</td>
       </tr>
+      {% endif %}
       {% if settlement_transfer %}
+      <tr>
+        <td>कुल योग (स्थानांतरण पूर्व) / Subtotal (pre-transfer)</td>
+        <td class="text-right">₹{{ "%.2f"|format(subtotal_dr) }}</td>
+        <td class="text-right">₹{{ "%.2f"|format(subtotal_cr) }}</td>
+      </tr>
       <tr>
         <td>निपटान रोकड़ भुगतान / Cash Settlement Transfer</td>
         {% if settlement_transfer_side == 'DR' %}
@@ -172,7 +203,7 @@
       </tr>
       {% endif %}
       <tr class="total-row">
-        <td>कुल योग / Subtotal</td>
+        <td>कुल योग (बराबर) / Total (Balanced)</td>
         <td class="text-right">₹{{ "%.2f"|format(total_driver_credits) }}</td>
         <td class="text-right">₹{{ "%.2f"|format(total_cr) }}</td>
       </tr>
@@ -190,6 +221,10 @@
     अंतिम शेष राशि / Net Settlement: ₹{{ "%.2f"|format(net_balance) }}
     <span style="float: right;">[ {{ status_label_en }} / {{ status_label_hi }} ]</span>
   </div>
+
+  <p><strong>In Words / शब्दों में:</strong> {{ in_words }}</p>
+  <p>यह हिसाब ऊपर की राशि पर पूर्ण निपटान माना गया है — इस ट्रिप के लिए अब कोई अन्य दावा मान्य नहीं।<br>
+     <em>Trip account fully settled on the figures above — no further claims payable for this trip.</em></p>
 
   {% if show_consent %}
   <div class="consent">
