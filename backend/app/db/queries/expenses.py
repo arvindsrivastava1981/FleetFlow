@@ -14,6 +14,8 @@ def insert_expense(
     manager_status: str,
     state_code: str | None = None,
     raw_receipt_text: str | None = None,
+    station_name: str | None = None,
+    entry_source: str = "DRIVER_WHATSAPP",
 ) -> None:
     """Insert an expense row, resolving `trip_id` from the trips table first.
 
@@ -21,6 +23,8 @@ def insert_expense(
     purchase (the state the band was evaluated against). It is omitted for
     non-fuel/auto-posted rows. *raw_receipt_text* carries the driver's
     free-text description (e.g. what a MISC/Kanta payment was for) verbatim.
+    *entry_source* attributes who keyed the row in (DRIVER_WHATSAPP,
+    MANAGER_MANUAL, AUTO_POST) for the Phase-1 manager data-entry audit trail.
     """
     cur = conn.cursor()
     cur.execute("SELECT id FROM trips WHERE trip_code = %s", (trip_code,))
@@ -30,11 +34,11 @@ def insert_expense(
         """INSERT INTO expenses
                (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
                 is_flagged, flag_reason, manager_status, state_code,
-                raw_receipt_text)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                raw_receipt_text, station_name, entry_source)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
          is_flagged, flag_reason, manager_status, state_code,
-         raw_receipt_text),
+         raw_receipt_text, station_name, entry_source),
     )
 
 

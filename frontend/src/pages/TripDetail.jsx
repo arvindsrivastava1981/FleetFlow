@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
@@ -197,7 +197,20 @@ export default function TripDetailPage() {
       )}
 
       <div className="card-pad">
-        <h3 className="text-sm font-extrabold text-slate-800 mb-3">Log Expense</h3>
+        <h3 className="text-sm font-extrabold text-slate-800 mb-1">Log Expense</h3>
+        {canSettle && (
+          <p className="text-[11px] text-slate-500 mb-3">
+            On behalf of driver — driver can report verbally (call/WhatsApp) and
+            you key it in. Entries run the same rules check and approvals as
+            driver-sent ones.{" "}
+            <a
+              href={`/trips/${tripCode}/log`}
+              className="font-bold text-brand-700 underline"
+            >
+              ⚡ Use quick entry
+            </a>
+          </p>
+        )}
         <form onSubmit={addExpense} className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <select
             value={expType}
@@ -272,6 +285,16 @@ export default function TripDetailPage() {
                   {e.exp_type === "MISC" && e.raw_receipt_text && (
                     <span className="block font-normal text-[10px] text-slate-500">
                       📝 {e.raw_receipt_text}
+                    </span>
+                  )}
+                  {e.entry_source === "MANAGER_MANUAL" && (
+                    <span className="block font-normal text-[10px] text-indigo-500">
+                      ✍️ entered by manager
+                    </span>
+                  )}
+                  {e.entry_source === "AUTO_POST" && (
+                    <span className="block font-normal text-[10px] text-slate-400">
+                      system
                     </span>
                   )}
                 </td>

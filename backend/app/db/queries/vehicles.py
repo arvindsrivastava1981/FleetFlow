@@ -22,11 +22,21 @@ def get_all_vehicles(
     Rows are bounded when *limit* is given (audit R-7 pagination).
     """
     clause, params = _visible_clause(role, user_id)
-    sql = f"""SELECT v.*, f.owner_name AS fleet_owner
-               FROM vehicles v
-               LEFT JOIN fleets f ON f.id = v.fleet_id
-              WHERE {clause}
-              ORDER BY v.id DESC"""
+    # Phase-1 data-entry: carry each vehicle's last-trip odometer + driver so
+    # Start New Trip can prefill start_odo and the driver chip (no lookups).
+    sql = f"""SELECT v.*, f.owner_name AS fleet_owner,
+                     lt.current_odo AS last_odo,
+                     lt.driver_user_id AS last_driver_user_id
+                FROM vehicles v
+                LEFT JOIN fleets f ON f.id = v.fleet_id
+                LEFT JOIN LATERAL (
+                     SELECT t.current_odo, t.driver_user_id
+                       FROM trips t
+                      WHERE t.vehicle_id = v.id
+                      ORDER BY t.id DESC LIMIT 1
+                ) lt ON TRUE
+               WHERE {clause}
+               ORDER BY v.id DESC"""
     if limit is not None:
         sql += " LIMIT %s OFFSET %s"
         params += [limit, offset]

@@ -232,12 +232,14 @@ async def api_create_trip(request: Request):
                 conn, trip_code=trip_code, exp_type="CASH_ADVANCE",
                 amount=advance_amount, liters=0.0, rate=0.0, odometer=0.0,
                 is_flagged=False, flag_reason=None, manager_status="APPROVED",
+                entry_source="AUTO_POST",
             )
         if driver_batta_amount > 0:
             insert_expense(
                 conn, trip_code=trip_code, exp_type="DRIVER_SALARY",
                 amount=driver_batta_amount, liters=0.0, rate=0.0, odometer=0.0,
                 is_flagged=False, flag_reason=None, manager_status="APPROVED",
+                entry_source="AUTO_POST",
             )
     return _created({"trip_code": trip_code, "status": "ACTIVE"})
 @router.post("/trips/{trip_code}/settle", response_model=Data[SettleTripResult])

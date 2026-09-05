@@ -100,4 +100,5 @@ def test_misc_without_note_stores_null_raw_receipt_text(client, resolve_db):
     cur = db_obj.__enter__.return_value.cursor.return_value
     ins = _insert_calls(cur)[0]
     assert "raw_receipt_text" in str(ins.args[0])
-    assert ins.args[1][-1] is None  # blank note -> NULL column
+    assert ins.args[1][-2] is None  # blank note -> NULL column
+    assert ins.args[1][-1] == "DRIVER_WHATSAPP"  # Phase-1: entry_source column

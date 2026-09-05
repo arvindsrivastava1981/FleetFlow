@@ -215,6 +215,8 @@ CREATE TABLE IF NOT EXISTS expenses (
     reviewed_at TIMESTAMPTZ,
     receipt_image_url TEXT,
     raw_receipt_text TEXT,
+    entry_source VARCHAR(20) NOT NULL DEFAULT 'DRIVER_WHATSAPP'
+        CHECK (entry_source IN ('DRIVER_WHATSAPP', 'MANAGER_MANUAL', 'AUTO_POST')),
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

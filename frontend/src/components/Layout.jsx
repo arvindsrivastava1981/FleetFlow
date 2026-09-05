@@ -37,14 +37,17 @@ const SECTIONS = [
       { to: "/fleets", label: (r) => (r === "trip_manager" ? "My Fleet" : "Fleets"), labelHi: "बेड़े", icon: "🏢", roles: ["trip_manager", "super_admin"] },
       { to: "/vehicles", label: "Vehicles", labelHi: "वाहन", icon: "🚛", roles: ["trip_manager", "super_admin"] },
       { to: "/drivers", label: "Drivers", labelHi: "ड्राइवर", icon: "👨", roles: ["trip_manager", "super_admin"] },
+      // Phase-1 nav collapse: for managers, Rules & Rates folds in here instead
+      // of its own Settings section (super_admin keeps the separate section).
+      { to: "/benchmarks", label: "Rules & Rates", labelHi: "नियम व दरें", icon: "⚖️", roles: ["trip_manager"] },
     ],
   },
   {
     title: "Settings",
     titleHi: "सेटिंग्स",
-    roles: ["trip_manager", "super_admin"],
+    roles: ["super_admin"],
     links: [
-      { to: "/benchmarks", label: "Rules & Rates", labelHi: "नियम व दरें", icon: "⚖️", roles: ["trip_manager", "super_admin"] },
+      { to: "/benchmarks", label: "Rules & Rates", labelHi: "नियम व दरें", icon: "⚖️", roles: ["super_admin"] },
     ],
   },
   {

@@ -77,6 +77,9 @@ async def api_create_expense(request: Request):
     exp_type = str(body.get("exp_type", "")).upper()
     amount = float(body.get("amount", 0.0))
     user = _identity(request)
+    # Phase-1 audit: attribute who keyed the row in. Drivers (bot/app) are the
+    # normal channel; trip_manager/super_admin posts are "on behalf of driver".
+    entry_source = "MANAGER_MANUAL" if user.get("role") != "driver" else "DRIVER_WHATSAPP"
     odometer = float(body.get("odometer") or 0.0)
     liters = float(body.get("liters") or 0.0)
     rate = float(body.get("rate") or 0.0)
@@ -87,6 +90,8 @@ async def api_create_expense(request: Request):
     # Free-text description collected for MISC receipts; stored verbatim in
     # expenses.raw_receipt_text so the manager sees what the money was for.
     raw_receipt_text = str(body.get("raw_receipt_text") or "").strip() or None
+    # Optional pump/station name (quick-entry FUEL/DEF card).
+    station_name = str(body.get("station_name") or "").strip() or None
 
     if exp_type not in JSON_EXPENSE_TYPES:
         return _bad("invalid expense type", "INVALID_EXPENSE_TYPE")
@@ -191,6 +196,8 @@ async def api_create_expense(request: Request):
             manager_status=manager_status,
             state_code=state_code,
             raw_receipt_text=raw_receipt_text,
+            station_name=station_name,
+            entry_source=entry_source,
         )
         if odometer > 0:
             update_trip_odometer(conn, trip_code, odometer)

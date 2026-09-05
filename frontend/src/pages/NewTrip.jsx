@@ -30,8 +30,8 @@ function validate(form) {
   const advance = Number(form.advance_amount || 0);
   if (Number.isNaN(advance)) {
     errs.advance_amount = "Advance must be a number";
-  } else if (advance <= 0) {
-    errs.advance_amount = "Advance must be greater than zero";
+  } else if (advance < 0) {
+    errs.advance_amount = "Advance cannot be negative";
   }
   const odo = Number(form.start_odo || 0);
   if (Number.isNaN(odo)) {
@@ -118,9 +118,10 @@ export default function NewTripPage() {
           ? Number(form.driver_user_id)
           : null,
       };
-      await api.post("/api/v1/trips", payload);
+      const res = await api.post("/api/v1/trips", payload);
       toast.success("Trip started successfully.");
-      navigate("/trips");
+      // Phase-1: land straight on the tap-first expense entry screen.
+      navigate(res?.trip_code ? `/trips/${res.trip_code}/log` : "/trips");
     } catch (err) {
       setError(err.message);
       toast.error(err.message);
@@ -186,115 +187,150 @@ export default function NewTripPage() {
         <Loader label="Loading vehicles & drivers…" />
       ) : (
       <div className="card-pad">
-        <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 text-sm">
+        <form onSubmit={onSubmit} className="space-y-5 text-sm">
+          {/* Phase-1 tap-first dispatch: vehicle chips (plate auto-filled). */}
           <div>
-            <label className="label" htmlFor="vehicle_id">
+            <p className="label">
               Vehicle<Required />
-            </label>
-            <select
-              id="vehicle_id"
-              value={form.vehicle_id}
-              onChange={(e) => {
-                const vid = e.target.value;
-                const v = vehicles.find((x) => String(x.id) === String(vid));
-                set("vehicle_id", vid);
-                set("vehicle_no", v?.vehicle_number || "");
-              }}
-              className="input"
-              required
-            >
-              <option value="">Select Vehicle</option>
-              {activeVehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.vehicle_number} {v.make_model ? ` · ${v.make_model}` : ""}
-                </option>
-              ))}
-            </select>
+            </p>
+            {activeVehicles.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {activeVehicles.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    aria-pressed={String(form.vehicle_id) === String(v.id)}
+                    onClick={() => {
+                      set("vehicle_id", String(v.id));
+                      set("vehicle_no", v.vehicle_number || "");
+                      // Phase-1 prefill: last odometer + last driver chip.
+                      if (v.last_odo != null) set("start_odo", String(v.last_odo));
+                      if (v.last_driver_user_id) set("driver_user_id", String(v.last_driver_user_id));
+                    }}
+                    className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
+                      String(form.vehicle_id) === String(v.id)
+                        ? "border-brand-500 bg-brand-50 shadow-sm ring-1 ring-brand-200"
+                        : "border-ink-200 bg-white hover:bg-ink-50"
+                    }`}
+                  >
+                    <span className="block text-base font-extrabold tracking-tight text-ink-900">
+                      🚛 {v.vehicle_number}
+                    </span>
+                    {v.make_model && (
+                      <span className="block text-[11px] text-ink-400">{v.make_model}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div>
+                <input
+                  id="vehicle_no"
+                  value={form.vehicle_no}
+                  onChange={(e) => set("vehicle_no", e.target.value)}
+                  placeholder="UP32MA1234"
+                  required
+                  className={fieldClass(!!fieldErrors.vehicle_no)}
+                />
+                <FieldError msg={fieldErrors.vehicle_no} />
+              </div>
+            )}
           </div>
 
+          {/* Driver chips — same tap-first pattern. */}
           <div>
-            <label className="label" htmlFor="driver_user_id">
+            <p className="label">
               Driver<Required />
-            </label>
-            <select
-              id="driver_user_id"
-              value={form.driver_user_id}
-              onChange={(e) => {
-                const uid = e.target.value;
-                set("driver_user_id", uid);
-              }}
-              className="input"
-              required
-            >
-              <option value="">Select Driver</option>
-              {activeDrivers.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.full_name}
-                  {d.phone ? ` (${d.phone})` : ""}
-                </option>
-              ))}
-            </select>
+            </p>
+            {activeDrivers.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {activeDrivers.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    aria-pressed={String(form.driver_user_id) === String(d.id)}
+                    onClick={() => set("driver_user_id", String(d.id))}
+                    className={`rounded-2xl border px-4 py-3 text-left transition-all duration-200 ${
+                      String(form.driver_user_id) === String(d.id)
+                        ? "border-brand-500 bg-brand-50 shadow-sm ring-1 ring-brand-200"
+                        : "border-ink-200 bg-white hover:bg-ink-50"
+                    }`}
+                  >
+                    <span className="block text-sm font-extrabold text-ink-900">
+                      👨 {d.full_name}
+                    </span>
+                    {d.phone && (
+                      <span className="block text-[11px] text-ink-400">{d.phone}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <select
+                id="driver_user_id"
+                value={form.driver_user_id}
+                onChange={(e) => set("driver_user_id", e.target.value)}
+                className="input"
+                required
+              >
+                <option value="">Select Driver</option>
+                {drivers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.full_name}
+                    {d.phone ? ` (${d.phone})` : ""}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
-          <div>
-            <label className="label" htmlFor="vehicle_no">
-              Vehicle No<Required />
-            </label>
-            <input
-              id="vehicle_no"
-              value={form.vehicle_no}
-              onChange={(e) => set("vehicle_no", e.target.value)}
-              placeholder="UP32MA1234"
-              required
-              disabled={!!form.vehicle_id}
-              className={fieldClass(!!fieldErrors.vehicle_no)}
-            />
-            <FieldError msg={fieldErrors.vehicle_no} />
+          {/* ₹0 advance allowed — many trips start with no cash given. */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className="label" htmlFor="advance_amount">
+                Advance Amount (₹)
+              </label>
+              <input
+                id="advance_amount"
+                value={form.advance_amount}
+                onChange={(e) => set("advance_amount", e.target.value)}
+                placeholder="0.00"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min="0"
+                className={fieldClass(!!fieldErrors.advance_amount)}
+              />
+              <FieldError msg={fieldErrors.advance_amount} />
+            </div>
+
+            <div>
+              <label className="label" htmlFor="start_odo">
+                Start Odometer (KM)<Required />
+              </label>
+              <input
+                id="start_odo"
+                value={form.start_odo}
+                onChange={(e) => set("start_odo", e.target.value)}
+                placeholder="0"
+                type="number"
+                inputMode="decimal"
+                step="any"
+                min="0"
+                required
+                className={fieldClass(!!fieldErrors.start_odo)}
+              />
+              <FieldError msg={fieldErrors.start_odo} />
+            </div>
           </div>
 
-          <div>
-            <label className="label" htmlFor="advance_amount">
-              Advance Amount (₹)<Required />
-            </label>
-            <input
-              id="advance_amount"
-              value={form.advance_amount}
-              onChange={(e) => set("advance_amount", e.target.value)}
-              placeholder="0.00"
-              type="number"
-              step="any"
-              min="0.01"
-              required
-              className={fieldClass(!!fieldErrors.advance_amount)}
-            />
-            <FieldError msg={fieldErrors.advance_amount} />
-          </div>
-
-          <div>
-            <label className="label" htmlFor="start_odo">
-              Start Odometer (KM)<Required />
-            </label>
-            <input
-              id="start_odo"
-              value={form.start_odo}
-              onChange={(e) => set("start_odo", e.target.value)}
-              placeholder="0"
-              type="number"
-              step="any"
-              min="0"
-              required
-              className={fieldClass(!!fieldErrors.start_odo)}
-            />
-            <FieldError msg={fieldErrors.start_odo} />
-          </div>
-
-          <div className="md:col-span-2 lg:col-span-3 flex gap-2">
+          <div className="flex gap-2">
             <button
               type="submit"
               disabled={busy}
-              className="btn-primary"
+              className="btn-primary flex-1 py-3 text-base"
             >
-              {busy ? "Creating…" : "Start Trip"}
+              {busy ? "Creating…" : "🚚 Start Trip"}
             </button>
             <button
               type="button"
