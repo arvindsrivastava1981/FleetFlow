@@ -24,13 +24,19 @@ export default function useUnsavedGuard(dirty, skipRef) {
   }, [dirty, activeSkipRef]);
 
   // In-app (SPA) navigation guard.
-  const blocker = useBlocker(
-    dirty
-      ? ({ currentLocation, nextLocation }) =>
-          !activeSkipRef.current &&
-          currentLocation.pathname !== nextLocation.pathname
-      : false,
-  );
+  let blocker;
+  try {
+    blocker = useBlocker(
+      dirty
+        ? ({ currentLocation, nextLocation }) =>
+            !activeSkipRef.current &&
+            currentLocation.pathname !== nextLocation.pathname
+        : false,
+    );
+  } catch {
+    // useBlocker not available - gracefully degrade to no navigation guard
+    blocker = { state: "idle", reset: () => {}, proceed: () => {} };
+  }
   return blocker;
 }
 
