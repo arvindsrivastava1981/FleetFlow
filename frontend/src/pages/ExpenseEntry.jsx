@@ -157,7 +157,8 @@ export default function ExpenseEntryPage() {
         }
         return;
       }
-      const isControl = el && (el.tagName === "INPUT" || el.tagName === "SELECT" || el.tagName === "TEXTAREA" || el.tagName === "BUTTON");
+      const activeEl = document.activeElement || el;
+      const isControl = activeEl && (activeEl.tagName === "INPUT" || activeEl.tagName === "SELECT" || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "BUTTON");
       if (!isControl && /^[0-9]$/.test(e.key)) {
         const idx = e.key === "0" ? TYPES.length - 1 : Number(e.key) - 1;
         if (idx >= 0 && idx < TYPES.length) {

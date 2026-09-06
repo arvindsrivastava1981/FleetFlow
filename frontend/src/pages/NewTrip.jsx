@@ -105,12 +105,13 @@ export default function NewTripPage() {
   useEffect(() => {
     function onKey(e) {
       const el = e.target;
+      const activeEl = document.activeElement || el;
       const isControl =
-        el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "SELECT" ||
-          el.tagName === "TEXTAREA" ||
-          el.tagName === "BUTTON");
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "SELECT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.tagName === "BUTTON");
       if (isControl || !/^[0-9]$/.test(e.key)) return;
       const idx = e.key === "0" ? 9 : Number(e.key) - 1;
       if (e.shiftKey) {

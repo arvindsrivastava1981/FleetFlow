@@ -154,12 +154,13 @@ export default function TripDetailPage() {
         }
         return;
       }
+            const activeEl = document.activeElement || el;
       const isControl =
-        el &&
-        (el.tagName === "INPUT" ||
-          el.tagName === "SELECT" ||
-          el.tagName === "TEXTAREA" ||
-          el.tagName === "BUTTON");
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "SELECT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.tagName === "BUTTON");
       if (!isControl && /^[0-9]$/.test(e.key)) {
         const idx = e.key === "0" ? TYPES.length - 1 : Number(e.key) - 1;
         if (idx >= 0 && idx < TYPES.length) {
