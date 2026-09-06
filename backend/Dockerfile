@@ -5,6 +5,9 @@
 # its conditional SPA fallback and serve index.html for unknown paths (e.g. a
 # stray GET /sss would return the SPA shell instead of a 404). Keeping the API
 # image SPA-free also makes builds faster and the image smaller.
+#
+# Build context is the backend/ folder (set via dockerContext in render.yaml),
+# so all COPY paths below are relative to backend/.
 FROM python:3.12-slim
 
 # Prevent Python from writing .pyc files and buffer stdout/stderr
@@ -24,12 +27,15 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application source code (frontend/dist is excluded via .dockerignore).
+# Copy application source code (backend/ contents → /app/).
+# Since dockerContext is backend/, this copies backend/app/ to /app/app/,
+# backend/__init__.py to /app/__init__.py, etc.
 COPY . .
 
 # Expose Render default port
 EXPOSE 10000
 
 # Run the modular FastAPI factory using the dynamic PORT provided by Render.
-# backend.app.main:app is the only entry point.
-CMD ["sh", "-c", "uvicorn backend.app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}"]
+# Since the build context is backend/, the app module is at app.main:app
+# (not backend.app.main:app as it was with root context).
+CMD ["sh", "-c", "uvicorn app.main:app --app-dir /app --host 0.0.0.0 --port ${PORT:-10000}"]
