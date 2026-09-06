@@ -25,4 +25,9 @@ ALTER TABLE users ADD CONSTRAINT users_should_trip_manger CHECK (auth_provider =
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_provider_sub ON users(provider_sub) WHERE provider_sub IS NOT NULL;
 -- Email index
 DROP INDEX IF EXISTS idx_users_username;
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(lower(email));
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(lower(email));-- 2026-09 Phase 1 (manager data-entry): attribute who entered each expense.
+-- DRIVER_WHATSAPP = driver-sent (bot/app) | MANAGER_MANUAL = manager keyed it in
+-- on the driver's behalf | AUTO_POST = system-generated (CASH_ADVANCE, DRIVER_SALARY).
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS entry_source VARCHAR(20) NOT NULL DEFAULT 'DRIVER_WHATSAPP';
+ALTER TABLE expenses DROP CONSTRAINT IF EXISTS expenses_entry_source_check;
+ALTER TABLE expenses ADD CONSTRAINT expenses_entry_source_check CHECK (entry_source IN ('DRIVER_WHATSAPP', 'MANAGER_MANUAL', 'AUTO_POST'));

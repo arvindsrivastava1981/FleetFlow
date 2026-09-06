@@ -1,19 +1,28 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
+import { useShortcuts } from "../context/ShortcutContext.jsx";
 import Loader from "../components/Loader.jsx";
+import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
 
 const EXPENSE_TYPES = [
   "FUEL", "DEF", "TOLL", "REPAIR", "CHALLAN", "MISC", "GOODS_BUY", "GOODS_SALE",
   "CASH_ADVANCE", "DRIVER_SALARY",
 ];
 
+// Shortcuts for this page - displayed in header
+const PAGE_SHORTCUTS = [
+  { keys: ["1–9", "0"], label: "pick type" },
+  { keys: ["Enter"], label: "log expense" },
+];
+
 export default function TripDetailPage() {
   const { tripCode } = useParams();
   const { user } = useAuth();
   const toast = useToast();
+  const { setShortcuts } = useShortcuts();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [expType, setExpType] = useState("FUEL");
@@ -24,6 +33,15 @@ export default function TripDetailPage() {
   const [busy, setBusy] = useState(false);
   const [settleBusy, setSettleBusy] = useState(false);
   const [endOdo, setEndOdo] = useState("");
+  const skipRef = useRef(false);
+  const dirty = Boolean(amount || liters || rate || odometer);
+  const blocker = useUnsavedGuard(dirty, skipRef);
+
+  // Set shortcuts for this page in the header
+  useEffect(() => {
+    setShortcuts(PAGE_SHORTCUTS);
+    return () => setShortcuts([]);
+  }, [setShortcuts]);
 
   function load() {
     setError("");
@@ -34,6 +52,28 @@ export default function TripDetailPage() {
   }
 
   useEffect(load, [tripCode]);
+
+  // Keyboard data-entry shortcut: digit 1-9, 0 (no field focused) switches the
+  // expense type by position — mirrors the quick-entry screen.
+  useEffect(() => {
+    function onKey(e) {
+      const el = e.target;
+      const isControl =
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "SELECT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "BUTTON");
+      if (isControl || !/^[0-9]$/.test(e.key)) return;
+      const idx = e.key === "0" ? EXPENSE_TYPES.length - 1 : Number(e.key) - 1;
+      if (idx >= 0 && idx < EXPENSE_TYPES.length) {
+        e.preventDefault();
+        setExpType(EXPENSE_TYPES[idx]);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   async function addExpense(e) {
     e.preventDefault();
@@ -197,7 +237,20 @@ export default function TripDetailPage() {
       )}
 
       <div className="card-pad">
-        <h3 className="text-sm font-extrabold text-slate-800 mb-3">Log Expense</h3>
+        <h3 className="text-sm font-extrabold text-slate-800 mb-1">Log Expense</h3>
+        {canSettle && (
+          <p className="text-[11px] text-slate-500 mb-3">
+            On behalf of driver — driver can report verbally (call/WhatsApp) and
+            you key it in. Entries run the same rules check and approvals as
+            driver-sent ones.{" "}
+            <a
+              href={`/trips/${tripCode}/log`}
+              className="font-bold text-brand-700 underline"
+            >
+              ⚡ Use quick entry
+            </a>
+          </p>
+        )}
         <form onSubmit={addExpense} className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <select
             value={expType}
@@ -218,6 +271,7 @@ export default function TripDetailPage() {
             onChange={(e) => setAmount(e.target.value)}
             placeholder="Amount ₹"
             required
+            autoFocus
             className="input text-sm"
           />
           <input
@@ -251,6 +305,14 @@ export default function TripDetailPage() {
           >
             {busy ? "Saving…" : "Log Expense"}
           </button>
+          {Number(amount) > 0 && (
+            <p className="col-span-2 md:col-span-4 -mt-1 text-right text-xs font-semibold text-brand-600">
+              Amount: ₹
+              {Number(amount).toLocaleString("en-IN", {
+                maximumFractionDigits: 2,
+              })}
+            </p>
+          )}
         </form>
       </div>
 
@@ -274,8 +336,23 @@ export default function TripDetailPage() {
                       📝 {e.raw_receipt_text}
                     </span>
                   )}
+                  {e.entry_source === "MANAGER_MANUAL" && (
+                    <span className="block font-normal text-[10px] text-indigo-500">
+                      ✍️ entered by manager
+                    </span>
+                  )}
+                  {e.entry_source === "AUTO_POST" && (
+                    <span className="block font-normal text-[10px] text-slate-400">
+                      system
+                    </span>
+                  )}
                 </td>
-                <td className="p-3 text-xs text-slate-600">₹{e.amount}</td>
+                <td className="p-3 text-xs text-slate-600">
+                  ₹
+                  {(Number(e.amount) || 0).toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}
+                </td>
                 <td className="p-3 text-xs">
                   <span
                     className={`badge ${
@@ -289,7 +366,11 @@ export default function TripDetailPage() {
                     {e.manager_status}
                   </span>
                 </td>
-                <td className="p-3 text-xs text-slate-500">{e.odometer}</td>
+                <td className="p-3 text-xs text-slate-500">
+                  {e.odometer != null && e.odometer !== ""
+                    ? Number(e.odometer).toLocaleString("en-IN")
+                    : "—"}
+                </td>
               </tr>
             ))}
             {!expenses.length && (
@@ -302,6 +383,8 @@ export default function TripDetailPage() {
           </tbody>
         </table>
       </div>
+
+      <LeaveGuardDialog blocker={blocker} onLeave={() => blocker.proceed()} />
     </div>
   );
 }

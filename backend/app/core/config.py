@@ -39,18 +39,11 @@ class Settings:
         )
 
         # ---- HTTP / CORS (audit R-5) --------------------------------------
-        # A CORS_ORIGINS CSV overrides; otherwise fall back to the historical
-        # allowlist (prod hosts + local Vite dev server).
-        self.cors_origins: list[str] = [
-            o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()
-        ] or [
-            "https://app.vahankhata.in",
-            "https://api.vahankhata.in",
-            "https://vahankhata.in",
-            "https://www.vahankhata.in",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-        ]
+        # A CORS_ORIGINS CSV env var overrides; otherwise origins are derived from
+        # APP_PUBLIC_URL (the primary web client origin). No hardcoded origins.
+        _cors_override = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+        _app_origin = os.getenv("APP_PUBLIC_URL", "").strip()
+        self.cors_origins: list[str] = _cors_override or ([_app_origin] if _app_origin else [])
 
         # ---- Session / security -------------------------------------------
         self.session_ttl_hours: int = 72

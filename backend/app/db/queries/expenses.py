@@ -14,6 +14,8 @@ def insert_expense(
     manager_status: str,
     state_code: str | None = None,
     raw_receipt_text: str | None = None,
+    station_name: str | None = None,
+    entry_source: str = "DRIVER_WHATSAPP",
 ) -> None:
     """Insert an expense row, resolving `trip_id` from the trips table first.
 
@@ -21,6 +23,8 @@ def insert_expense(
     purchase (the state the band was evaluated against). It is omitted for
     non-fuel/auto-posted rows. *raw_receipt_text* carries the driver's
     free-text description (e.g. what a MISC/Kanta payment was for) verbatim.
+    *entry_source* attributes who keyed the row in (DRIVER_WHATSAPP,
+    MANAGER_MANUAL, AUTO_POST) for the Phase-1 manager data-entry audit trail.
     """
     cur = conn.cursor()
     cur.execute("SELECT id FROM trips WHERE trip_code = %s", (trip_code,))
@@ -30,12 +34,30 @@ def insert_expense(
         """INSERT INTO expenses
                (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
                 is_flagged, flag_reason, manager_status, state_code,
-                raw_receipt_text)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                raw_receipt_text, station_name, entry_source)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+           RETURNING id""",
         (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
          is_flagged, flag_reason, manager_status, state_code,
-         raw_receipt_text),
+         raw_receipt_text, station_name, entry_source),
     )
+    row = cur.fetchone()
+    return row["id"] if row else None
+
+
+def delete_expense(conn, expense_id: int) -> str:
+    """Permanently remove a manager-entered expense and return its trip_code.
+
+    Callers gate on `entry_source == 'MANAGER_MANUAL'` and forbid auto-posted
+    provisions (CASH_ADVANCE / DRIVER_SALARY) before reaching here — see the
+    DELETE /expenses router. Odometer is intentionally *not* rolled back; the
+    undo path is for a just-created mistaken row and rolling odometer back is
+    out of scope (the next fuel entry overwrites it anyway).
+    """
+    cur = conn.cursor()
+    cur.execute("DELETE FROM expenses WHERE id = %s RETURNING trip_code", (expense_id,))
+    row = cur.fetchone()
+    return row["trip_code"] if row else ""
 
 
 def action_expense_status(

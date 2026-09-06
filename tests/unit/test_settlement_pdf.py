@@ -326,7 +326,33 @@ def test_misc_sublines_escape_and_format() -> None:
     assert "₹1,200.00" in out
 
 
-def test_misc_description_voucher_builds_with_reportlab() -> None:
+def test_amount_in_words_indian_numbering() -> None:
+    """Amount-in-words uses Indian numbering + paise handling (anti-tampering)."""
+    from backend.app.services.pdf.settlement import _amount_in_words
+
+    assert _amount_in_words(0) == "Rupees Zero Only"
+    assert _amount_in_words(5000.0) == "Rupees Five Thousand Only"
+    assert _amount_in_words(125000.0) == "Rupees One Lakh Twenty Five Thousand Only"
+    assert _amount_in_words(27500000.0) == "Rupees Two Crore Seventy Five Lakh Only"
+    assert _amount_in_words(1050.5) == "Rupees One Thousand Fifty and Fifty Paise Only"
+    assert _amount_in_words(-99.0) == "Rupees Ninety Nine Only"
+
+
+def test_voucher_firm_letterhead_voucher_no_and_slip_counts() -> None:
+    """Industry-standard elements build: firm letterhead, voucher no, slip counts."""
+    from backend.app.services.pdf.settlement import _slip_counts
+
+    expenses = _sample_expenses()
+    pdf = build_settlement_pdf(
+        _sample_trip(),
+        expenses,
+        firm={"owner_name": "Sharma Transport Co.", "phone": "+91 98765 43210"},
+    )
+    assert isinstance(pdf, bytes)
+    assert len(pdf) > 5000
+    counts = _slip_counts(expenses)
+    assert all(isinstance(v, int) for v in counts.values())
+
     """A MISC expense carrying raw_receipt_text renders without error."""
     pdf = build_settlement_pdf(
         _sample_trip(),
@@ -362,3 +388,35 @@ def test_weasyprint_context_attaches_notes_to_misc_row() -> None:
     misc_row = next(r for r in ctx["debit_rows"] if r[0] == "Misc & Loading")
     assert misc_row[2] == 1200.0
     assert misc_row[3] == ["Kanta at Bareilly"]
+def test_settlement_ledger_omits_zeros_and_balances() -> None:
+    """Zero-amount ledger lines are omitted and the balanced total is exposed.
+
+    Voucher Dr/Cr rendering rules: an inactive side never shows ₹0.00 (dash
+    instead), zero-amount detail lines are dropped, and after a closing
+    Cash Settlement Transfer the final Total row balances (Dr == Cr). Guard the
+    pre-transfer subtotal values surfaced to both renderers.
+    """
+    from backend.app.services.audit.cash import compute_settlement
+    from backend.app.services.pdf.settlement import _build_weasyprint_context
+
+    trip = _sample_trip()
+
+    # No transfer + zero advance/goods/batta -> empty detail rows, ₹0 subtotals.
+    ctx = _build_weasyprint_context(trip, compute_settlement(trip, []), None, None)
+    assert ctx["debit_rows"] == []
+    assert ctx["subtotal_dr"] == 0.0
+    assert ctx["subtotal_cr"] == 0.0
+
+    # Driver returns a surplus (advance 10k, no spend) via the closing entry.
+    expenses = [
+        {"exp_type": "CASH_ADVANCE", "amount": 10000.0, "manager_status": "APPROVED"},
+        {"exp_type": "SETTLEMENT_TRANSFER", "amount": 10000.0, "manager_status": "APPROVED"},
+    ]
+    s = compute_settlement(trip, expenses)
+    ctx = _build_weasyprint_context(trip, s, None, None, expenses=expenses)
+    assert s.settlement_transfer_side == "DR"
+    # Pre-transfer subtotal shows the imbalance the closing entry then balances.
+    assert ctx["subtotal_dr"] == 0.0
+    assert ctx["subtotal_cr"] == 10000.0
+    assert ctx["total_driver_credits"] == ctx["total_cr"] == 10000.0
+    assert ctx["net_balance"] == 0.0

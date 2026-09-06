@@ -109,7 +109,7 @@ def test_driver_initiation_uses_server_computed_amount(client, resolve_db):
     # fetchone order: trip lookup -> _trip_forbidden fleet row -> trip_status
     # -> open_settlement_request -> insert_expense trip_id reselect.
     db_obj = _db(
-        [_trip(), {"fleet_id": 1}, {"status": "ACTIVE"}, None, {"id": 1}],
+        [_trip(), {"fleet_id": 1}, {"status": "ACTIVE"}, None, {"id": 1}, {"id": 300}],
         fetchall_value=_ledger(),
     )
     resolve_db(db_obj, user=DRIVER_USER)
@@ -125,6 +125,7 @@ def test_driver_initiation_uses_server_computed_amount(client, resolve_db):
     body = resp.json()["data"]
     assert body["manager_status"] == "PENDING"
     assert body["settlement_amount"] == pytest.approx(5000.0)
+    assert body["expense_id"] == 300
 
 
 def test_non_assigned_driver_cannot_initiate(client, resolve_db):
