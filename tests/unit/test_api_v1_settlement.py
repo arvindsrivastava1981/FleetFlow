@@ -671,3 +671,66 @@ def test_get_receipt_returns_stored_image(client, resolve_db):
     body = resp.json()["data"]
     assert body["receipt_image_url"] == "data:image/jpeg;base64,AAA"
     assert body["has_receipt"] is True
+
+
+# ---- Partial approval (audit D-2) --------------------------------------------
+def test_action_expense_status_partial_approval_sets_column():
+    from backend.app.db.queries.expenses import action_expense_status
+
+    conn = mock.MagicMock()
+    cur = mock.MagicMock()
+    conn.cursor.return_value = cur
+    cur.fetchone.return_value = {"trip_code": "TRIP-101"}
+
+    result = action_expense_status(conn, 9, "APPROVED", approved_amount=4000.0)
+    assert result == "TRIP-101"
+    update = [
+        c for c in cur.execute.call_args_list
+        if str(c.args[0]).startswith("UPDATE expenses")
+    ]
+    assert update, "no UPDATE ran"
+    assert "approved_amount" in str(update[0].args[0])
+    assert 4000.0 in update[0].args[1]
+
+
+def test_action_expense_status_full_approve_leaves_amount_null():
+    from backend.app.db.queries.expenses import action_expense_status
+
+    conn = mock.MagicMock()
+    cur = mock.MagicMock()
+    conn.cursor.return_value = cur
+    cur.fetchone.return_value = {"trip_code": "TRIP-101"}
+
+    action_expense_status(conn, 9, "APPROVED")
+    update = [
+        c for c in cur.execute.call_args_list
+        if str(c.args[0]).startswith("UPDATE expenses")
+    ]
+    assert update and "approved_amount" not in str(update[0].args[0])
+
+
+def test_action_rejects_partial_amount_over_claimed(client, resolve_db, monkeypatch):
+    monkeypatch.setattr("backend.app.core.errors.get_db", _raising_get_db)
+    row = {"exp_type": "FUEL", "amount": 5000.0, "created_by": 1, "trip_code": "TRIP-101"}
+    db_obj = _mock_multi_cursor({"trip_code": "TRIP-101"}, _trip(), row)
+    resolve_db(db_obj)
+    resp = client.post(
+        "/api/v1/expenses/9/action",
+        json={"action": "APPROVE", "approved_amount": 9000},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID_AMOUNT"
+
+
+def test_driver_cannot_post_advance_or_batta(client, resolve_db, monkeypatch):
+    monkeypatch.setattr("backend.app.core.errors.get_db", _raising_get_db)
+    resolve_db(
+        _mock_db_cursor(_trip(), []),
+        user={"user_id": 5, "username": "d", "role": "driver"},
+    )
+    resp = client.post(
+        "/api/v1/expenses",
+        json={"trip_code": "TRIP-101", "exp_type": "CASH_ADVANCE", "amount": 1000},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "FORBIDDEN"

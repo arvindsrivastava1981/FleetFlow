@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { api } from "../lib/api.js";
 import { ShortcutProvider, useShortcuts } from "../context/ShortcutContext.jsx";
 import NotificationBell from "./NotificationBell.jsx";
+import OfflineSyncBadge from "./OfflineSyncBadge.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import SessionWarningBanner from "./SessionWarningBanner.jsx";
 
@@ -22,6 +23,8 @@ const SECTIONS = [
     links: [
       { to: "/dashboard", label: "My Dashboard", labelHi: "मेरा डैशबोर्ड", icon: "📊" },
       { to: "/trips", label: "Active Trips", labelHi: "सक्रिय ट्रिप", icon: "🚚", roles: ["trip_manager", "super_admin"] },
+      { custom: "log", icon: "⚡", label: "Log Expense", labelHi: "खर्च जोड़ें", roles: ["trip_manager", "super_admin"] },
+      { custom: "bulk", icon: "📋", label: "Bulk Entry", labelHi: "बल्क एंट्री", roles: ["trip_manager", "super_admin"] },
       {
         to: "/whatsapp",
         icon: "💬",
@@ -116,8 +119,22 @@ function navClass({ isActive }) {
       : "font-medium text-ink-600 hover:bg-ink-100 hover:text-ink-900"
   }`;
 }
+// Resolve the caller's ACTIVE trip and navigate to one of its entry screens
+// (log | bulk). Falls back to /trips/new when there is no active trip.
+function goToActiveEntry(navigate, kind) {
+  api
+    .get("/api/v1/trips")
+    .then((trips) => {
+      const active =
+        Array.isArray(trips) && trips.find((t) => t.status === "ACTIVE");
+      navigate(active ? `/trips/${active.trip_code}/${kind}` : "/trips/new");
+    })
+    .catch(() => navigate("/trips/new"));
+}
+
 function Sidebar({ role, lang = "en", onToggleLang }) {
   const { logout, user } = useAuth();
+  const navigate = useNavigate();
   const hi = lang === "hi";
   // Fleet-less trip managers are gated to /onboarding by ProtectedRoute — hide
   // nav links that would just bounce so the sidebar never shows dead entries.
@@ -182,29 +199,43 @@ function Sidebar({ role, lang = "en", onToggleLang }) {
               {hi ? section.titleHi || section.title : section.title}
             </p>
             <div className="space-y-0.5">
-              {links.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  end={link.to === "/trips"}
-                  className={navClass}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <span
-                        aria-hidden="true"
-                        className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-600 transition-all duration-200 ${
-                          isActive ? "opacity-100" : "opacity-0"
-                        }`}
-                      />
-                      <span className="w-5 text-center text-base leading-none">
-                        {link.icon}
-                      </span>
-                      <span>{labelFor(link)}</span>
-                    </>
-                  )}
-                </NavLink>
-              ))}
+              {links.map((link) =>
+                link.custom ? (
+                  <button
+                    key={link.custom}
+                    type="button"
+                    onClick={() => goToActiveEntry(navigate, link.custom)}
+                    className={`w-full text-left ${navClass({ isActive: false })}`}
+                  >
+                    <span className="w-5 text-center text-base leading-none">
+                      {link.icon}
+                    </span>
+                    <span>{labelFor(link)}</span>
+                  </button>
+                ) : (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.to === "/trips"}
+                    className={navClass}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className={`absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-brand-600 transition-all duration-200 ${
+                            isActive ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        <span className="w-5 text-center text-base leading-none">
+                          {link.icon}
+                        </span>
+                        <span>{labelFor(link)}</span>
+                      </>
+                    )}
+                  </NavLink>
+                ),
+              )}
             </div>
           </div>
         );
@@ -260,14 +291,7 @@ export default function Layout({ children }) {
           el.isContentEditable);
       if (typing) return;
       e.preventDefault();
-      api
-        .get("/api/v1/trips")
-        .then((trips) => {
-          const active =
-            Array.isArray(trips) && trips.find((t) => t.status === "ACTIVE");
-          navigate(active ? `/trips/${active.trip_code}/log` : "/trips/new");
-        })
-        .catch(() => navigate("/trips/new"));
+      goToActiveEntry(navigate, "log");
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -306,6 +330,7 @@ export default function Layout({ children }) {
             </div>
             <div className="flex items-center gap-3">
               <ShortcutDisplay />
+              <OfflineSyncBadge />
               <NotificationBell />
               <UserChip user={user} role={role} />
             </div>

@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useToast } from "../context/ToastContext.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useShortcuts } from "../context/ShortcutContext.jsx";
 import Loader from "../components/Loader.jsx";
 import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
+import { enqueue, isNetworkError } from "../lib/offlineQueue.js";
 import {
   impliedRate,
   isImageTooLarge,
@@ -68,6 +70,8 @@ export default function ExpenseEntryPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { setShortcuts } = useShortcuts();
+  const { user } = useAuth();
+  const isDriver = user?.role === "driver";
   const [trip, setTrip] = useState(null);
   const [states, setStates] = useState([]);
   const [error, setError] = useState("");
@@ -204,22 +208,23 @@ export default function ExpenseEntryPage() {
       toast.error("Enter the amount first.");
       return;
     }
+    const payload = {
+      trip_code: tripCode,
+      exp_type: type,
+      amount: Number(amount),
+      liters: isFuel ? Number(liters || 0) : 0,
+      odometer: Number(odometer || 0),
+      ...(isFuel && stateCode ? { state_code: stateCode } : {}),
+      ...(isFuel && stationName.trim() ? { station_name: stationName.trim() } : {}),
+      ...(needsNote && note.trim() ? { raw_receipt_text: note.trim() } : {}),
+      ...(receipt
+        ? { image_base64: receipt.image_base64, image_content_type: receipt.image_content_type }
+        : {}),
+    };
     setBusy(true);
     saveRef.current = save;
     try {
-      const res = await api.post("/api/v1/expenses", {
-        trip_code: tripCode,
-        exp_type: type,
-        amount: Number(amount),
-        liters: isFuel ? Number(liters || 0) : 0,
-        odometer: Number(odometer || 0),
-        ...(isFuel && stateCode ? { state_code: stateCode } : {}),
-        ...(isFuel && stationName.trim() ? { station_name: stationName.trim() } : {}),
-        ...(needsNote && note.trim() ? { raw_receipt_text: note.trim() } : {}),
-        ...(receipt
-          ? { image_base64: receipt.image_base64, image_content_type: receipt.image_content_type }
-          : {}),
-      });
+      const res = await api.post("/api/v1/expenses", payload);
       rememberAmount(type, Number(amount));
       if (res?.expense_id) {
         setSavedExpense({ id: res.expense_id, label: `${type} ₹${amount}` });
@@ -236,7 +241,23 @@ export default function ExpenseEntryPage() {
         navigate(`/trips/${tripCode}`);
       }
     } catch (err) {
-      toast.error(err.message);
+      if (isNetworkError(err)) {
+        enqueue(payload);
+        rememberAmount(type, Number(amount));
+        toast.info("Saved offline — will sync when back online.");
+        if (again) {
+          setAmount("");
+          setNote("");
+          setLiters("");
+          setReceipt(null);
+          document.getElementById("ee-amount")?.focus();
+        } else {
+          skipRef.current = true;
+          navigate(`/trips/${tripCode}`);
+        }
+      } else {
+        toast.error(err.message);
+      }
     } finally {
       setBusy(false);
     }
@@ -279,7 +300,7 @@ export default function ExpenseEntryPage() {
 
       {/* 1 — type chips */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {TYPES.map((t) => (
+        {TYPES.filter((t) => !isDriver || (t.code !== "CASH_ADVANCE" && t.code !== "DRIVER_SALARY")).map((t) => (
           <button
             key={t.code}
             type="button"
@@ -487,15 +508,17 @@ export default function ExpenseEntryPage() {
         >
           Save & Finish
         </button>
-        <Link
-          to={`/trips/${tripCode}/bulk`}
-          className="text-center text-sm font-semibold text-brand-600 transition hover:text-brand-800"
-        >
-          📋 Bulk entry (paste from Excel)
-        </Link>
+        {!isDriver && (
+          <Link
+            to={`/trips/${tripCode}/bulk`}
+            className="text-center text-sm font-semibold text-brand-600 transition hover:text-brand-800"
+          >
+            📋 Bulk entry (paste from Excel)
+          </Link>
+        )}
       </div>
       {/* 4 — one-tap close (ACTIVE trips only) */}
-      {trip.status === "ACTIVE" && (
+      {trip.status === "ACTIVE" && !isDriver && (
         <div className="card p-4">
           <p className="label">Finish Trip</p>
           <div className="mt-2 flex items-end gap-3">

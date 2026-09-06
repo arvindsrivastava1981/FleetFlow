@@ -115,7 +115,7 @@ export default function App() {
       <Route
         path="/trips/:tripCode/log"
         element={
-          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
+          <ProtectedRoute roles={["trip_manager", "super_admin", "driver"]}>
             <Layout>
               <ExpenseEntryPage />
             </Layout>

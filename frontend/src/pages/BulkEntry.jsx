@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import Loader from "../components/Loader.jsx";
 import { EXPENSE_TYPES, parseBulkRows } from "../lib/expenseUtils.js";
+import { enqueue, isNetworkError } from "../lib/offlineQueue.js";
 
 const EMPTY_ROW = { exp_type: "FUEL", amount: "", liters: "", odometer: "", note: "" };
 
@@ -54,6 +55,7 @@ export default function BulkEntryPage() {
     setError("");
     setResults(null);
     let saved = 0;
+    let queued = 0;
     const failed = [];
     for (const row of rows) {
       const amount = Number(row.amount);
@@ -61,27 +63,34 @@ export default function BulkEntryPage() {
         failed.push(`${row.exp_type} — invalid amount`);
         continue;
       }
+      const payload = {
+        trip_code: tripCode,
+        exp_type: row.exp_type,
+        amount,
+        liters: Number(row.liters || 0),
+        odometer: Number(row.odometer || 0),
+        ...(row.note && row.note.trim()
+          ? { raw_receipt_text: row.note.trim() }
+          : {}),
+      };
       try {
-        await api.post("/api/v1/expenses", {
-          trip_code: tripCode,
-          exp_type: row.exp_type,
-          amount,
-          liters: Number(row.liters || 0),
-          odometer: Number(row.odometer || 0),
-          ...(row.note && row.note.trim()
-            ? { raw_receipt_text: row.note.trim() }
-            : {}),
-        });
+        await api.post("/api/v1/expenses", payload);
         saved += 1;
       } catch (err) {
-        failed.push(`${row.exp_type} ₹${amount} — ${err.message}`);
+        if (isNetworkError(err)) {
+          enqueue(payload);
+          queued += 1;
+        } else {
+          failed.push(`${row.exp_type} ₹${amount} — ${err.message}`);
+        }
       }
     }
-    setResults({ saved, failed });
+    setResults({ saved, queued, failed });
     if (saved) {
       setRows([]);
       toast.success(`Saved ${saved} expense${saved > 1 ? "s" : ""}.`);
     }
+    if (queued) toast.info(`${queued} queued offline — will sync when online.`);
     if (failed.length) toast.error(`${failed.length} row${failed.length > 1 ? "s" : ""} failed.`);
     setBusy(false);
   }
@@ -187,7 +196,7 @@ export default function BulkEntryPage() {
 
           {results && (
             <div className={`alert ${results.failed.length ? "alert-error" : "alert-success"}`}>
-              Saved {results.saved}, failed {results.failed.length}.
+              Saved {results.saved}, queued {results.queued || 0}, failed {results.failed.length}.
               {results.failed.length > 0 && (
                 <ul className="mt-1 list-disc pl-5 text-[11px]">
                   {results.failed.map((f, i) => <li key={i}>{f}</li>)}

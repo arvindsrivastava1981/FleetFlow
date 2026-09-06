@@ -64,7 +64,7 @@ def get_trip_stats_by_code(conn) -> dict[str, dict]:
         """SELECT trip_code,
                   COUNT(*) AS expense_count,
                   COALESCE(SUM(amount), 0) AS total_claimed,
-                  COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR (NOT is_flagged AND manager_status != 'REJECTED') THEN amount ELSE 0 END), 0) AS total_approved,
+                  COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR (NOT is_flagged AND manager_status != 'REJECTED') THEN COALESCE(approved_amount, amount) ELSE 0 END), 0) AS total_approved,
                   COALESCE(SUM(CASE WHEN is_flagged THEN amount ELSE 0 END), 0) AS flagged_amount,
                   COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
            FROM expenses

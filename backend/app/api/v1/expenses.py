@@ -119,6 +119,11 @@ async def api_create_expense(request: Request):
     if exp_type != SETTLEMENT_TRANSFER_TYPE and amount <= 0:
         return _bad("amount must be greater than 0", "INVALID_AMOUNT")
 
+    # Drivers cannot self-log provisions (advance/batta) — those are manager or
+    # auto-posted ledger entries only (defense in depth for the driver /log form).
+    if entry_source == "DRIVER_WHATSAPP" and exp_type in AUTO_LEDGER_TYPES:
+        return _bad("advance and batta are manager-only entries", "FORBIDDEN")
+
     with get_db() as conn:
         trip = get_trip_by_code(conn, trip_code)
         if trip is None:
@@ -259,6 +264,19 @@ async def api_action_expense(request: Request, expense_id: int):
     reason = str((body or {}).get("reason") or "").strip() or None
     if reason and len(reason) > 500:
         return _bad("reason must be 500 characters or fewer", "INVALID_REASON")
+    # Optional partial-approval amount (audit D-2): when the manager approves a
+    # lower figure than claimed, the settlement math honors approved_amount.
+    approved_amount = None
+    raw_approved = (body or {}).get("approved_amount")
+    if raw_approved is not None and raw_approved != "":
+        try:
+            approved_amount = round(float(raw_approved), 2)
+        except (TypeError, ValueError):
+            return _bad("approved_amount must be a number", "INVALID_AMOUNT")
+        if approved_amount <= 0:
+            return _bad("approved_amount must be greater than 0", "INVALID_AMOUNT")
+        if action != "APPROVE":
+            return _bad("approved_amount only applies to APPROVE", "INVALID_ACTION")
 
     with get_db() as conn:
         expense_code = get_expense_trip_code(conn, expense_id)
@@ -293,7 +311,20 @@ async def api_action_expense(request: Request, expense_id: int):
                         "code": "LEDGER_CHANGED",
                     },
                 )
-        trip_code = action_expense_status(conn, expense_id, status, reason=reason)
+        if approved_amount is not None:
+            if is_settlement_row:
+                return _bad(
+                    "settlement amount is fixed — partial approval not allowed",
+                    "INVALID_ACTION",
+                )
+            if approved_amount > float(row.get("amount") or 0.0):
+                return _bad(
+                    "approved_amount cannot exceed the claimed amount",
+                    "INVALID_AMOUNT",
+                )
+        trip_code = action_expense_status(
+            conn, expense_id, status, reason=reason, approved_amount=approved_amount
+        )
         if is_settlement_request:
             # The manager's approval records the driver's acceptance on the trip
             # (idempotent, first-wins) so the voucher consent block lights up.

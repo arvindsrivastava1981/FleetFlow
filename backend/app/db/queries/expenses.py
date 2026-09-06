@@ -62,18 +62,33 @@ def delete_expense(conn, expense_id: int) -> str:
 
 
 def action_expense_status(
-    conn, expense_id: int, status: str, reason: str | None = None
+    conn,
+    expense_id: int,
+    status: str,
+    reason: str | None = None,
+    approved_amount: float | None = None,
 ) -> str:
     """Set an expense's manager_status and return its trip_code for redirect.
 
     On REJECT an optional manager *reason* is stored verbatim in
     ``flag_reason`` so the driver's thread/banner can show why it was denied.
+    ``approved_amount`` (partial approval, audit D-2) is only honored on
+    APPROVE; REJECT always clears it so a rejected row never leaks into the
+    settlement math. ``compute_settlement`` reads ``COALESCE(approved_amount,
+    amount)``, so a NULL value means the full claimed amount.
     """
     cur = conn.cursor()
-    if status == "REJECTED" and reason:
+    if status == "REJECTED":
         cur.execute(
-            "UPDATE expenses SET manager_status = %s, flag_reason = %s WHERE id = %s",
+            "UPDATE expenses SET manager_status = %s, flag_reason = %s, "
+            "approved_amount = NULL WHERE id = %s",
             (status, reason, expense_id),
+        )
+    elif approved_amount is not None:
+        cur.execute(
+            "UPDATE expenses SET manager_status = %s, approved_amount = %s "
+            "WHERE id = %s",
+            (status, approved_amount, expense_id),
         )
     else:
         cur.execute(

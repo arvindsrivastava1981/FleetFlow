@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
+import { enqueue, isNetworkError } from "../lib/offlineQueue.js";
 import { useToast } from "../context/ToastContext.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import Loader from "../components/Loader.jsx";
@@ -50,6 +51,8 @@ export default function TripWhatsAppPage() {
   // Inline "why rejected?" note for the manager's Deduct action.
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectNote, setRejectNote] = useState("");
+  const [partialId, setPartialId] = useState(null);
+  const [partialAmount, setPartialAmount] = useState("");
 
   const [form, setForm] = useState({
     trip_code: "", exp_type: "FUEL", amount: "", odometer: "", liters: "", rate: "", state_code: "", note: "",
@@ -120,21 +123,17 @@ export default function TripWhatsAppPage() {
   async function sendReceipt(e) {
     e.preventDefault();
     if (busy) return;
+    const isSettlementSend = form.exp_type === "SETTLEMENT_TRANSFER";
+    const payload = {
+      trip_code: form.trip_code, exp_type: form.exp_type,
+      amount: isSettlementSend ? 0 : Number(form.amount),
+      odometer: Number(form.odometer) || 0, liters: Number(form.liters) || 0,
+      rate: Number(form.rate) || 0, state_code: form.state_code || undefined,
+      ...((form.exp_type === "MISC" || isSettlementSend) && form.note.trim()
+        ? { raw_receipt_text: form.note.trim() } : {}),
+    };
     setBusy(true); setError("");
     try {
-      // SETTLEMENT_TRANSFER: the closing amount is computed by the server from
-      // the live ledger — the client-sent figure is ignored (read-only flow).
-      const isSettlementSend = form.exp_type === "SETTLEMENT_TRANSFER";
-      const payload = {
-        trip_code: form.trip_code, exp_type: form.exp_type,
-        amount: isSettlementSend ? 0 : Number(form.amount),
-        odometer: Number(form.odometer) || 0, liters: Number(form.liters) || 0,
-        rate: Number(form.rate) || 0, state_code: form.state_code || undefined,
-        // MISC / settlement receipts carry a free-text description
-        // -> expenses.raw_receipt_text.
-        ...((form.exp_type === "MISC" || isSettlementSend) && form.note.trim()
-          ? { raw_receipt_text: form.note.trim() } : {}),
-      };
       const res = await api.post("/api/v1/expenses", payload);
       if (isSettlementSend) {
         toast.success(`🤝 Settlement request of ₹${fmtRs(res?.settlement_amount ?? settlementAmount)} sent to your manager for approval.`);
@@ -148,24 +147,34 @@ export default function TripWhatsAppPage() {
       setAgree(false);
       const det = await api.get(`/api/v1/trips/${tripCode}`);
       setExpenses(det?.expenses || []);
-    } catch (e) { setError(e.message); toast.error(e.message); } finally { setBusy(false); }
+    } catch (e) {
+      if (!isSettlementSend && isNetworkError(e)) {
+        enqueue(payload);
+        toast.info("Saved offline — will sync when back online.");
+        setForm((f) => ({ ...f, amount: "", odometer: "", liters: "", rate: "", note: "" }));
+        setAgree(false);
+      } else {
+        setError(e.message); toast.error(e.message);
+      }
+    } finally { setBusy(false); }
   }
 
-  async function decide(exp, action) {
+  async function decide(exp, action, approvedAmount) {
     setBusyId(exp.id); setError("");
     try {
       const res = await api.post(`/api/v1/expenses/${exp.id}/action`, {
         action,
-        // Optional manager note explaining a rejection (stored on the row +
-        // included in the driver's WhatsApp notification).
         ...(action === "REJECT" && rejectNote.trim()
           ? { reason: rejectNote.trim() } : {}),
+        ...(action === "APPROVE" && approvedAmount != null
+          ? { approved_amount: Number(approvedAmount) } : {}),
       });
       const label = action === "APPROVE"
         ? (res?.label_hi ? `स्वीकृत (${res.label_en})` : "Expense approved ✅")
         : (res?.label_hi ? `${res.label_en} (${res.label_hi})` : "Expense deducted ❌");
       toast.success(label);
       setRejectTarget(null); setRejectNote("");
+      setPartialId(null); setPartialAmount("");
       const det = await api.get(`/api/v1/trips/${tripCode}`);
       setExpenses(det?.expenses || []);
     } catch (e) { setError(e.message || "Action failed"); toast.error(e.message || "Action failed"); }
@@ -418,11 +427,19 @@ export default function TripWhatsAppPage() {
                             select
                           </label>
                           <button onClick={() => decide(e, "APPROVE")} disabled={busyId === e.id}
-                            className="text-[10px] btn-success px-2.5 py-1 rounded-full transition disabled:opacity-50">{busyId === e.id ? "…" : "✅ Approve"}</button>
+                            className="text-[10px] btn-success px-3 py-1.5 min-h-[32px] rounded-full transition disabled:opacity-50">{busyId === e.id ? "…" : "✅ Approve"}</button>
+                          <button
+                            onClick={() => { setPartialAmount(String(e.amount || "")); setPartialId(partialId === e.id ? null : e.id); }}
+                            disabled={busyId === e.id}
+                            className="text-[10px] btn-secondary px-3 py-1.5 min-h-[32px] rounded-full transition disabled:opacity-50"
+                            title="Approve a lower amount"
+                          >
+                            ✂️
+                          </button>
                           <button
                             onClick={() => { setRejectNote(""); setRejectTarget(rejectTarget === e.id ? null : e.id); }}
                             disabled={busyId === e.id}
-                            className="text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-full transition disabled:opacity-50">
+                            className="text-[10px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1.5 min-h-[32px] rounded-full transition disabled:opacity-50">
                             {rejectTarget === e.id ? "✕ Cancel" : busyId === e.id ? "…" : "❌ Deduct"}
                           </button>
                         </div>
@@ -432,8 +449,28 @@ export default function TripWhatsAppPage() {
                               placeholder="Reason (optional)… e.g. receipt missing" maxLength={500}
                               className="flex-1 min-w-0 bg-transparent text-[10px] text-rose-900 outline-none placeholder:text-rose-300" />
                             <button onClick={() => decide(e, "REJECT")} disabled={busyId === e.id}
-                              className="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-full transition disabled:opacity-50">
+                              className="text-[10px] font-bold bg-rose-600 text-white px-3 py-1 min-h-[32px] rounded-full transition disabled:opacity-50">
                               {busyId === e.id ? "…" : "Confirm"}
+                            </button>
+                          </div>
+                        )}
+                        {partialId === e.id && (
+                          <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-1">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={partialAmount}
+                              onChange={(e) => setPartialAmount(e.target.value)}
+                              placeholder="Approved ₹"
+                              className="flex-1 min-w-0 bg-transparent text-[10px] text-emerald-900 outline-none placeholder:text-emerald-300"
+                            />
+                            <button
+                              onClick={() => decide(e, "APPROVE", partialAmount)}
+                              disabled={busyId === e.id || !partialAmount || Number(partialAmount) <= 0 || Number(partialAmount) > Number(e.amount)}
+                              className="text-[10px] font-bold bg-emerald-600 text-white px-3 py-1 min-h-[32px] rounded-full transition disabled:opacity-50"
+                            >
+                              {busyId === e.id ? "…" : "Approve ₹"}
                             </button>
                           </div>
                         )}
