@@ -22,16 +22,23 @@ function loadScript(src, id) {
 
 function GoogleButton({ busy, disabled, onCredential }) {
   const divRef = useRef(null);
+  const initializedRef = useRef(false);
+  const onCredentialRef = useRef(onCredential);
+  onCredentialRef.current = onCredential;
+
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID || divRef.current === null) return undefined;
+    if (!GOOGLE_CLIENT_ID || divRef.current === null) return;
     let cancelled = false;
     (async () => {
       try {
         await loadScript("https://accounts.google.com/gsi/client", "gsi-client");
         if (cancelled || !window.google?.accounts?.id) return;
+        // Guard against multiple initializations
+        if (initializedRef.current) return;
+        initializedRef.current = true;
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
-          callback: (res) => res?.credential && onCredential(res.credential),
+          callback: (res) => res?.credential && onCredentialRef.current(res.credential),
           auto_select: false,
           use_fedcm_for_prompt: true,
         });
@@ -48,7 +55,7 @@ function GoogleButton({ busy, disabled, onCredential }) {
     return () => {
       cancelled = true;
     };
-  }, [onCredential]);
+  }, []);
   if (!GOOGLE_CLIENT_ID) return null;
   return <div ref={divRef} className={busy ? "pointer-events-none opacity-60" : ""} />;
 }
