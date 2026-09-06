@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { ShortcutProvider, useShortcuts } from "../context/ShortcutContext.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import SessionWarningBanner from "./SessionWarningBanner.jsx";
@@ -61,6 +62,33 @@ const SECTIONS = [
     ],
   },
 ];
+
+function ShortcutDisplay() {
+  const { shortcuts } = useShortcuts();
+  if (!shortcuts?.length) return null;
+  return (
+    <div
+      role="note"
+      aria-label="Keyboard shortcuts"
+      className="hidden items-center gap-x-3 gap-y-1 rounded-lg border border-ink-100 bg-ink-50/50 px-3 py-1.5 text-[10px] font-medium text-ink-500 md:flex"
+    >
+      <span aria-hidden="true" className="text-xs">⌨️</span>
+      {shortcuts.map((it, i) => (
+        <span key={i} className="flex items-center gap-1">
+          {(Array.isArray(it.keys) ? it.keys : [it.keys]).map((k) => (
+            <kbd
+              key={k}
+              className="rounded border border-ink-200 bg-white px-1 py-0.5 text-[9px] font-bold text-ink-700 shadow-sm"
+            >
+              {k}
+            </kbd>
+          ))}
+          <span className="text-ink-500">{it.label}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
 
 const ROLE_LABELS = {
   super_admin: "Super Admin",
@@ -226,40 +254,42 @@ export default function Layout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-ink-50 font-sans">
-      <header className="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-3 md:px-6">
-          <div className="flex items-center gap-2">
-            {/* Hamburger (audit E-7): mobile drawer toggle, hidden on lg+. */}
-            <button
-              type="button"
-              onClick={() => setMobileNavOpen((o) => !o)}
-              aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
-              aria-expanded={mobileNavOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200 bg-white text-base shadow-sm transition hover:bg-ink-50 lg:hidden"
-            >
-              {mobileNavOpen ? "✕" : "☰"}
-            </button>
-            <Brand />
+    <ShortcutProvider>
+      <div className="min-h-screen bg-ink-50 font-sans">
+        <header className="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur">
+          <div className="mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-4 py-3 md:px-6">
+            <div className="flex items-center gap-2">
+              {/* Hamburger (audit E-7): mobile drawer toggle, hidden on lg+. */}
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen((o) => !o)}
+                aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+                aria-expanded={mobileNavOpen}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200 bg-white text-base shadow-sm transition hover:bg-ink-50 lg:hidden"
+              >
+                {mobileNavOpen ? "✕" : "☰"}
+              </button>
+              <Brand />
+            </div>
+            <div className="flex items-center gap-3">
+              <ShortcutDisplay />
+              <NotificationBell />
+              <UserChip user={user} role={role} />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <NotificationBell />
-            <UserChip user={user} role={role} />
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Audit E-10: warn before the hard logout; offer one-click renewal. */}
-      <SessionWarningBanner />
+        {/* Audit E-10: warn before the hard logout; offer one-click renewal. */}
+        <SessionWarningBanner />
 
-      {/* Mobile nav drawer (audit E-7): replaces the old always-stacked card. */}
-      {mobileNavOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-20 bg-ink-900/40 backdrop-blur-sm lg:hidden"
-            aria-hidden="true"
-            onClick={() => setMobileNavOpen(false)}
-          />
+        {/* Mobile nav drawer (audit E-7): replaces the old always-stacked card. */}
+        {mobileNavOpen && (
+          <>
+            <div
+              className="fixed inset-0 z-20 bg-ink-900/40 backdrop-blur-sm lg:hidden"
+              aria-hidden="true"
+              onClick={() => setMobileNavOpen(false)}
+            />
           <div className="relative z-20 border-b border-ink-200 bg-white px-4 py-3 shadow-sm lg:hidden">
             <Sidebar role={role} lang={lang} onToggleLang={toggleLang} />
           </div>
@@ -278,6 +308,7 @@ export default function Layout({ children }) {
         </main>
       </div>
     </div>
+    </ShortcutProvider>
   );
 }
 
@@ -317,3 +348,4 @@ function UserChip({ user, role }) {
     </div>
   );
 }
+

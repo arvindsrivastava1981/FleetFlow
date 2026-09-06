@@ -3,8 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
+import { useShortcuts } from "../context/ShortcutContext.jsx";
 import Loader from "../components/Loader.jsx";
-import ShortcutBar from "../components/ShortcutBar.jsx";
 import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
 
 const EXPENSE_TYPES = [
@@ -12,10 +12,17 @@ const EXPENSE_TYPES = [
   "CASH_ADVANCE", "DRIVER_SALARY",
 ];
 
+// Shortcuts for this page - displayed in header
+const PAGE_SHORTCUTS = [
+  { keys: ["1–9", "0"], label: "pick type" },
+  { keys: ["Enter"], label: "log expense" },
+];
+
 export default function TripDetailPage() {
   const { tripCode } = useParams();
   const { user } = useAuth();
   const toast = useToast();
+  const { setShortcuts } = useShortcuts();
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [expType, setExpType] = useState("FUEL");
@@ -29,6 +36,12 @@ export default function TripDetailPage() {
   const skipRef = useRef(false);
   const dirty = Boolean(amount || liters || rate || odometer);
   const blocker = useUnsavedGuard(dirty, skipRef);
+
+  // Set shortcuts for this page in the header
+  useEffect(() => {
+    setShortcuts(PAGE_SHORTCUTS);
+    return () => setShortcuts([]);
+  }, [setShortcuts]);
 
   function load() {
     setError("");
@@ -371,12 +384,6 @@ export default function TripDetailPage() {
         </table>
       </div>
 
-      <ShortcutBar
-        items={[
-          { keys: ["1–9", "0"], label: "pick type (no field focused)" },
-          { keys: ["Enter"], label: "log expense" },
-        ]}
-      />
       <LeaveGuardDialog blocker={blocker} onLeave={() => blocker.proceed()} />
     </div>
   );

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useToast } from "../context/ToastContext.jsx";
+import { useShortcuts } from "../context/ShortcutContext.jsx";
 import Loader from "../components/Loader.jsx";
-import ShortcutBar from "../components/ShortcutBar.jsx";
 import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
 
 // Standard Indian registration plate regex (system invariant).
@@ -22,6 +22,13 @@ const initialErrors = {
   advance_amount: "",
   start_odo: "",
 };
+
+// Shortcuts for this page - displayed in header
+const PAGE_SHORTCUTS = [
+  { keys: ["1–9", "0"], label: "pick vehicle" },
+  { keys: ["Shift", "1–9"], label: "pick driver" },
+  { keys: ["Enter"], label: "start trip" },
+];
 
 function validate(form) {
   const errs = { ...initialErrors };
@@ -47,6 +54,7 @@ function validate(form) {
 export default function NewTripPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { setShortcuts } = useShortcuts();
   const [form, setForm] = useState(emptyForm);
   const [vehicles, setVehicles] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -64,6 +72,12 @@ export default function NewTripPage() {
       Number(form.start_odo || 0) !== 0,
   );
   const blocker = useUnsavedGuard(dirty, skipRef);
+
+  // Set shortcuts for this page in the header
+  useEffect(() => {
+    setShortcuts(PAGE_SHORTCUTS);
+    return () => setShortcuts([]);
+  }, [setShortcuts]);
 
   function load() {
     api
@@ -401,13 +415,6 @@ export default function NewTripPage() {
         </form>
       </div>
       )}
-      <ShortcutBar
-        items={[
-          { keys: ["1–9", "0"], label: "pick vehicle" },
-          { keys: ["Shift", "1–9"], label: "pick driver" },
-          { keys: ["Enter"], label: "start trip" },
-        ]}
-      />
       <LeaveGuardDialog blocker={blocker} onLeave={() => blocker.proceed()} />
     </div>
   );

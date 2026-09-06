@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useToast } from "../context/ToastContext.jsx";
+import { useShortcuts } from "../context/ShortcutContext.jsx";
 import Loader from "../components/Loader.jsx";
-import ShortcutBar from "../components/ShortcutBar.jsx";
 import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
 
 // Phase-1 tap-first expense entry: icon-chip type picker, one big amount,
@@ -24,6 +24,12 @@ const TYPES = [
 
 const FUELISH = new Set(["FUEL", "DEF"]);
 const PRESET_KEY = "vk_amount_presets";
+
+// Shortcuts for this page - displayed in header
+const PAGE_SHORTCUTS = [
+  { keys: ["Enter"], label: "save & add another" },
+  { keys: ["1–9", "0"], label: "pick type" },
+];
 
 function loadPresets() {
   try {
@@ -51,6 +57,7 @@ export default function ExpenseEntryPage() {
   const { tripCode } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { setShortcuts } = useShortcuts();
   const [trip, setTrip] = useState(null);
   const [states, setStates] = useState([]);
   const [error, setError] = useState("");
@@ -69,6 +76,12 @@ export default function ExpenseEntryPage() {
   const skipRef = useRef(false);
   const dirty = Boolean(amount || liters || odometer || note || stationName);
   const blocker = useUnsavedGuard(dirty, skipRef);
+
+  // Set shortcuts for this page in the header
+  useEffect(() => {
+    setShortcuts(PAGE_SHORTCUTS);
+    return () => setShortcuts([]);
+  }, [setShortcuts]);
 
   // Auto-dismiss the Undo snackbar after a short window.
   useEffect(() => {
@@ -424,27 +437,6 @@ export default function ExpenseEntryPage() {
         </div>
       )}
 
-      <ShortcutBar
-        items={[
-          { keys: ["Enter"], label: "save & add another" },
-          { keys: ["1–9", "0"], label: "pick type (no field focused)" },
-        ]}
-      />
-      {savedExpense && (
-        <div
-          role="status"
-          className="fixed inset-x-0 bottom-16 z-20 mx-auto flex w-max max-w-[92vw] items-center gap-3 rounded-xl border border-ink-200 bg-ink-900 px-4 py-2.5 text-sm text-white shadow-xl"
-        >
-          <span className="truncate">Saved {savedExpense.label}</span>
-          <button
-            type="button"
-            onClick={undoLast}
-            className="font-bold text-brand-300 underline-offset-2 hover:underline"
-          >
-            Undo
-          </button>
-        </div>
-      )}
       <LeaveGuardDialog blocker={blocker} onLeave={() => blocker.proceed()} />
     </div>
   );
