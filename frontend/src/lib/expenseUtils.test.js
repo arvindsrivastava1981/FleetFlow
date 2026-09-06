@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   SETTLEMENT_TRANSFER,
   impliedRate,
+  isImageTooLarge,
   isInvalidAmount,
   isOdometerRollback,
+  isSupportedImageType,
+  parseReceiptDataUrl,
 } from "./expenseUtils.js";
 
 describe("expenseUtils", () => {
@@ -59,6 +62,29 @@ describe("expenseUtils", () => {
       expect(isOdometerRollback(0, 100000)).toBe(false);
       expect(isOdometerRollback(100500, 0)).toBe(false);
       expect(isOdometerRollback("", 100000)).toBe(false);
+    });
+  });
+
+  describe("receipt intake", () => {
+    it("isSupportedImageType accepts jpeg/png/webp only", () => {
+      expect(isSupportedImageType("image/jpeg")).toBe(true);
+      expect(isSupportedImageType("image/PNG")).toBe(true);
+      expect(isSupportedImageType("image/webp")).toBe(true);
+      expect(isSupportedImageType("image/gif")).toBe(false);
+      expect(isSupportedImageType("application/pdf")).toBe(false);
+    });
+
+    it("isImageTooLarge estimates the decoded size", () => {
+      expect(isImageTooLarge("A".repeat(3_400_000))).toBe(true);
+      expect(isImageTooLarge("aGVsbG8=")).toBe(false);
+    });
+
+    it("parseReceiptDataUrl splits a data URL", () => {
+      expect(parseReceiptDataUrl("data:image/jpeg;base64,AAA")).toEqual({
+        image_content_type: "image/jpeg",
+        image_base64: "AAA",
+      });
+      expect(parseReceiptDataUrl("nope")).toBeNull();
     });
   });
 });

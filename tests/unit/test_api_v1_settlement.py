@@ -601,3 +601,73 @@ def test_create_expense_accepts_positive_amount(client, resolve_db):
     data = resp.json()["data"]
     assert data["expense_id"] == 42
     assert data["exp_type"] == "FUEL"
+
+
+# ---- Receipt photo intake -----------------------------------------------------
+def test_create_expense_rejects_unsupported_image_type(client, resolve_db, monkeypatch):
+    monkeypatch.setattr("backend.app.core.errors.get_db", _raising_get_db)
+    resolve_db(_mock_db_cursor(_trip(), []))
+    resp = client.post(
+        "/api/v1/expenses",
+        json={
+            "trip_code": "TRIP-101",
+            "exp_type": "FUEL",
+            "amount": 1000,
+            "image_base64": "AAA",
+            "image_content_type": "image/gif",
+        },
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID_IMAGE_TYPE"
+
+
+def test_create_expense_rejects_oversized_image(client, resolve_db, monkeypatch):
+    monkeypatch.setattr("backend.app.core.errors.get_db", _raising_get_db)
+    resolve_db(_mock_db_cursor(_trip(), []))
+    big = "A" * 3_400_000  # ~2.55 MB decoded, over the 2.5 MB cap
+    resp = client.post(
+        "/api/v1/expenses",
+        json={
+            "trip_code": "TRIP-101",
+            "exp_type": "FUEL",
+            "amount": 1000,
+            "image_base64": big,
+            "image_content_type": "image/jpeg",
+        },
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "IMAGE_TOO_LARGE"
+
+
+def test_create_expense_accepts_receipt_image(client, resolve_db):
+    trip = _trip(fleet_id=1, state_code=None, current_odo=100000.0)
+    db_obj = _mock_multi_cursor(trip, {"status": "ACTIVE"}, None, {"id": 1}, {"id": 42})
+    resolve_db(db_obj)
+    resp = client.post(
+        "/api/v1/expenses",
+        json={
+            "trip_code": "TRIP-101",
+            "exp_type": "FUEL",
+            "amount": 1000,
+            "image_base64": "aGVsbG8=",
+            "image_content_type": "image/png",
+        },
+    )
+    assert resp.status_code in (200, 201)
+    data = resp.json()["data"]
+    assert data["expense_id"] == 42
+    assert data["has_receipt"] is True
+
+
+def test_get_receipt_returns_stored_image(client, resolve_db):
+    db_obj = _mock_multi_cursor(
+        {"trip_code": "TRIP-101"},
+        _trip(fleet_id=1),
+        {"receipt_image_url": "data:image/jpeg;base64,AAA"},
+    )
+    resolve_db(db_obj)
+    resp = client.get("/api/v1/expenses/9/receipt")
+    assert resp.status_code == 200
+    body = resp.json()["data"]
+    assert body["receipt_image_url"] == "data:image/jpeg;base64,AAA"
+    assert body["has_receipt"] is True

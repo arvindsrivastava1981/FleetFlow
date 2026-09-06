@@ -13,6 +13,7 @@ export default function TripDetailPage() {
   const [error, setError] = useState("");
   const [settleOdo, setSettleOdo] = useState("");
   const [settleBusy, setSettleBusy] = useState(false);
+  const [receiptView, setReceiptView] = useState(null); // {id, url}
 
   function load() {
     setError("");
@@ -72,6 +73,15 @@ export default function TripDetailPage() {
         Payable to Driver
       </span>
     );
+  }
+
+  async function viewReceipt(expenseId) {
+    try {
+      const data = await api.get(`/api/v1/expenses/${expenseId}/receipt`);
+      setReceiptView({ id: expenseId, url: data?.receipt_image_url });
+    } catch (err) {
+      toast.error(err.message);
+    }
   }
 
   return (
@@ -198,6 +208,16 @@ export default function TripDetailPage() {
               <tr key={e.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="p-3 text-xs font-bold text-slate-800">
                   {e.exp_type}
+                  {e.has_receipt && (
+                    <button
+                      type="button"
+                      onClick={() => viewReceipt(e.id)}
+                      aria-label="View receipt photo"
+                      className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] transition hover:bg-slate-200"
+                    >
+                      📷
+                    </button>
+                  )}
                   {e.raw_receipt_text && (
                     <span className="block font-normal text-[10px] text-slate-500">
                       📝 {e.raw_receipt_text}
@@ -250,6 +270,31 @@ export default function TripDetailPage() {
           </tbody>
         </table>
       </div>
+
+      {receiptView && receiptView.url && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setReceiptView(null)}
+        >
+          <div
+            className="max-h-[85vh] max-w-[90vw] overflow-auto rounded-2xl bg-white p-3 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-600">Receipt</span>
+              <button
+                type="button"
+                onClick={() => setReceiptView(null)}
+                className="text-sm font-bold text-slate-500 hover:text-slate-800"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <img src={receiptView.url} alt="Receipt" className="max-h-[70vh] rounded-lg" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

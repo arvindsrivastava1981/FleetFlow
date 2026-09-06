@@ -39,3 +39,29 @@ export function isOdometerRollback(odometer, baseline) {
   if (odo <= 0 || base <= 0) return false;
   return odo < base;
 }
+
+// ---- Receipt photo intake (mirrors backend api/v1/expenses.py) --------------
+export const MAX_RECEIPT_BYTES = 2_500_000;
+export const RECEIPT_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+// True when the MIME type is an allowed receipt image.
+export function isSupportedImageType(contentType) {
+  return RECEIPT_IMAGE_TYPES.has(String(contentType || "").toLowerCase());
+}
+
+// Estimated decoded byte size of a base64 string (x3/4, ignoring padding).
+export function isImageTooLarge(base64) {
+  const b = String(base64 || "");
+  return Math.floor((b.length * 3) / 4) > MAX_RECEIPT_BYTES;
+}
+
+// Split a FileReader data URL (data:<type>;base64,<data>) into the fields the
+// backend expects: { image_content_type, image_base64 }. Returns null when the
+// string is not a valid image data URL.
+export function parseReceiptDataUrl(dataUrl) {
+  const match = /^data:(image\/[a-z0-9.+-]+);base64,(.*)$/i.exec(
+    String(dataUrl || ""),
+  );
+  if (!match) return null;
+  return { image_content_type: match[1].toLowerCase(), image_base64: match[2] };
+}

@@ -16,6 +16,7 @@ def insert_expense(
     raw_receipt_text: str | None = None,
     station_name: str | None = None,
     entry_source: str = "DRIVER_WHATSAPP",
+    receipt_image_url: str | None = None,
 ) -> None:
     """Insert an expense row, resolving `trip_id` from the trips table first.
 
@@ -34,12 +35,12 @@ def insert_expense(
         """INSERT INTO expenses
                (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
                 is_flagged, flag_reason, manager_status, state_code,
-                raw_receipt_text, station_name, entry_source)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                raw_receipt_text, station_name, entry_source, receipt_image_url)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            RETURNING id""",
         (trip_id, trip_code, exp_type, amount, liters, rate, odometer,
          is_flagged, flag_reason, manager_status, state_code,
-         raw_receipt_text, station_name, entry_source),
+         raw_receipt_text, station_name, entry_source, receipt_image_url),
     )
     row = cur.fetchone()
     return row["id"] if row else None
@@ -104,7 +105,7 @@ def get_expenses_for_trip(conn, trip_code: str) -> list[dict]:
     cur.execute(
         "SELECT * FROM expenses WHERE trip_code = %s ORDER BY id DESC", (trip_code,)
     )
-    return cur.fetchall()
+    return [_strip_receipt_url(r) for r in cur.fetchall()]
 
 
 def get_ledger_expenses_for_trip(conn, trip_code: str) -> list[dict]:
@@ -120,7 +121,7 @@ def get_ledger_expenses_for_trip(conn, trip_code: str) -> list[dict]:
         "ORDER BY id DESC",
         (trip_code,),
     )
-    return cur.fetchall()
+    return [_strip_receipt_url(r) for r in cur.fetchall()]
 
 
 def open_settlement_request(conn, trip_code: str) -> dict | None:
@@ -148,3 +149,32 @@ def get_expense_by_id(conn, expense_id: int) -> dict | None:
     cur = conn.cursor()
     cur.execute("SELECT * FROM expenses WHERE id = %s", (expense_id,))
     return cur.fetchone()
+
+
+def _strip_receipt_url(row: dict) -> dict:
+    """Swap the bulky receipt data-URL for a lightweight has_receipt flag.
+
+    Kept here so trip-detail / ledger responses never ship megabytes of base64;
+    the photo itself is fetched on demand via GET /expenses/{id}/receipt.
+    """
+    if row:
+        row["has_receipt"] = bool(row.get("receipt_image_url"))
+        row.pop("receipt_image_url", None)
+    return row
+
+
+def set_expense_receipt(conn, expense_id: int, receipt_image_url: str) -> None:
+    """Attach a receipt photo (data URL) to an existing expense row."""
+    cur = conn.cursor()
+    cur.execute(
+        "UPDATE expenses SET receipt_image_url = %s WHERE id = %s",
+        (receipt_image_url, expense_id),
+    )
+
+
+def get_receipt_url(conn, expense_id: int) -> str | None:
+    """Return the stored receipt photo (data URL), or None when absent."""
+    cur = conn.cursor()
+    cur.execute("SELECT receipt_image_url FROM expenses WHERE id = %s", (expense_id,))
+    row = cur.fetchone()
+    return row["receipt_image_url"] if row else None

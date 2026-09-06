@@ -14,8 +14,10 @@ from backend.app.db.queries.expenses import (
     get_expense_by_id,
     get_expense_trip_code,
     get_expenses_for_trip,
+    get_receipt_url,
     insert_expense,
     open_settlement_request,
+    set_expense_receipt,
 )
 from backend.app.db.queries.trips import (  # noqa: PLC2701 (action owns driver consent stamp)
     driver_consent as record_driver_consent,
@@ -47,6 +49,10 @@ JSON_EXPENSE_TYPES: tuple[str, ...] = (
 # CASH_ADVANCE credits the driver (money given), DRIVER_SALARY debits the trip
 # (batta earned). Both are always APPROVED and never flagged.
 AUTO_LEDGER_TYPES: frozenset[str] = frozenset({"CASH_ADVANCE", "DRIVER_SALARY"})
+
+# Receipt photo intake: allowed image types + decoded size cap (~2.5 MB).
+RECEIPT_IMAGE_TYPES: frozenset[str] = frozenset({"image/jpeg", "image/png", "image/webp"})
+MAX_RECEIPT_BYTES: int = 2_500_000
 
 
 @router.get("/whatsapp/escalations", response_model=Data[list[EscalationRow]])
@@ -93,6 +99,16 @@ async def api_create_expense(request: Request):
     raw_receipt_text = str(body.get("raw_receipt_text") or "").strip() or None
     # Optional pump/station name (quick-entry FUEL/DEF card).
     station_name = str(body.get("station_name") or "").strip() or None
+    # Optional receipt photo (base64) — validated for type + decoded size.
+    image_base64 = str(body.get("image_base64") or "").strip()
+    image_content_type = str(body.get("image_content_type") or "").strip().lower()
+    receipt_image_url = None
+    if image_base64:
+        if image_content_type not in RECEIPT_IMAGE_TYPES:
+            return _bad("unsupported receipt image type", "INVALID_IMAGE_TYPE")
+        if len(image_base64) * 3 // 4 > MAX_RECEIPT_BYTES:
+            return _bad("receipt image too large", "IMAGE_TOO_LARGE")
+        receipt_image_url = f"data:{image_content_type};base64,{image_base64}"
 
     if exp_type not in JSON_EXPENSE_TYPES:
         return _bad("invalid expense type", "INVALID_EXPENSE_TYPE")
@@ -205,6 +221,7 @@ async def api_create_expense(request: Request):
             raw_receipt_text=raw_receipt_text,
             station_name=station_name,
             entry_source=entry_source,
+            receipt_image_url=receipt_image_url,
         )
         if odometer > 0:
             update_trip_odometer(conn, trip_code, odometer)
@@ -216,6 +233,7 @@ async def api_create_expense(request: Request):
         "manager_status": manager_status,
         "is_flagged": is_flagged,
         "flag_reason": flag_reason,
+        "has_receipt": bool(receipt_image_url),
     }
     if exp_type == SETTLEMENT_TRANSFER_TYPE:
         payload["settlement_amount"] = round(amount, 2)
@@ -430,3 +448,56 @@ async def api_delete_expense(request: Request, expense_id: int):
         "expense_id": expense_id,
         "trip_code": trip_code,
     })
+
+
+@router.get("/expenses/{expense_id}/receipt", response_model=Data[dict])
+def api_get_receipt(request: Request, expense_id: int):
+    """Return the stored receipt photo (data URL) for on-demand rendering."""
+    guard = require_json_auth(request)
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    with get_db() as conn:
+        row = get_expense_by_id(conn, expense_id)
+        if row is None:
+            return _not_found("expense not found")
+        trip = get_trip_by_code(conn, row.get("trip_code") or "")
+        if trip is None or _trip_forbidden(conn, user, trip):
+            return JSONResponse(
+                status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
+            )
+        url = get_receipt_url(conn, expense_id)
+    return _ok({"expense_id": expense_id, "receipt_image_url": url, "has_receipt": bool(url)})
+
+
+@router.post("/expenses/{expense_id}/receipt", response_model=Data[dict])
+async def api_attach_receipt(request: Request, expense_id: int):
+    """Attach a receipt photo to an existing expense (manager-only, fleet-scoped)."""
+    guard = require_json_role(request, "trip_manager", "super_admin")
+    if guard is not None:
+        return guard
+    user = _identity(request)
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _bad("invalid JSON body")
+    image_base64 = str((body or {}).get("image_base64") or "").strip()
+    image_content_type = str((body or {}).get("image_content_type") or "").strip().lower()
+    if not image_base64:
+        return _bad("image_base64 is required", "MISSING_IMAGE")
+    if image_content_type not in RECEIPT_IMAGE_TYPES:
+        return _bad("unsupported receipt image type", "INVALID_IMAGE_TYPE")
+    if len(image_base64) * 3 // 4 > MAX_RECEIPT_BYTES:
+        return _bad("receipt image too large", "IMAGE_TOO_LARGE")
+    receipt_image_url = f"data:{image_content_type};base64,{image_base64}"
+    with get_db() as conn:
+        row = get_expense_by_id(conn, expense_id)
+        if row is None:
+            return _not_found("expense not found")
+        trip = get_trip_by_code(conn, row.get("trip_code") or "")
+        if trip is None or _trip_forbidden(conn, user, trip):
+            return JSONResponse(
+                status_code=403, content={"error": "forbidden", "code": "FORBIDDEN"}
+            )
+        set_expense_receipt(conn, expense_id, receipt_image_url)
+    return _ok({"expense_id": expense_id, "has_receipt": True})

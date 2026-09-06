@@ -5,7 +5,14 @@ import { useToast } from "../context/ToastContext.jsx";
 import { useShortcuts } from "../context/ShortcutContext.jsx";
 import Loader from "../components/Loader.jsx";
 import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
-import { impliedRate, isInvalidAmount, isOdometerRollback } from "../lib/expenseUtils.js";
+import {
+  impliedRate,
+  isImageTooLarge,
+  isInvalidAmount,
+  isOdometerRollback,
+  isSupportedImageType,
+  parseReceiptDataUrl,
+} from "../lib/expenseUtils.js";
 
 // Phase-1 tap-first expense entry: icon-chip type picker, one big amount,
 // conditional fields only. 2 taps + 1 number for most entries.
@@ -75,9 +82,10 @@ export default function ExpenseEntryPage() {
   const [settleOdo, setSettleOdo] = useState("");
   const [settleBusy, setSettleBusy] = useState(false);
   const [savedExpense, setSavedExpense] = useState(null); // {id, label} for Undo
+  const [receipt, setReceipt] = useState(null); // {image_base64, image_content_type}
   const saveRef = useRef();
   const skipRef = useRef(false);
-  const dirty = Boolean(amount || liters || odometer || note || stationName);
+  const dirty = Boolean(amount || liters || odometer || note || stationName || receipt);
   const blocker = useUnsavedGuard(dirty, skipRef);
 
   // Set shortcuts for this page in the header
@@ -172,6 +180,25 @@ export default function ExpenseEntryPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [busy, tripCode]);
 
+  function handleReceiptFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!isSupportedImageType(file.type)) {
+      toast.error("Use a JPEG, PNG, or WebP image.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const parsed = parseReceiptDataUrl(reader.result);
+      if (!parsed || isImageTooLarge(parsed.image_base64)) {
+        toast.error("Receipt image is too large (max ~2.5 MB).");
+        return;
+      }
+      setReceipt(parsed);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function save(again) {
     if (isInvalidAmount(amount, type)) {
       toast.error("Enter the amount first.");
@@ -189,6 +216,9 @@ export default function ExpenseEntryPage() {
         ...(isFuel && stateCode ? { state_code: stateCode } : {}),
         ...(isFuel && stationName.trim() ? { station_name: stationName.trim() } : {}),
         ...(needsNote && note.trim() ? { raw_receipt_text: note.trim() } : {}),
+        ...(receipt
+          ? { image_base64: receipt.image_base64, image_content_type: receipt.image_content_type }
+          : {}),
       });
       rememberAmount(type, Number(amount));
       if (res?.expense_id) {
@@ -199,6 +229,7 @@ export default function ExpenseEntryPage() {
         setAmount("");
         setNote("");
         setLiters("");
+        setReceipt(null);
         document.getElementById("ee-amount")?.focus();
       } else {
         skipRef.current = true;
@@ -401,6 +432,42 @@ export default function ExpenseEntryPage() {
           placeholder="e.g. Pump name, location, purpose..."
           className="input"
         />
+      </div>
+
+      {/* Receipt photo (optional) */}
+      <div className="card p-4">
+        <label className="label">Receipt Photo 📷 (optional)</label>
+        <input
+          id="ee-receipt"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleReceiptFile}
+          className="hidden"
+        />
+        {receipt ? (
+          <div className="mt-2 flex items-center gap-3">
+            <img
+              src={`data:${receipt.image_content_type};base64,${receipt.image_base64}`}
+              alt="Receipt preview"
+              className="h-16 w-16 rounded-lg border border-ink-200 object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setReceipt(null)}
+              className="text-sm font-semibold text-rose-600 hover:text-rose-800"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <label
+            htmlFor="ee-receipt"
+            className="mt-2 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ink-300 px-4 py-2 text-sm font-semibold text-ink-600 transition hover:bg-ink-50"
+          >
+            📷 Add receipt photo
+          </label>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

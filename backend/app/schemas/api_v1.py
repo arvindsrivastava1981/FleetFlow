@@ -163,6 +163,8 @@ class ExpenseAccepted(BaseModel):
     # SETTLEMENT_TRANSFER only: the server-computed |net_balance| recorded as
     # the closing-entry amount (client-supplied amounts are ignored).
     settlement_amount: Optional[float] = None
+    # True when a receipt photo was attached (stored as a data URL).
+    has_receipt: bool = False
 
 
 class ExpenseActionResult(BaseModel):
