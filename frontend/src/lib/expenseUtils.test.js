@@ -6,6 +6,7 @@ import {
   isInvalidAmount,
   isOdometerRollback,
   isSupportedImageType,
+  parseBulkRows,
   parseReceiptDataUrl,
 } from "./expenseUtils.js";
 
@@ -86,5 +87,32 @@ describe("expenseUtils", () => {
       });
       expect(parseReceiptDataUrl("nope")).toBeNull();
     });
+  });
+});
+
+describe("bulk entry", () => {
+  it("parses comma/tab-separated rows", () => {
+    const { rows, skipped } = parseBulkRows(
+      "FUEL, 4500, 50, 102000\nTOLL, 320\n",
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      exp_type: "FUEL",
+      amount: 4500,
+      liters: 50,
+      odometer: 102000,
+    });
+    expect(rows[1]).toMatchObject({ exp_type: "TOLL", amount: 320 });
+    expect(skipped).toHaveLength(0);
+  });
+
+  it("reports skipped lines for unknown types / bad amounts", () => {
+    const { rows, skipped } = parseBulkRows(
+      "NOPE, 100\nREPAIR, abc\nREPAIR, -5\n",
+    );
+    expect(rows).toHaveLength(0);
+    expect(skipped).toHaveLength(3);
+    expect(skipped[0].reason).toContain("unknown type");
+    expect(skipped[1].reason).toContain("bad amount");
   });
 });

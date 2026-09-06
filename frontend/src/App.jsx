@@ -10,6 +10,7 @@ const TripsPage = lazy(() => import("./pages/Trips.jsx"));
 const TripDetailPage = lazy(() => import("./pages/TripDetail.jsx"));
 const NewTripPage = lazy(() => import("./pages/NewTrip.jsx"));
 const ExpenseEntryPage = lazy(() => import("./pages/ExpenseEntry.jsx"));
+const BulkEntryPage = lazy(() => import("./pages/BulkEntry.jsx"));
 const FleetsPage = lazy(() => import("./pages/admin/Fleets.jsx"));
 const UsersPage = lazy(() => import("./pages/admin/Users.jsx"));
 const VehiclesPage = lazy(() => import("./pages/admin/Vehicles.jsx"));
@@ -117,6 +118,16 @@ export default function App() {
           <ProtectedRoute roles={["trip_manager", "super_admin"]}>
             <Layout>
               <ExpenseEntryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/trips/:tripCode/bulk"
+        element={
+          <ProtectedRoute roles={["trip_manager", "super_admin"]}>
+            <Layout>
+              <BulkEntryPage />
             </Layout>
           </ProtectedRoute>
         }

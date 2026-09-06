@@ -65,3 +65,50 @@ export function parseReceiptDataUrl(dataUrl) {
   if (!match) return null;
   return { image_content_type: match[1].toLowerCase(), image_base64: match[2] };
 }
+
+// ---- Bulk entry (paste-from-Excel) -----------------------------------------
+export const EXPENSE_TYPES = [
+  "FUEL",
+  "DEF",
+  "TOLL",
+  "REPAIR",
+  "CHALLAN",
+  "MISC",
+  "GOODS_BUY",
+  "GOODS_SALE",
+  "CASH_ADVANCE",
+  "DRIVER_SALARY",
+];
+
+// Parse pasted tab/CSV lines into receipt rows. One receipt per line:
+//   <type>, <amount>[, <liters>, <odometer>, <note>]
+// Returns { rows, skipped } where skipped = [{ line, reason }].
+export function parseBulkRows(text) {
+  const rows = [];
+  const skipped = [];
+  String(text || "")
+    .split(/\r?\n/)
+    .forEach((line, idx) => {
+      const t = line.trim();
+      if (!t) return;
+      const cols = t.split(/[,\t]/).map((c) => c.trim());
+      const exp_type = String(cols[0] || "").toUpperCase();
+      if (!EXPENSE_TYPES.includes(exp_type)) {
+        skipped.push({ line: idx + 1, reason: `unknown type "${cols[0]}"` });
+        return;
+      }
+      const amount = Number(cols[1]);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        skipped.push({ line: idx + 1, reason: `bad amount "${cols[1]}"` });
+        return;
+      }
+      rows.push({
+        exp_type,
+        amount,
+        liters: cols[2] != null && cols[2] !== "" ? Number(cols[2]) : undefined,
+        odometer: cols[3] != null && cols[3] !== "" ? Number(cols[3]) : undefined,
+        note: cols[4] != null ? cols[4] : "",
+      });
+    });
+  return { rows, skipped };
+}

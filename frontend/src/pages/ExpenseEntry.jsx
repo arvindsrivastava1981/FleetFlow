@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useToast } from "../context/ToastContext.jsx";
 import { useShortcuts } from "../context/ShortcutContext.jsx";
@@ -487,6 +487,12 @@ export default function ExpenseEntryPage() {
         >
           Save & Finish
         </button>
+        <Link
+          to={`/trips/${tripCode}/bulk`}
+          className="text-center text-sm font-semibold text-brand-600 transition hover:text-brand-800"
+        >
+          📋 Bulk entry (paste from Excel)
+        </Link>
       </div>
       {/* 4 — one-tap close (ACTIVE trips only) */}
       {trip.status === "ACTIVE" && (
