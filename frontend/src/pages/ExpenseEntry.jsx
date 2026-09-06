@@ -29,6 +29,8 @@ const PRESET_KEY = "vk_amount_presets";
 const PAGE_SHORTCUTS = [
   { keys: ["Enter"], label: "save & add another" },
   { keys: ["1–9", "0"], label: "pick type" },
+  { keys: ["Ctrl", "Enter"], label: "save & finish" },
+  { keys: ["Ctrl", "Z"], label: "undo last" },
 ];
 
 function loadPresets() {
@@ -129,6 +131,8 @@ export default function ExpenseEntryPage() {
 
   // Keyboard data-entry shortcuts:
   //  - Enter in any expense field → Save & Add Another.
+  //  - Ctrl+Enter → Save & Finish.
+  //  - Ctrl+Z → Undo last expense.
   //  - Digit keys 1-9, 0 (while no field is focused) → pick expense type by
   //    position (1=Diesel … 0=last) and jump to the amount field.
   useEffect(() => {
@@ -137,10 +141,19 @@ export default function ExpenseEntryPage() {
     ]);
     function onKey(e) {
       const el = e.target;
+      
+      // Ctrl+Z → Undo last expense
+      if (e.ctrlKey && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        undoLast();
+        return;
+      }
+      
       if (e.key === "Enter") {
         if (el && ENTER_SAVE_IDS.has(el.id) && !busy) {
           e.preventDefault();
-          saveRef.current(true);
+          // Ctrl+Enter → Save & Finish, Enter → Save & Add Another
+          saveRef.current(e.ctrlKey ? false : true);
         }
         return;
       }
@@ -371,19 +384,18 @@ export default function ExpenseEntryPage() {
           </div>
         </div>
       )}
-      {needsNote && (
-        <div className="card p-4">
-          <label className="label" htmlFor="ee-note">What was it for?</label>
-          <input
-            id="ee-note"
-            type="text"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Kanta at Bareilly weighbridge"
-            className="input"
-          />
-        </div>
-      )}
+      {/* Note field - shown for ALL expense types */}
+      <div className="card p-4">
+        <label className="label" htmlFor="ee-note">Note / विवरण (optional)</label>
+        <input
+          id="ee-note"
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Pump name, location, purpose..."
+          className="input"
+        />
+      </div>
 
       <div className="flex flex-col gap-2">
         <button
