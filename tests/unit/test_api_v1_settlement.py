@@ -483,31 +483,30 @@ def test_settle_rejects_fuel_efficiency_too_high(client, resolve_db):
 def test_settle_skips_fuel_check_when_no_fuel_expenses(client, resolve_db):
     """When avg_kml is None (no fuel), the fuel-efficiency gate is skipped.
 
-    The settle progresses past check 5 into mark_trip_settled (which will
-    exhaust our simplified mock cursor — that's expected). What matters is
-    the response code is NOT a fuel-efficiency rejection.
+    The settle progresses past Check 5 into ``mark_trip_settled``, which re-fetches
+    the trip before writing SETTLED. The mock cursor therefore needs three
+    successive ``fetchone`` results — the route's trip lookup, the pending-expense
+    count, then ``settle_trip``'s own re-fetch — so the request completes with a
+    clean 200 instead of raising ``RuntimeError: coroutine raised StopIteration``
+    (which the previous, under-stubbed mock triggered and the global error handler
+    logged as a 500).
     """
     trip = _trip(start_odo=100000.0)
     pending_row = {"pending_count": 0}
     expenses = [_exp(exp_type="TOLL", amount=500.0)]
     db_obj = _mock_multi_cursor(
-        trip, pending_row, fetchall_value=expenses,
+        trip, pending_row, trip, fetchall_value=expenses,
     )
     resolve_db(db_obj)
 
-    try:
-        resp = client.post(
-            "/api/v1/trips/TRIP-101/settle", json={"end_odo": 100500}
-        )
-        code = resp.json().get("code", "")
-    except RuntimeError:
-        # settle_trip exhausts the mock cursor — the route got past both
-        # Check 4 and Check 5, which is the assertion we care about.
-        return
+    resp = client.post(
+        "/api/v1/trips/TRIP-101/settle", json={"end_odo": 100500}
+    )
 
-    # If we get here (mock had enough fetchone stubs), still verify no
-    # fuel-efficiency code was raised.
-    assert code not in ("FUEL_EFFICIENCY_LOW", "FUEL_EFFICIENCY_HIGH")
+    # The route passed Check 4 and skipped Check 5 (no FUEL rows -> avg_kml None),
+    # so it settles successfully rather than returning a fuel-efficiency rejection.
+    assert resp.status_code == 200
+    assert resp.json()["data"]["status"] == "SETTLED"
 
 
 # ---- Pure-logic fuel-efficiency band tests (Check 5) --------------------

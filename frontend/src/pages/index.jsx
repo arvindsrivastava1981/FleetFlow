@@ -163,10 +163,23 @@ export default function LoginPage() {
   async function doSignup(e) {
     e.preventDefault();
     setError("");
+    const email = (signup.email || "").trim();
+    if (!email) {
+      setError("Email is required.");
+      return;
+    }
+    if (signup.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (signup.password !== signup.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     setBusy(true);
     try {
       const msg = await register(
-        signup.email, signup.password, signup.confirmPassword,
+        email, signup.password, signup.confirmPassword,
       );
       setSignupDone(msg);
       setSignup(emptySignup);

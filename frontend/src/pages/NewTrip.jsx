@@ -33,7 +33,9 @@ const PAGE_SHORTCUTS = [
 function validate(form) {
   const errs = { ...initialErrors };
   const vehicleNo = (form.vehicle_no || "").trim().toUpperCase();
-  if (vehicleNo && !PLATE_REGEX.test(vehicleNo)) {
+  if (!vehicleNo) {
+    errs.vehicle_no = "Vehicle is required — select a vehicle or enter a plate number.";
+  } else if (!PLATE_REGEX.test(vehicleNo)) {
     errs.vehicle_no = "Invalid plate — expected format like UP32MA1234";
   }
   const advance = Number(form.advance_amount || 0);
@@ -260,7 +262,8 @@ export default function NewTripPage() {
               Vehicle<Required />
             </p>
             {activeVehicles.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
+              <>
+                <div className="flex flex-wrap gap-2">
                 {activeVehicles.map((v) => (
                   <button
                     key={v.id}
@@ -287,7 +290,9 @@ export default function NewTripPage() {
                     )}
                   </button>
                 ))}
-              </div>
+                </div>
+                <FieldError msg={fieldErrors.vehicle_no} idFor="vehicle_no-err" />
+              </>
             ) : (
               <div>
                 <input

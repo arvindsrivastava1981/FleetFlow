@@ -10,6 +10,7 @@ const PLANS = [
 
 const BATTA_TYPES = ["FIXED_TRIP", "PER_KM", "DAILY", "NONE"];
 const PLATE_RE = /^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{4}$/;
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export default function OnboardFirmPage() {
   const toast = useToast();
@@ -37,6 +38,7 @@ export default function OnboardFirmPage() {
     if (!form.owner_name.trim()) e.owner_name = "Firm / owner name is required.";
     if (!form.phone.trim()) e.phone = "Phone is required.";
     if (!form.email.trim()) e.email = "Manager email is required.";
+    else if (!EMAIL_RE.test(form.email.trim())) e.email = "Enter a valid email address.";
     if (!form.full_name.trim()) e.full_name = "Manager full name is required.";
     if (!form.password.trim()) e.password = "Manager password is required.";
     else if (form.password.length < 8) e.password = "Password must be at least 8 characters.";
@@ -58,6 +60,7 @@ export default function OnboardFirmPage() {
 
     if (form.driver_email && form.driver_full_name && form.driver_password) {
       if (!form.driver_email.trim()) e.driver_email = "Driver email is required.";
+      else if (!EMAIL_RE.test(form.driver_email.trim())) e.driver_email = "Enter a valid email address.";
       if (!form.driver_full_name.trim()) e.driver_full_name = "Driver full name is required.";
       if (form.driver_password.length < 8) e.driver_password = "Driver password must be at least 8 characters.";
     } else if (form.driver_email || form.driver_full_name || form.driver_password || form.driver_phone) {
