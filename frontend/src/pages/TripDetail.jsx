@@ -317,8 +317,8 @@ export default function TripDetailPage() {
                 type="number"
                 step="any"
                 min={trip?.start_odo ?? 0}
-                value={endOdo}
-                onChange={(e) => setEndOdo(e.target.value)}
+                value={settleOdo}
+                onChange={(e) => setSettleOdo(e.target.value)}
                 placeholder={`Min: ${trip?.start_odo ?? 0}`}
                 className="input text-sm w-full"
                 required
@@ -326,7 +326,7 @@ export default function TripDetailPage() {
             </div>
             <button
               onClick={settleTrip}
-              disabled={settleBusy || !endOdo}
+              disabled={settleBusy || !settleOdo}
               className="btn-success px-4 py-2 rounded-xl transition shadow disabled:opacity-50"
             >
               {settleBusy ? "Settling…" : "✓ Settle Trip"}

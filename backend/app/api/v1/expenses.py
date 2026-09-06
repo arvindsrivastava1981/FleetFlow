@@ -97,6 +97,12 @@ async def api_create_expense(request: Request):
     if exp_type not in JSON_EXPENSE_TYPES:
         return _bad("invalid expense type", "INVALID_EXPENSE_TYPE")
 
+    # Audit D-1: a non-positive amount is never a legitimate expense line.
+    # The closing SETTLEMENT_TRANSFER amount is recomputed server-side below, so
+    # the client-supplied value is ignored (and exempted) for that type only.
+    if exp_type != SETTLEMENT_TRANSFER_TYPE and amount <= 0:
+        return _bad("amount must be greater than 0", "INVALID_AMOUNT")
+
     with get_db() as conn:
         trip = get_trip_by_code(conn, trip_code)
         if trip is None:

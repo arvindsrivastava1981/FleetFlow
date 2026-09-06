@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { api } from "../lib/api.js";
 import { ShortcutProvider, useShortcuts } from "../context/ShortcutContext.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
@@ -240,6 +241,38 @@ function Sidebar({ role, lang = "en", onToggleLang }) {
 export default function Layout({ children }) {
   const { user } = useAuth();
   const role = user?.role || "super_admin";
+  const navigate = useNavigate();
+
+  // Global "N" hotkey → fast entry (managers): jump straight to the active
+  // trip's expense log screen from anywhere in the app.
+  useEffect(() => {
+    const isManager = role === "trip_manager" || role === "super_admin";
+    if (!isManager) return undefined;
+    function onKey(e) {
+      if (e.key && e.key.toLowerCase() !== "n") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = document.activeElement;
+      const typing =
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.tagName === "SELECT" ||
+          el.isContentEditable);
+      if (typing) return;
+      e.preventDefault();
+      api
+        .get("/api/v1/trips")
+        .then((trips) => {
+          const active =
+            Array.isArray(trips) && trips.find((t) => t.status === "ACTIVE");
+          navigate(active ? `/trips/${active.trip_code}/log` : "/trips/new");
+        })
+        .catch(() => navigate("/trips/new"));
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [role, navigate]);
+
   const [mobileNavOpen, setMobileNavOpen] = useState(false); // audit E-7
   const [lang, setLang] = useState(navLang()); // audit P-6: shared HI/EN state
 

@@ -5,6 +5,7 @@ import { useToast } from "../context/ToastContext.jsx";
 import { useShortcuts } from "../context/ShortcutContext.jsx";
 import Loader from "../components/Loader.jsx";
 import useUnsavedGuard, { LeaveGuardDialog } from "../hooks/useUnsavedGuard.jsx";
+import { impliedRate, isInvalidAmount, isOdometerRollback } from "../lib/expenseUtils.js";
 
 // Phase-1 tap-first expense entry: icon-chip type picker, one big amount,
 // conditional fields only. 2 taps + 1 number for most entries.
@@ -124,10 +125,9 @@ export default function ExpenseEntryPage() {
   const presets = useMemo(() => loadPresets()[type] || [], [type, amount]);
   const isFuel = FUELISH.has(type);
   const needsNote = type === "MISC";
-  const autoRate =
-    isFuel && Number(liters) > 0 && Number(amount) > 0
-      ? (Number(amount) / Number(liters)).toFixed(2)
-      : null;
+  const autoRate = impliedRate(amount, liters);
+  const odoBaseline = Number(trip?.current_odo || trip?.start_odo || 0);
+  const odoRollback = isOdometerRollback(odometer, odoBaseline);
 
   // Keyboard data-entry shortcuts:
   //  - Enter in any expense field → Save & Add Another.
@@ -173,7 +173,7 @@ export default function ExpenseEntryPage() {
   }, [busy, tripCode]);
 
   async function save(again) {
-    if (!amount || Number(amount) <= 0) {
+    if (isInvalidAmount(amount, type)) {
       toast.error("Enter the amount first.");
       return;
     }
@@ -336,6 +336,11 @@ export default function ExpenseEntryPage() {
               onChange={(e) => setOdometer(e.target.value)}
               className="input"
             />
+            {odoRollback && (
+              <p className="text-[11px] font-semibold text-rose-600">
+                Below last reading ({odoBaseline.toLocaleString("en-IN")} km)
+              </p>
+            )}
           </div>
           {autoRate && (
             <p className="col-span-2 text-[11px] font-semibold text-brand-700">

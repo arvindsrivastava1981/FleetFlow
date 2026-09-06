@@ -84,7 +84,7 @@ export default function TripsPage() {
                 )}
                 {active && (
                   <Link
-                    to={`/trips/${t.trip_code}`}
+                    to={`/trips/${t.trip_code}/log`}
                     onClick={(e) => e.stopPropagation()}
                     className="btn-primary rounded-xl px-4 py-2 text-sm"
                   >

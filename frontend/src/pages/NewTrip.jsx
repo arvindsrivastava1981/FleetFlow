@@ -186,7 +186,7 @@ export default function NewTripPage() {
       toast.success("Trip started successfully.");
       skipRef.current = true;
       // Land on the trip detail page with expense entry
-      navigate(res?.trip_code ? `/trips/${res.trip_code}` : "/trips");
+      navigate(res?.trip_code ? `/trips/${res.trip_code}/log` : "/trips");
     } catch (err) {
       setError(err.message);
       toast.error(err.message);

@@ -546,3 +546,59 @@ def test_avg_kml_above_ceiling():
     s = compute_settlement(trip, expenses)
     assert s.avg_kml == 25.0
     assert s.avg_kml > 12.0
+
+
+# ---- Audit D-1: server-side amount gate on expense creation -------------------
+def _raising_get_db():
+    """Test stub: keep the best-effort error_logs sink from dialing the real DB.
+
+    Expense creation validates amount *before* opening the expense DB handle, but
+    a rejected `_bad(...)` raises `ApiError`, which the global handler persists
+    via `errors._log_error` -> `get_db()`. Stub that sink out so these unit
+    tests stay fast and fully DB-free.
+    """
+    raise RuntimeError("error_logs DB sink disabled in unit test")
+
+
+def test_create_expense_rejects_zero_amount(client, resolve_db, monkeypatch):
+    """A zero amount is rejected before any trip/DB work runs (audit D-1)."""
+    monkeypatch.setattr("backend.app.core.errors.get_db", _raising_get_db)
+    resolve_db(_mock_db_cursor(_trip(), []))
+    resp = client.post(
+        "/api/v1/expenses",
+        json={"trip_code": "TRIP-101", "exp_type": "FUEL", "amount": 0},
+    )
+    assert resp.status_code == 400
+    body = resp.json()
+    assert body["code"] == "INVALID_AMOUNT"
+    assert "amount" in body["error"].lower()
+
+
+def test_create_expense_rejects_negative_amount(client, resolve_db, monkeypatch):
+    """A negative amount can never be a real expense line."""
+    monkeypatch.setattr("backend.app.core.errors.get_db", _raising_get_db)
+    resolve_db(_mock_db_cursor(_trip(), []))
+    resp = client.post(
+        "/api/v1/expenses",
+        json={"trip_code": "TRIP-101", "exp_type": "REPAIR", "amount": -250},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["code"] == "INVALID_AMOUNT"
+
+
+def test_create_expense_accepts_positive_amount(client, resolve_db):
+    """A valid amount clears the D-1 gate and is inserted through the full path."""
+    trip = _trip(fleet_id=1, state_code=None, current_odo=100000.0)
+    # fetchone sequence consumed by the create route:
+    #   1) get_trip_by_code  2) trip_status  3) open_settlement_request
+    #   4) insert_expense's trip-id lookup  5) INSERT ... RETURNING id
+    db_obj = _mock_multi_cursor(trip, {"status": "ACTIVE"}, None, {"id": 1}, {"id": 42})
+    resolve_db(db_obj)
+    resp = client.post(
+        "/api/v1/expenses",
+        json={"trip_code": "TRIP-101", "exp_type": "FUEL", "amount": 1000},
+    )
+    assert resp.status_code in (200, 201)
+    data = resp.json()["data"]
+    assert data["expense_id"] == 42
+    assert data["exp_type"] == "FUEL"
