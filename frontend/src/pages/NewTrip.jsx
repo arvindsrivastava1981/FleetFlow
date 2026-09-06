@@ -184,8 +184,8 @@ export default function NewTripPage() {
       const res = await api.post("/api/v1/trips", payload);
       toast.success("Trip started successfully.");
       skipRef.current = true;
-      // Phase-1: land straight on the tap-first expense entry screen.
-      navigate(res?.trip_code ? `/trips/${res.trip_code}/log` : "/trips");
+      // Land on the trip detail page with expense entry
+      navigate(res?.trip_code ? `/trips/${res.trip_code}` : "/trips");
     } catch (err) {
       setError(err.message);
       toast.error(err.message);
