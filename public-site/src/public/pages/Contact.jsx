@@ -47,7 +47,7 @@ export default function Contact() {
   const update = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const whatsappLink = `https://wa.me/918860666659?text=${encodeURIComponent(
-    `Hi VahanKhata, I'd like a demo. (${form.name || "Inquiry"})`
+    `Hi VahanKhata.in, I'd like a demo. (${form.name || "Inquiry"})`
   )}`;
 
   const handleSubmit = async (e) => {
@@ -106,7 +106,7 @@ export default function Contact() {
 
   // Pre-filled mailto fallback so a failed submission is never a dead end.
   const mailtoFallback = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(
-    "VahanKhata enquiry"
+    "VahanKhata.in enquiry"
   )}&body=${encodeURIComponent(
     `${form.message}\n\n— ${form.name || ""}${form.firm ? `, ${form.firm}` : ""}\n${form.email || ""}`
   )}`;
@@ -119,7 +119,7 @@ export default function Contact() {
     <>
       <Seo
         title="Contact Us"
-        description="Talk to the VahanKhata team about a demo, pricing or onboarding. Reach us by email or WhatsApp."
+        description="Talk to the VahanKhata.in team about a demo, pricing or onboarding. Reach us by email or WhatsApp."
         path="/contact"
       />
 

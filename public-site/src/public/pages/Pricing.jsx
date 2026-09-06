@@ -16,7 +16,7 @@ export default function Pricing() {
     <>
       <Seo
         title="Pricing"
-        description="VahanKhata's simple pricing: a free 15-day trial, ₹799/month, or ₹7,191/year (25% off). No contracts, Razorpay built in."
+        description="VahanKhata.in's simple pricing: a free 15-day trial, ₹799/month, or ₹7,191/year (25% off). No contracts, Razorpay built in."
         path="/pricing"
       />
 

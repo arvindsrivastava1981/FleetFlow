@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import SocialLogin from "../components/SocialLogin.jsx";
+import Logo, { BrandMark } from "../components/Logo.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 
@@ -195,9 +196,11 @@ export default function LoginPage() {
   const B = (
     <div className="hidden flex-col justify-between gap-8 bg-gradient-to-br from-brand-800 to-brand-900 p-10 text-white lg:flex">
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-lg font-black backdrop-blur">VK</div>
+        <BrandMark className="h-11 w-11" tileClassName="bg-white/15 backdrop-blur" />
         <div>
-          <h1 className="text-xl font-extrabold tracking-tight">VahanKhata</h1>
+          <h1 className="text-xl font-extrabold tracking-tight">
+            VahanKhata<span className="text-brand-200">.in</span>
+          </h1>
           <p className="text-xs text-white/60">Fleet Expense Verification</p>
         </div>
       </div>
@@ -221,11 +224,7 @@ return (
         <div className="flex items-center justify-center bg-ink-50 p-6 sm:p-8 lg:p-10">
           <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-pop sm:p-9">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-500 text-sm font-black text-white">VK</div>
-              <div>
-                <h1 className="text-lg font-extrabold tracking-tight text-ink-900">VahanKhata</h1>
-                <p className="text-xs text-ink-500">Fleet Expense Verification</p>
-              </div>
+              <Logo showTagline={false} />
             </div>
             <TabBar tab={tab} setTab={setTab} />
             {error && <div className="alert alert-error mb-5">{error}</div>}

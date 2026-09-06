@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
+import { BrandMark } from "../components/Logo.jsx";
 
 // Self-serve onboarding wizard for fleet-less users (e.g. social sign-ups).
 // Step 1: firm (creates TRIAL fleet + binds caller as owner) - required.
@@ -61,7 +62,7 @@ export default function OnboardingPage() {
   }
 
   function finish() {
-    toast.success("You're all set - welcome to VahanKhata!");
+    toast.success("You're all set - welcome to VahanKhata.in!");
     navigate("/dashboard", { replace: true });
   }
 
@@ -130,11 +131,11 @@ export default function OnboardingPage() {
       {/* Brand / progress panel (desktop) */}
       <div className="hidden flex-col justify-between bg-gradient-to-b from-brand-800 to-brand-900 p-10 text-white lg:flex">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15 text-sm font-black">
-            VK
-          </div>
+          <BrandMark className="h-10 w-10" tileClassName="bg-white/15 backdrop-blur" />
           <div>
-            <p className="text-base font-extrabold tracking-tight">VahanKhata</p>
+            <p className="text-base font-extrabold tracking-tight">
+              VahanKhata<span className="text-brand-200">.in</span>
+            </p>
             <p className="text-xs text-white/60">Fleet Expense Verification</p>
           </div>
         </div>

@@ -27,7 +27,7 @@ export default function Home() {
     <>
       <Seo
         title="Fleet Expense & Trip Management for Indian Transport"
-        description="VahanKhata verifies fuel, tracks trips and settles driver salary for Indian transport firms. Trip start to settlement on WhatsApp."
+        description="VahanKhata.in verifies fuel, tracks trips and settles driver salary for Indian transport firms. Trip start to settlement on WhatsApp."
         path="/"
       />
 
@@ -61,7 +61,7 @@ export default function Home() {
           <div className="mx-auto w-full max-w-sm rounded-2xl border border-border bg-card shadow-md" aria-label="WhatsApp receipt example">
             <div className="flex items-center gap-2 rounded-t-2xl border-b border-border bg-[#075E54] px-4 py-3 text-white">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">VK</span>
-              <div className="text-sm font-medium">VahanKhata</div>
+              <div className="text-sm font-medium">VahanKhata.in</div>
             </div>
             <div className="space-y-3 px-4 py-5 text-sm">
               <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-muted-foreground">

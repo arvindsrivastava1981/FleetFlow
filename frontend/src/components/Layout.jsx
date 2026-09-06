@@ -7,6 +7,7 @@ import NotificationBell from "./NotificationBell.jsx";
 import OfflineSyncBadge from "./OfflineSyncBadge.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import SessionWarningBanner from "./SessionWarningBanner.jsx";
+import Logo from "./Logo.jsx";
 
 const SECTIONS = [
   {
@@ -326,7 +327,7 @@ export default function Layout({ children }) {
               >
                 {mobileNavOpen ? "✕" : "☰"}
               </button>
-              <Brand />
+              <Logo />
             </div>
             <div className="flex items-center gap-3">
               <ShortcutDisplay />
@@ -367,24 +368,6 @@ export default function Layout({ children }) {
       </div>
     </div>
     </ShortcutProvider>
-  );
-}
-
-function Brand() {
-  return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-500 text-sm font-black text-white shadow-sm">
-        VK
-      </div>
-      <div className="leading-tight">
-        <h1 className="text-base font-extrabold tracking-tight text-ink-900">
-          VahanKhata
-        </h1>
-        <p className="hidden text-[11px] font-medium text-ink-400 sm:block">
-          Fleet Expense Verification &amp; Settlement
-        </p>
-      </div>
-    </div>
   );
 }
 

@@ -14,7 +14,7 @@ const FEATURES = [
   {
     icon: MessagesSquare,
     title: "WhatsApp receipt intake",
-    text: "Drivers send receipts on WhatsApp. VahanKhata reads and checks them.",
+    text: "Drivers send receipts on WhatsApp. VahanKhata.in reads and checks them.",
   },
   {
     icon: Gauge,
@@ -48,7 +48,7 @@ export default function Features() {
     <>
       <Seo
         title="Features"
-        description="VahanKhata features: WhatsApp expense intake, per-state fuel benchmarking, driver salary settlement, automatic fraud checks and Razorpay billing."
+        description="VahanKhata.in features: WhatsApp expense intake, per-state fuel benchmarking, driver salary settlement, automatic fraud checks and Razorpay billing."
         path="/features"
       />
 

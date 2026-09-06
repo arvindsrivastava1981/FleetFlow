@@ -8,7 +8,7 @@ export default function Terms() {
     <>
       <Seo
         title="Terms of Service"
-        description="The terms and conditions governing your use of VahanKhata's fleet expense and trip management platform."
+        description="The terms and conditions governing your use of VahanKhata.in's fleet expense and trip management platform."
         path="/terms"
       />
 
@@ -21,7 +21,7 @@ export default function Terms() {
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">Last updated: August 2026</p>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground" lang="hi">
-            ये शर्तें बताती हैं कि VahanKhata सेवा का इस्तेमाल कैसे करें — अकाउंट की ज़िम्मेदारी, Razorpay से बिलिंग, डेटा का
+            ये शर्तें बताती हैं कि VahanKhata.in सेवा का इस्तेमाल कैसे करें — अकाउंट की ज़िम्मेदारी, Razorpay से बिलिंग, डेटा का
             मालिकाना हक़ और सेवा रोकने/बंद करने के नियम। पूरी शर्तें नीचे अंग्रेज़ी में हैं।
           </p>
         </div>
@@ -32,7 +32,7 @@ export default function Terms() {
         <Card className="px-6 py-8">
           <div className="prose prose-sm max-w-none">
             <p>
-              These Terms of Service ("Terms") govern your access to and use of VahanKhata ("the Service"). By creating an
+              These Terms of Service ("Terms") govern your access to and use of VahanKhata.in ("the Service"). By creating an
               account or using the Service you agree to these Terms.
             </p>
             <h2>1. Your account</h2>
@@ -54,7 +54,7 @@ export default function Terms() {
             </p>
             <h2>4. Intellectual property</h2>
             <p>
-              The Service, its software and content are owned by VahanKhata and its licensors. Unless permitted by law, you
+              The Service, its software and content are owned by VahanKhata.in and its licensors. Unless permitted by law, you
               may not copy, modify, distribute or create derivative works without our written consent.
             </p>
             <h2>5. Data you provide</h2>
@@ -65,7 +65,7 @@ export default function Terms() {
             </p>
             <h2>6. Limitation of liability</h2>
             <p>
-              The Service is provided "as is". To the maximum extent permitted by law, VahanKhata is not liable for indirect,
+              The Service is provided "as is". To the maximum extent permitted by law, VahanKhata.in is not liable for indirect,
               incidental or consequential damages. Your use of the Service is at your own risk.
             </p>
             <h2>7. Suspension &amp; termination</h2>

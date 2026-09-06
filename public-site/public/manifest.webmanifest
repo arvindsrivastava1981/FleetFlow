@@ -1,11 +1,10 @@
 {
-  "name": "VahanKhata.in — Fleet Expense & Settlement",
+  "name": "VahanKhata.in — Smart Fleet Expense & Trip Management",
   "short_name": "VahanKhata.in",
-  "description": "Fleet expense verification & settlement engine.",
+  "description": "Fleet expense verification, fuel checks and fair driver settlement — from trip start to sign-off.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
   "icons": [

@@ -8,7 +8,7 @@ export default function Cookies() {
     <>
       <Seo
         title="Cookie Policy"
-        description="How VahanKhata uses cookies and similar technologies for authentication, security and analytics."
+        description="How VahanKhata.in uses cookies and similar technologies for authentication, security and analytics."
         path="/cookies"
       />
 
@@ -32,7 +32,7 @@ export default function Cookies() {
         <Card className="px-6 py-8">
           <div className="prose prose-sm max-w-none">
             <p>
-              This Cookie Policy explains how VahanKhata uses cookies and similar technologies when you visit our site or
+              This Cookie Policy explains how VahanKhata.in uses cookies and similar technologies when you visit our site or
               use our platform. We keep tracking minimal and only where it provides a genuine benefit.
             </p>
             <h2>1. What are cookies?</h2>

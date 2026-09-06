@@ -319,7 +319,7 @@ export default function TripWhatsAppPage() {
         <div>
           <h2 className="page-title">WhatsApp View</h2>
           <p className="text-xs text-slate-500">
-            {isDriver ? "Chat-style simulator · send expense receipts to VahanKhata bot"
+            {isDriver ? "Chat-style simulator · send expense receipts to VahanKhata.in bot"
               : "Chat-style thread · all trip transactions with bilingual detail"}
           </p>
         </div>

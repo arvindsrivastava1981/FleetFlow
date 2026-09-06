@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import { app } from "../config.js";
+import Logo from "./Logo.jsx";
 import { Button } from "../components/ui/button.jsx";
 import {
   Sheet,
@@ -24,13 +25,8 @@ export default function PublicNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between gap-4">
-        <a href="/" className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-base font-black text-primary-foreground">
-            V
-          </span>
-          <span className="text-lg font-extrabold tracking-tight text-foreground">
-            Vahan<span className="text-primary">Khata</span>
-          </span>
+        <a href="/" className="flex items-center gap-2" aria-label="VahanKhata.in — home">
+          <Logo />
         </a>
 
         <nav className="hidden items-center gap-1 lg:flex">
@@ -67,7 +63,7 @@ export default function PublicNav() {
           </SheetTrigger>
           <SheetContent side="right" className="w-72">
             <SheetHeader className="mb-4">
-              <SheetTitle className="text-left">VahanKhata</SheetTitle>
+              <SheetTitle className="text-left">VahanKhata.in</SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-1">
               {LINKS.map((l) => (

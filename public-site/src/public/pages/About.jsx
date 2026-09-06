@@ -27,7 +27,7 @@ export default function About() {
     <>
       <Seo
         title="About Us"
-        description="VahanKhata gives Indian transport firms one honest view of every trip — from fuel to salary settlement."
+        description="VahanKhata.in gives Indian transport firms one honest view of every trip — from fuel to salary settlement."
         path="/about"
       />
 
@@ -45,7 +45,7 @@ export default function About() {
             वहाँखाता उस भरोसे का एक साफ़ रिकॉर्ड रखता है।
           </p>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Indian transport runs on trust. VahanKhata gives that trust a record.
+            Indian transport runs on trust. VahanKhata.in gives that trust a record.
           </p>
         </div>
       </section>
@@ -54,7 +54,7 @@ export default function About() {
       <section className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
         <p className="text-base leading-relaxed text-muted-foreground">
           Unchecked WhatsApp receipts and handwritten ledgers were eating
-          firms' margins. VahanKhata joins the WhatsApp drivers already use
+          firms' margins. VahanKhata.in joins the WhatsApp drivers already use
           to strict fuel benchmarking — so owners earn more and drivers get a
           fair deal.
         </p>

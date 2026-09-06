@@ -11,7 +11,7 @@ import {
 const FAQS = [
   [
     "Do drivers need to install an app?",
-    "No. Drivers send receipts on WhatsApp and VahanKhata reads and checks them.",
+    "No. Drivers send receipts on WhatsApp and VahanKhata.in reads and checks them.",
   ],
   [
     "How does salary settlement work?",
@@ -40,7 +40,7 @@ export default function Faq() {
     <>
       <Seo
         title="FAQ"
-        description="Answers about VahanKhata: WhatsApp expense intake, driver salary settlement, fuel benchmarking, security, multi-fleet support and billing."
+        description="Answers about VahanKhata.in: WhatsApp expense intake, driver salary settlement, fuel benchmarking, security, multi-fleet support and billing."
         path="/faq"
       />
 
