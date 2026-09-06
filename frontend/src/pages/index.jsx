@@ -218,11 +218,11 @@ export default function LoginPage() {
     </div>
   );
 return (
-    <div className="flex min-h-screen bg-gradient-to-br from-ink-950 via-brand-900 to-ink-900 p-4">
-      <div className="mx-auto grid w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-pop my-auto lg:grid-cols-2">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-ink-950 via-brand-900 to-ink-900 p-4">
+      <div className="grid w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-pop lg:grid-cols-2">
         {B}
-        <div className="flex items-center justify-center bg-ink-50 p-6 sm:p-8 lg:p-10">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-7 shadow-pop sm:p-9">
+        <div className="flex items-center justify-center bg-ink-50 p-4 sm:p-8 lg:p-10">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-pop sm:p-9">
             <div className="mb-6 flex items-center gap-3 lg:hidden">
               <Logo showTagline={false} />
             </div>

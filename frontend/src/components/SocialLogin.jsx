@@ -29,6 +29,7 @@ function GoogleButton({ busy, disabled, onCredential }) {
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID || divRef.current === null) return;
     let cancelled = false;
+    let resizeObserver = null;
     (async () => {
       try {
         await loadScript("https://accounts.google.com/gsi/client", "gsi-client");
@@ -42,22 +43,37 @@ function GoogleButton({ busy, disabled, onCredential }) {
           auto_select: false,
           use_fedcm_for_prompt: true,
         });
-        window.google.accounts.id.renderButton(divRef.current, {
-          theme: "outline",
-          size: "large",
-          width: 320,
-          text: "continue_with",
-        });
+        // Render at the container's width instead of a fixed 320px so the
+        // button never overflows narrow mobile cards (Google only accepts
+        // 200–400px, so clamp and re-render when the column resizes).
+        let lastWidth = 0;
+        const render = () => {
+          const el = divRef.current;
+          if (!el || !window.google?.accounts?.id) return;
+          const width = Math.max(200, Math.min(400, el.offsetWidth || 320));
+          if (width === lastWidth) return;
+          lastWidth = width;
+          window.google.accounts.id.renderButton(el, {
+            theme: "outline",
+            size: "large",
+            width,
+            text: "continue_with",
+          });
+        };
+        render();
+        resizeObserver = new ResizeObserver(render);
+        resizeObserver.observe(divRef.current);
       } catch {
         // SDK blocked (ad-blocker / offline): fall back to the plain form.
       }
     })();
     return () => {
       cancelled = true;
+      if (resizeObserver) resizeObserver.disconnect();
     };
   }, []);
   if (!GOOGLE_CLIENT_ID) return null;
-  return <div ref={divRef} className={busy ? "pointer-events-none opacity-60" : ""} />;
+  return <div ref={divRef} className={`w-full ${busy ? "pointer-events-none opacity-60" : ""}`} />;
 }
 
 function FacebookButton({ busy, disabled, onAccessToken }) {

@@ -349,7 +349,7 @@ export default function Layout({ children }) {
               aria-hidden="true"
               onClick={() => setMobileNavOpen(false)}
             />
-          <div className="relative z-20 border-b border-ink-200 bg-white px-4 py-3 shadow-sm lg:hidden">
+          <div className="relative z-20 max-h-[calc(100vh-4rem)] overflow-y-auto border-b border-ink-200 bg-white px-4 py-3 shadow-sm lg:hidden">
             <Sidebar role={role} lang={lang} onToggleLang={toggleLang} />
           </div>
         </>
@@ -373,17 +373,24 @@ export default function Layout({ children }) {
 
 function UserChip({ user, role }) {
   const initials = ((user?.full_name || user?.email || "U").slice(0, 2)).toUpperCase();
+  const name = user?.full_name || user?.email;
   return (
     <div className="flex items-center gap-3">
       <span className="badge badge-brand hidden sm:inline-flex">
         {ROLE_LABELS[role] || role}
       </span>
-      <div className="flex items-center gap-2 rounded-full border border-ink-200 bg-white py-1 pl-1 pr-3 shadow-sm">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+      <div className="flex items-center gap-2 rounded-full border border-ink-200 bg-white py-1 pl-1 pr-1 shadow-sm sm:pr-3">
+        <span
+          aria-hidden="true"
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700"
+        >
           {initials}
         </span>
-        <span className="text-sm font-semibold text-ink-700">
-          {user?.full_name || user?.email}
+        <span
+          className="hidden max-w-[150px] truncate text-sm font-semibold text-ink-700 sm:inline"
+          title={name}
+        >
+          {name}
         </span>
       </div>
     </div>
