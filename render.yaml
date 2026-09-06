@@ -18,7 +18,7 @@ services:
   # ---- Static Site: the public marketing site --------------------------------
   - type: static
     name: vahankhata-site
-    branch: main_new_ui_design-
+    branch: main
     buildCommand: cd public-site && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: public-site/dist
     envVars:
@@ -28,7 +28,7 @@ services:
   # ---- Static Site: the React app SPA -----------------------------------------
   - type: static
     name: vahankhata-app
-    branch: main_new_ui_design-
+    branch: main
     buildCommand: cd frontend && npm ci --no-audit --no-fund && npm run build
     staticPublishPath: frontend/dist
     envVars:
@@ -46,7 +46,7 @@ services:
     runtime: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    branch: main_new_ui_design-
+    branch: main
     healthCheck:
       # GET /healthz — verifies the API boots AND the DB is reachable.
       path: /healthz
