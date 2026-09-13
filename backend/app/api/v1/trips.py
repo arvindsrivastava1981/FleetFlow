@@ -83,7 +83,9 @@ def api_trips(request: Request):
         trips = get_trips_for_user(
             conn, user_id, role, limit=limit, offset=offset
         )
-        stats = get_trip_stats_by_code(conn)
+        stats = get_trip_stats_by_code(
+            conn, [t["trip_code"] for t in trips]
+        )
     for t in trips:
         t["stats"] = stats.get(t["trip_code"], {})
     return _ok(trips)
@@ -151,8 +153,8 @@ async def api_create_trip(request: Request):
 
     if not vehicle_no:
         return _bad("vehicle_no is required", "MISSING_FIELDS")
-    if advance_amount <= 0:
-        return _bad("advance_amount must be greater than zero", "INVALID_ADVANCE")
+    if advance_amount < 0:
+        return _bad("advance_amount must be non-negative", "INVALID_ADVANCE")
     if start_odo < 0:
         return _bad("start_odo must be non-negative", "INVALID_NUMBER")
     if not _PLATE_RE.match(vehicle_no):

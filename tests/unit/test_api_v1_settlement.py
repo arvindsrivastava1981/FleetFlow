@@ -226,10 +226,21 @@ def test_driver_overview_cash_in_hand_subtracts_batta(client, resolve_db):
     assert body["cash_in_hand"] == pytest.approx(10000.0 - 2000.0)
 
 
-def test_trip_detail_forbids_other_managers_trip(client, resolve_db):
-    """A trip_manager cannot view a trip they did not create (403)."""
+def test_trip_detail_allows_same_fleet_manager(client, resolve_db):
+    """A trip_manager in the SAME fleet can view a colleague's trip (200)."""
     trip = _trip(created_by=99, fleet_id=1)
-    resolve_db(_mock_db_cursor(trip), user={"user_id": 5, "username": "m2", "role": "trip_manager"})
+    db_obj = _mock_multi_cursor(trip, {"fleet_id": 1}, fetchall_value=[])
+    resolve_db(db_obj, user={"user_id": 5, "username": "m2", "role": "trip_manager"})
+
+    resp = client.get("/api/v1/trips/TRIP-101")
+    assert resp.status_code == 200, resp.text
+
+
+def test_trip_detail_forbids_cross_fleet_manager(client, resolve_db):
+    """A trip_manager from ANOTHER fleet gets 403 even for a trip they made."""
+    trip = _trip(created_by=5, fleet_id=7)
+    db_obj = _mock_multi_cursor(trip, {"fleet_id": 1}, fetchall_value=[])
+    resolve_db(db_obj, user={"user_id": 5, "username": "m", "role": "trip_manager"})
 
     resp = client.get("/api/v1/trips/TRIP-101")
     assert resp.status_code == 403
@@ -308,8 +319,10 @@ def test_delete_expense_ok_for_manager_manual_row(client, resolve_db):
 def test_expense_action_forbids_cross_scope_manager(client, resolve_db):
     """A manager may not action expenses on another fleet's trip (403)."""
     trip = _trip(fleet_id=7, created_by=99)
-    # get_expense_trip_code -> {"trip_code": ...}; get_trip_by_code -> trip.
-    db_obj = _mock_multi_cursor({"trip_code": trip["trip_code"]}, trip)
+    # get_expense_trip_code -> code; get_trip_by_code -> trip; fleet lookup.
+    db_obj = _mock_multi_cursor(
+        {"trip_code": trip["trip_code"]}, trip, {"fleet_id": 1}
+    )
     resolve_db(db_obj, user={"user_id": 5, "username": "m", "role": "trip_manager"})
     resp = client.post("/api/v1/expenses/1/action", json={"action": "REJECT"})
     assert resp.status_code == 403

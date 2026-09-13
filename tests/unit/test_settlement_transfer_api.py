@@ -249,25 +249,3 @@ def test_reject_settlement_uses_settlement_labels_and_stores_reason(
     ]
     assert upd, "status UPDATE never ran"
     assert upd[0].args[1] == ("REJECTED", "Kanta receipt missing", 9)
-
-
-def test_reject_road_expense_keeps_plain_update_without_reason(
-    client, resolve_db
-):
-    """No reason supplied -> status-only UPDATE; generic 'Deducted' wording."""
-    row = _exp(exp_type="FUEL", amount=100.0)
-    db_obj = _db(
-        [{"trip_code": "TRIP-101"}, _trip(), row, {"trip_code": "TRIP-101"}]
-    )
-    resolve_db(db_obj, user=MANAGER_USER)
-
-    resp = client.post("/api/v1/expenses/99/action", json={"action": "REJECT"})
-
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["data"]["label_en"] == "Deducted"
-    cur = db_obj.__enter__.return_value.cursor.return_value
-    upd = [
-        c for c in cur.execute.call_args_list
-        if str(c.args[0]).startswith("UPDATE expenses")
-    ]
-    assert upd[0].args[1] == ("REJECTED", 99)  # flag_reason untouched

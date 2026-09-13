@@ -76,19 +76,18 @@ def _identity(request: Request) -> dict:
 def _trip_forbidden(conn, user: dict, trip: dict) -> bool:
     """Multi-tenant (fleet) authorization for a trip row.
 
-    super_admin may access any fleet's trips. Every other role must be bound to
-    the trip on the tenant dimension (fleet_id) in addition to their ownership:
-      - trip_manager: must have created the trip AND belong to the trip's fleet.
+    super_admin may access any fleet's trips. Every other role must be bound
+    to the trip on the tenant dimension (fleet_id):
+      - trip_manager: any manager in the SAME fleet (covers handovers).
       - driver: must be the assigned driver AND belong to the trip's fleet.
-    Returns True when access must be forbidden (the caller has no right to it).
+    Returns True when access must be forbidden.
     """
     role = user.get("role", "")
     uid = user.get("user_id")
     if role == "super_admin":
         return False
     if role == "trip_manager":
-        if trip.get("created_by") != uid:
-            return True
+        pass  # fleet check below is the single gate for managers
     elif role == "driver":
         if trip.get("driver_user_id") != uid:
             return True

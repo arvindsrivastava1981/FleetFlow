@@ -57,18 +57,32 @@ def get_latest_active_trip(conn) -> dict | None:
     return cur.fetchone()
 
 
-def get_trip_stats_by_code(conn) -> dict[str, dict]:
-    """Per-trip expense aggregates keyed by trip_code, for the trips/ listings."""
+def get_trip_stats_by_code(conn, trip_codes=None) -> dict:
+    """Per-trip expense aggregates keyed by trip_code, for the trips/ listings.
+
+    Pass *trip_codes* to scope the aggregation to the page being rendered
+    (WHERE trip_code = ANY(%s)) so a manager listing never scans the whole
+    expenses table. An empty list returns {} without touching the DB.
+    None (default) keeps the legacy unfiltered query.
+    """
+    if trip_codes is not None and len(trip_codes) == 0:
+        return {}
+    where_sql = "WHERE trip_code = ANY(%s)" if trip_codes is not None else ""
+    params = (list(trip_codes),) if trip_codes is not None else ()
     cur = conn.cursor()
     cur.execute(
-        """SELECT trip_code,
-                  COUNT(*) AS expense_count,
-                  COALESCE(SUM(amount), 0) AS total_claimed,
-                  COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR (NOT is_flagged AND manager_status != 'REJECTED') THEN COALESCE(approved_amount, amount) ELSE 0 END), 0) AS total_approved,
-                  COALESCE(SUM(CASE WHEN is_flagged THEN amount ELSE 0 END), 0) AS flagged_amount,
-                  COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0) AS pending_count
-           FROM expenses
-          GROUP BY trip_code"""
+        "SELECT trip_code,"
+        " COUNT(*) AS expense_count,"
+        " COALESCE(SUM(amount), 0) AS total_claimed,"
+        " COALESCE(SUM(CASE WHEN manager_status = 'APPROVED' OR"
+        " (NOT is_flagged AND manager_status != 'REJECTED')"
+        " THEN COALESCE(approved_amount, amount) ELSE 0 END), 0) AS total_approved,"
+        " COALESCE(SUM(CASE WHEN is_flagged THEN amount ELSE 0 END), 0)"
+        " AS flagged_amount,"
+        " COALESCE(SUM(CASE WHEN manager_status = 'PENDING' THEN 1 ELSE 0 END), 0)"
+        " AS pending_count"
+        " FROM expenses " + where_sql + " GROUP BY trip_code",
+        params,
     )
     return {row["trip_code"]: row for row in cur.fetchall()}
 

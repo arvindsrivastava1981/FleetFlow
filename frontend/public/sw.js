@@ -3,7 +3,7 @@
 // Static assets (same-origin, hashed filenames) are cached-first; navigation
 // serves the cached shell so the SPA boots offline; `/api/*` is network-only so
 // stale financial data is never served offline.
-const CACHE = "vk-shell-v1";
+const CACHE = "vk-shell-v2";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -34,18 +34,29 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/api/")) return;
   if (url.origin !== self.location.origin) return;
 
-  // App-shell navigation: serve the cached shell first (SPA fallback).
+  // App-shell navigation: network-first, fall back to cached shell (SPA fallback).
   if (event.request.mode === "navigate") {
     event.respondWith(
-      caches.match("/").then(
-        (hit) =>
-          hit ||
-          fetch(event.request).then((res) => {
-            const clone = res.clone();
-            caches.open(CACHE).then((cache) => cache.put("/", clone));
-            return res;
+      fetch(event.request)
+        .then((res) => {
+          const clone = res.clone();
+          caches.open(CACHE).then((cache) => cache.put("/", clone));
+          return res;
+        })
+        .catch(() =>
+          caches.match("/").then((hit) => {
+            if (hit) return hit;
+            return caches.match("/index.html").then(
+              (idx) =>
+                idx ||
+                new Response("<h1>Offline</h1>", {
+                  status: 503,
+                  statusText: "Offline",
+                  headers: { "Content-Type": "text/html" },
+                }),
+            );
           }),
-      ),
+        ),
     );
     return;
   }
@@ -54,13 +65,20 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((hit) => {
       if (hit) return hit;
-      return fetch(event.request).then((res) => {
-        if (res.ok) {
-          const clone = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, clone));
-        }
-        return res;
-      });
+      return fetch(event.request)
+        .then((res) => {
+          if (res && res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE).then((cache) => cache.put(event.request, clone));
+          }
+          return res;
+        })
+        .catch(
+          () =>
+            // Never reject the FetchEvent promise (avoids "network error
+            // response" + Uncaught TypeError: Failed to fetch in console).
+            new Response("", { status: 503, statusText: "Offline" }),
+        );
     }),
   );
 });
