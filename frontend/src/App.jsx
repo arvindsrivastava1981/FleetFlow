@@ -15,7 +15,6 @@ const FleetsPage = lazy(() => import("./pages/admin/Fleets.jsx"));
 const UsersPage = lazy(() => import("./pages/admin/Users.jsx"));
 const VehiclesPage = lazy(() => import("./pages/admin/Vehicles.jsx"));
 const BenchmarksPage = lazy(() => import("./pages/admin/Benchmarks.jsx"));
-const OnboardFirmPage = lazy(() => import("./pages/admin/OnboardFirm.jsx"));
 const OnboardingPage = lazy(() => import("./pages/Onboarding.jsx"));
 const AnalyticsPage = lazy(() => import("./pages/admin/Analytics.jsx"));
 const ErrorLogsPage = lazy(() => import("./pages/admin/ErrorLogs.jsx"));
@@ -239,16 +238,6 @@ export default function App() {
           <ProtectedRoute roles={["super_admin"]}>
             <Layout>
               <ErrorLogsPage />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/onboard"
-        element={
-          <ProtectedRoute roles={["super_admin"]}>
-            <Layout>
-              <OnboardFirmPage />
             </Layout>
           </ProtectedRoute>
         }

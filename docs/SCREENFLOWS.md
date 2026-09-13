@@ -30,7 +30,7 @@ Fleet-less trip_manager (e.g. social sign-up)
 | 3 | `/whatsapp` — Expense Approvals: approve/deduct flagged expenses | — |
 | 4 | `/settlements` — settled trips + PDF export | — |
 | 5 | `/fleets` — full CRUD: create firm, edit, toggle, plan/slots | → `/users` (per-fleet managers) |
-| 6 | `/onboard` — Onboard Firm wizard (firm + owner + trial in one tx) | → new manager logs in |
+| 6 | `/onboarding` — Self-serve fleet wizard (firm → vehicle → driver) | → `/dashboard` |
 | 7 | `/vehicles`, `/drivers` — CRUD incl. batta profile | feed New Trip dropdowns |
 | 8 | `/benchmarks` — Rules & Rates, ★ favorites, live-rate sync (admin-only) | — |
 | 9 | `/users` — user list, create manager/driver, toggle | — |
@@ -44,7 +44,7 @@ Fleet-less trip_manager (e.g. social sign-up)
 
 | Step | Screen | Next actions |
 |---|---|---|
-| 0 | First login without fleet → `/onboarding` wizard | → `/dashboard` |
+| 0 | Sign up → email verify → sign in (fleet auto-created at registration) | → `/dashboard` |
 | 1 | `/dashboard` — own KPIs + live dispatches | → `/trips/new` |
 | 2 | `/trips` → `/trips/new` (own vehicles + active drivers) → `/trips/:tripCode` (expenses, settle) | → `/settlements` |
 | 3 | `/whatsapp` — approve/deduct driver expense submissions (own fleet) | — |

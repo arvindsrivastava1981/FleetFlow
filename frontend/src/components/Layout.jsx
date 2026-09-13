@@ -11,14 +11,6 @@ import Logo from "./Logo.jsx";
 
 const SECTIONS = [
   {
-    title: "Onboarding",
-    titleHi: "ऑनबोर्डिंग",
-    roles: ["super_admin"],
-    links: [
-      { to: "/onboard", label: "Onboard Firm", labelHi: "फर्म जोड़ें", icon: "🚧", roles: ["super_admin"] },
-    ],
-  },
-  {
     title: "Operations",
     titleHi: "संचालन",
     links: [
@@ -40,7 +32,13 @@ const SECTIONS = [
     title: "Fleet & Assets",
     titleHi: "बेड़ा व संसाधन",
     links: [
-      { to: "/fleets", label: "Fleets", labelHi: "बेड़े", icon: "🏢", roles: ["super_admin"] },
+      {
+        to: "/fleets",
+        label: (role) => (role === "trip_manager" ? "My Fleet" : "Fleets"),
+        labelHi: (role) => (role === "trip_manager" ? "मेरी बेड़ा" : "बेड़े"),
+        icon: "🏢",
+        roles: ["trip_manager", "super_admin"],
+      },
       { to: "/vehicles", label: "Vehicles", labelHi: "वाहन", icon: "🚛", roles: ["trip_manager", "super_admin"] },
       { to: "/drivers", label: "Drivers", labelHi: "ड्राइवर", icon: "👨", roles: ["trip_manager", "super_admin"] },
       // Phase-1 nav collapse: for managers, Rules & Rates folds in here instead
