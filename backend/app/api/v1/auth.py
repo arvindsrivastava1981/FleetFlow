@@ -25,6 +25,7 @@ from backend.app.core.security import (
     revoke_user_sessions,
 )
 from backend.app.db.connection import get_db
+from backend.app.db.queries.fleets import insert_fleet, log_fleet_billing_event
 from backend.app.db.queries.users import (
     create_or_link_social_user,
     get_user_by_email,
@@ -310,7 +311,7 @@ async def api_register(request: Request):
             ).fetchone()
             if dup:
                 return _bad("email already registered", "EMAIL_TAKEN")
-            register_user(
+            user_id = register_user(
                 conn,
                 email=email,
                 password_hash=password_hash,
@@ -318,6 +319,20 @@ async def api_register(request: Request):
                 phone=None,
                 email_verify_token=token_hash,
                 email_verify_expires_at=expires_at,
+            )["id"]
+            # Self-onboard: create a TRIAL fleet and bind the new manager so they
+            # can register vehicles immediately after verifying their email.
+            # fleets.phone is UNIQUE NOT NULL — derive a unique placeholder from
+            # the user id (the manager can update it later from their profile).
+            fleet_phone = f"+000000{user_id:07d}"
+            fleet_id = insert_fleet(conn, full_name, fleet_phone)
+            conn.cursor().execute(
+                "UPDATE users SET fleet_id = %s, fleet_role = 'owner' WHERE id = %s",
+                (fleet_id, user_id),
+            )
+            log_fleet_billing_event(
+                conn, fleet_id, "TRIAL_START", "TRIAL", {"self_onboarded": True},
+                created_by=user_id,
             )
     except Exception as e:
         return _bad(f"cannot register: {e}", "DUPLICATE_FIELD")

@@ -1,0 +1,3 @@
+# Cloudflare Pages SPA fallback: route every unknown path to the index so
+# client-side React Router deep links (e.g. /about, /pricing) don't 404.
+/*  /index.html  200

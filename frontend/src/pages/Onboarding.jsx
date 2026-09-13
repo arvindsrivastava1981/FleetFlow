@@ -79,8 +79,9 @@ export default function OnboardingPage() {
         email: email.trim() || null,
       });
       // Refresh auth user so ProtectedRoute stops redirecting to /onboarding.
+      // /auth/me returns {"user": {...}, "expires_at": ...} — extract .user.
       const me = await api.get("/api/v1/auth/me");
-      setUser(me);
+      setUser(me.user);
       return res;
     }, "Firm created - 15-day trial started.");
     if (ok) setStep(1);
